@@ -78,3 +78,27 @@ Diseño y desarrollo por **Nodaria Tech** — nodariatech.es
 
 Añadir a cesta (persiste en localStorage) → **/cesta** → "Finalizar compra" crea el pedido,
 **descuenta stock** y registra el cliente. Pasarela de pago (Stripe/Redsys) = nivel Estándar+.
+
+## Migrar a PostgreSQL (Prisma) — para el VPS
+
+El proyecto trae ya el esquema y la implementación equivalente del repositorio:
+
+- `prisma/schema.prisma` — modelos (Postgres).
+- `lib/store.prisma.ts` — mismo interfaz que `lib/store.ts`, pero con Prisma (excluido del build hasta activarlo).
+- `prisma/seed.mjs` — carga inicial desde `data/db.json`.
+
+Pasos en el servidor:
+
+```bash
+npm i prisma @prisma/client
+# .env -> DATABASE_URL=postgresql://...
+npx prisma migrate dev --name init
+node prisma/seed.mjs
+# activar la versión Prisma:
+#   renombra lib/store.ts -> lib/store.file.ts  y  lib/store.prisma.ts -> lib/store.ts
+#   (o cambia los imports "@/lib/store" por "@/lib/store.prisma")
+#   y quita "lib/store.prisma.ts" del "exclude" de tsconfig.json
+```
+
+Los componentes, páginas, cesta y admin **no cambian**: es el mismo interfaz de repositorio.
+Igual de directo si en su lugar enganchamos `@nodaria/core`.

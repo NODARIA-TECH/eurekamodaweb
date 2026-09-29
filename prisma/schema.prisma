@@ -1,0 +1,73 @@
+// Esquema Prisma (PostgreSQL) — equivalente al store de fichero.
+// Activación en el VPS: ver README ("Migrar a PostgreSQL").
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Category {
+  id       String    @id @default(cuid())
+  slug     String    @unique
+  name     String
+  image    String
+  products Product[]
+}
+
+model Product {
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  name         String
+  price        Int // céntimos
+  image        String
+  stock        Int      @default(0)
+  badge        String?
+  categorySlug String
+  category     Category @relation(fields: [categorySlug], references: [slug])
+  createdAt    DateTime @default(now())
+}
+
+model Customer {
+  id        String            @id @default(cuid())
+  name      String
+  email     String            @unique
+  balance   Int               @default(0) // céntimos. + saldo a favor / - debe
+  createdAt DateTime          @default(now())
+  orders    Order[]
+  movements BalanceMovement[]
+}
+
+model BalanceMovement {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+  amount     Int
+  reason     String
+  createdAt  DateTime @default(now())
+}
+
+model Order {
+  id           String      @id @default(cuid())
+  ref          String      @unique
+  customerId   String?
+  customer     Customer?   @relation(fields: [customerId], references: [id])
+  customerName String?
+  total        Int
+  status       String      @default("pendiente")
+  createdAt    DateTime    @default(now())
+  items        OrderItem[]
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id])
+  productId String
+  name      String
+  price     Int
+  qty       Int
+  size      String?
+}
