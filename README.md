@@ -60,3 +60,21 @@ public/
 
 ---
 Diseño y desarrollo por **Nodaria Tech** — nodariatech.es
+
+## Panel interno (admin)
+
+- Ruta: **/admin** (login en `/admin/login`).
+- Contraseña demo: `eureka` (configurable con `EUREKA_ADMIN_PASSWORD` en `.env`).
+- Secciones: Dashboard, Productos (precio/stock/badge, alta/baja), Categorías, Pedidos (estado), Clientes (balance + movimientos).
+
+## Datos
+
+- Almacén **demo en `data/db.json`** con capa de repositorio en `lib/store.ts`.
+  Es una base de datos de fichero para ver el flujo completo; **sustituible por Prisma/PostgreSQL
+  o `@nodaria/core`** sin tocar los componentes (misma interfaz de repositorio).
+- Precios en **céntimos** (enteros); formato con `lib/money.ts`.
+
+## Flujo de compra
+
+Añadir a cesta (persiste en localStorage) → **/cesta** → "Finalizar compra" crea el pedido,
+**descuenta stock** y registra el cliente. Pasarela de pago (Stripe/Redsys) = nivel Estándar+.

@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { NAV } from '@/lib/data';
 import { useCart } from './Cart';
@@ -34,10 +35,10 @@ export default function Header() {
             <button className="gicon" aria-label="Cuenta">
               <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" /><path d="M5 20c0-3.9 3.1-6 7-6s7 2.1 7 6" /></svg>
             </button>
-            <button className="gicon bag" aria-label="Cesta">
+            <Link className="gicon bag" aria-label="Cesta" href="/cesta">
               <svg viewBox="0 0 24 24"><path d="M6 8h12l-1 12H7L6 8z" /><path d="M9 8V6a3 3 0 0 1 6 0v2" /></svg>
-              <span className="ct">{count}</span>
-            </button>
+              {count > 0 && <span className="ct">{count}</span>}
+            </Link>
           </div>
         </div>
         <nav className="navlinks">

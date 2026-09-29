@@ -1,9 +1,5 @@
 import './globals.css';
 import type { Metadata } from 'next';
-import { CartProvider } from '@/components/Cart';
-import Promo from '@/components/Promo';
-import Header from '@/components/Header';
-import { Footer } from '@/components/Sections';
 
 export const metadata: Metadata = {
   title: 'EUREKA — Tu tienda de moda',
@@ -21,14 +17,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@400;500;600&family=Sacramento&display=swap"
         />
       </head>
-      <body>
-        <CartProvider>
-          <Promo />
-          <Header />
-          {children}
-          <Footer />
-        </CartProvider>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

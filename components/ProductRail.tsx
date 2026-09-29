@@ -1,8 +1,8 @@
 'use client';
-import { PRODUCTS } from '@/lib/data';
+import type { Product } from '@/lib/types';
 import ProductCard from './ProductCard';
 
-export default function ProductRail() {
+export default function ProductRail({ products }: { products: Product[] }) {
   return (
     <section id="rail">
       <div className="wrap">
@@ -12,7 +12,7 @@ export default function ProductRail() {
         </div>
         <div className="railwrap">
           <div className="rail">
-            {PRODUCTS.map((p) => (<ProductCard key={p.id} p={p} />))}
+            {products.map((p) => (<ProductCard key={p.id} p={p} />))}
           </div>
         </div>
       </div>

@@ -1,21 +1,19 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import ProductGrid from '@/components/ProductGrid';
-import { CATEGORIES, categoryBySlug, productsByCategoryName } from '@/lib/data';
+import { getCategory, productsByCategory } from '@/lib/store';
 
-export function generateStaticParams() {
-  return CATEGORIES.map((c) => ({ slug: c.slug }));
-}
+export const dynamic = 'force-dynamic';
 
-export function generateMetadata({ params }: { params: { slug: string } }): Metadata {
-  const c = categoryBySlug(params.slug);
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  const c = await getCategory(params.slug);
   return { title: (c ? c.name : 'Categoría') + ' · EUREKA' };
 }
 
-export default function CategoryPage({ params }: { params: { slug: string } }) {
-  const c = categoryBySlug(params.slug);
+export default async function CategoryPage({ params }: { params: { slug: string } }) {
+  const c = await getCategory(params.slug);
   if (!c) notFound();
-  const products = productsByCategoryName(c.name);
+  const products = await productsByCategory(c.slug);
   return (
     <main className="page">
       <div className="wrap">

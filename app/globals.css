@@ -210,3 +210,80 @@ section{padding-block:clamp(50px,6vw,92px)}
 .pc .imglink{position:absolute;inset:0;display:block}
 .pc .fav,.pc .add{z-index:2}
 @media(max-width:720px){.pdp{grid-template-columns:1fr;gap:20px}}
+
+/* ---- estados producto ---- */
+.pc .bd.out{background:var(--ink);color:#fff}
+.size.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.pdp-stock{font-family:"Jost",sans-serif;font-size:.8rem;letter-spacing:.04em;margin:-8px 0 14px;font-weight:500}
+.pdp-stock.ok{color:var(--gold-deep)}.pdp-stock.ko{color:#a23}
+
+/* ---- cesta ---- */
+.cart{display:grid;grid-template-columns:1fr 340px;gap:clamp(20px,3vw,40px);align-items:start}
+.cart-items{display:flex;flex-direction:column;gap:14px}
+.cart-item{display:grid;grid-template-columns:70px 1fr auto auto;gap:16px;align-items:center;background:#fff;border:1px solid var(--hair);border-radius:14px;padding:12px}
+.cart-item img{width:70px;height:90px;object-fit:cover;border-radius:8px}
+.ci-name{font-family:"Cormorant Garamond",serif;font-weight:600;font-size:1.1rem;color:var(--ink)}
+.ci-size{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.ci-remove{background:none;border:none;color:var(--muted);font-size:.74rem;text-decoration:underline;padding:0;margin-top:6px;display:block}
+.ci-remove:hover{color:#a23}
+.ci-qty{display:flex;align-items:center;gap:10px;border:1px solid var(--hair-2);border-radius:999px;padding:4px 10px}
+.ci-qty button{background:none;border:none;font-size:1.1rem;color:var(--ink);width:20px}
+.ci-price{font-family:"Jost",sans-serif;font-weight:700;color:var(--gold-deep);min-width:70px;text-align:right}
+.cart-sum{background:var(--cream);border:1px solid var(--hair);border-radius:16px;padding:22px;position:sticky;top:90px}
+.cart-sum h3{font-family:"Cormorant Garamond",serif;font-size:1.4rem;color:var(--ink);margin-bottom:12px}
+.cart-sum .row{display:flex;justify-content:space-between;padding:7px 0;font-family:"Jost",sans-serif;font-size:.9rem;color:var(--text)}
+.cart-sum .row b{color:var(--ink)}
+.cart-sum .row.total{border-top:1px solid var(--hair-2);margin-top:6px;padding-top:12px;font-size:1.05rem}
+.cart-sum .row.total b{color:var(--gold-deep);font-family:"Cormorant Garamond",serif;font-size:1.3rem}
+.cart-form{display:flex;flex-direction:column;gap:8px;margin:14px 0}
+.cart-form input{padding:11px 14px;border-radius:10px;border:1px solid var(--hair-2);background:#fff;font-family:"Jost",sans-serif;font-size:.9rem}
+.cart-err{color:#a23;font-size:.8rem;margin-bottom:8px}
+.cart-note{font-size:.72rem;color:var(--muted);margin-top:12px}
+@media(max-width:800px){.cart{grid-template-columns:1fr}.cart-sum{position:static}}
+@media(max-width:520px){.cart-item{grid-template-columns:60px 1fr auto}.ci-price{grid-column:2/-1;text-align:left}}
+
+/* ================= PANEL ADMIN ================= */
+.adm-shell{display:grid;grid-template-columns:230px 1fr;min-height:100vh;background:#faf7f0}
+.adm-side{background:var(--ink);color:#e9e0d0;padding:22px 16px;display:flex;flex-direction:column;gap:6px;position:sticky;top:0;height:100vh}
+.adm-side .brandline{font-family:"Cormorant Garamond",serif;font-size:1.4rem;color:#fff;padding:6px 10px 14px;border-bottom:1px solid rgba(255,255,255,.12);margin-bottom:10px}
+.adm-side .brandline small{display:block;font-family:"Jost",sans-serif;font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gold)}
+.adm-nav a{display:block;padding:10px 12px;border-radius:8px;color:#cbbfa8;font-family:"Jost",sans-serif;font-size:.86rem;transition:.15s}
+.adm-nav a:hover{background:rgba(255,255,255,.06);color:#fff}
+.adm-nav a.on{background:var(--gold);color:#2a2013;font-weight:600}
+.adm-side .bottom{margin-top:auto;display:flex;flex-direction:column;gap:8px;border-top:1px solid rgba(255,255,255,.12);padding-top:12px}
+.adm-side .bottom a,.adm-side .bottom button{font-family:"Jost",sans-serif;font-size:.78rem;color:#cbbfa8;background:none;border:none;text-align:left;padding:6px 12px;cursor:pointer}
+.adm-side .bottom button:hover,.adm-side .bottom a:hover{color:#fff}
+.adm-main{padding:clamp(20px,3vw,40px)}
+.adm-h{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:24px}
+.adm-h h1{font-family:"Cormorant Garamond",serif;font-size:2rem;color:var(--ink)}
+.adm-h p{color:var(--muted);font-family:"Jost",sans-serif;font-size:.85rem}
+.adm-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:26px}
+.tile{background:#fff;border:1px solid var(--hair);border-radius:14px;padding:16px 18px}
+.tile .k{font-family:"Jost",sans-serif;font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.tile .v{font-family:"Cormorant Garamond",serif;font-size:2rem;color:var(--ink);font-weight:600;line-height:1.1;margin-top:4px}
+.tile.gold .v{color:var(--gold-deep)}
+.adm-card{background:#fff;border:1px solid var(--hair);border-radius:14px;padding:18px;margin-bottom:20px}
+.adm-card h2{font-family:"Cormorant Garamond",serif;font-size:1.4rem;color:var(--ink);margin-bottom:12px}
+.adm-table{width:100%;border-collapse:collapse;font-family:"Jost",sans-serif;font-size:.84rem}
+.adm-table th{text-align:left;color:var(--muted);font-weight:600;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;padding:8px 10px;border-bottom:1px solid var(--hair)}
+.adm-table td{padding:9px 10px;border-bottom:1px solid var(--hair);color:var(--ink);vertical-align:middle}
+.adm-table tr:hover td{background:#fbf8f1}
+.adm-table input,.adm-table select{padding:6px 8px;border:1px solid var(--hair-2);border-radius:7px;font-family:"Jost",sans-serif;font-size:.82rem;background:#fff;width:100%;max-width:120px}
+.adm-inline{display:inline-flex;gap:6px;align-items:center}
+.badge-pill{display:inline-block;font-family:"Jost",sans-serif;font-size:.62rem;letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:999px;font-weight:600}
+.st-pendiente{background:#fbecd2;color:#9a6b12}.st-pagado{background:#e7edd6;color:#5b6b2e}.st-enviado{background:#dce7ec;color:#356}.st-entregado{background:#dfe9df;color:#3a6b45}.st-cancelado{background:#f0dede;color:#a23}
+.bal-pos{color:#3a6b45;font-weight:700}.bal-neg{color:#a23;font-weight:700}.bal-zero{color:var(--muted)}
+.low{color:#a23;font-weight:700}
+.btn-sm{font-family:"Jost",sans-serif;font-size:.72rem;font-weight:600;letter-spacing:.04em;padding:7px 12px;border-radius:8px;border:none;cursor:pointer;background:var(--ink);color:#fff}
+.btn-sm.gold{background:var(--gold)}.btn-sm.ghost{background:transparent;border:1px solid var(--hair-2);color:var(--ink)}
+.btn-sm.danger{background:#fff;border:1px solid #e3c4c4;color:#a23}
+.adm-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;align-items:end}
+.adm-form label{display:flex;flex-direction:column;gap:4px;font-family:"Jost",sans-serif;font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.adm-form input,.adm-form select{padding:9px 11px;border:1px solid var(--hair-2);border-radius:8px;font-family:"Jost",sans-serif;font-size:.86rem;background:#fff}
+.adm-login{min-height:100vh;display:grid;place-items:center;background:var(--ink)}
+.adm-login .box{background:#fff;border-radius:16px;padding:30px;width:min(360px,92vw);text-align:center}
+.adm-login h1{font-family:"Cormorant Garamond",serif;font-size:1.8rem;color:var(--ink);margin-bottom:4px}
+.adm-login p{color:var(--muted);font-size:.82rem;margin-bottom:18px;font-family:"Jost",sans-serif}
+.adm-login input{width:100%;padding:12px 14px;border:1px solid var(--hair-2);border-radius:10px;font-family:"Jost",sans-serif;margin-bottom:12px}
+.adm-login .err{color:#a23;font-size:.78rem;margin-bottom:10px}
+@media(max-width:760px){.adm-shell{grid-template-columns:1fr}.adm-side{position:static;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center}.adm-side .brandline{border:none;margin:0;padding:6px 10px}.adm-nav{display:flex;flex-wrap:wrap}.adm-side .bottom{border:none;padding-top:0;flex-direction:row}}

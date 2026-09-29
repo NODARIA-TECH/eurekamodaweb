@@ -1,7 +1,9 @@
 'use client';
 import Link from 'next/link';
 import { useState } from 'react';
-import { pexels, type Product } from '@/lib/data';
+import { pexels } from '@/lib/data';
+import type { Product } from '@/lib/types';
+import { money } from '@/lib/money';
 import { useCart } from './Cart';
 
 function Heart() {
@@ -15,22 +17,28 @@ function Heart() {
 export default function ProductCard({ p }: { p: Product }) {
   const { add } = useCart();
   const [fav, setFav] = useState(false);
+  const out = p.stock <= 0;
   return (
     <article className="pc">
       <div className="img">
-        {p.badge && <span className="bd">{p.badge}</span>}
+        {p.badge && !out && <span className="bd">{p.badge}</span>}
+        {out && <span className="bd out">Agotado</span>}
         <button className={'fav' + (fav ? ' on' : '')} aria-label="Favorito" onClick={() => setFav((f) => !f)}>
           <Heart />
         </button>
         <Link href={`/producto/${p.id}`} className="imglink" aria-label={p.name}>
-          <img loading="lazy" src={pexels(p.img, 420, 560)} alt={p.name} />
+          <img loading="lazy" src={pexels(p.image, 420, 560)} alt={p.name} />
         </Link>
-        <button className="add" onClick={() => add(p.name)}>Añadir</button>
+        {!out && (
+          <button className="add" onClick={() => add({ id: p.id, name: p.name, price: p.price, image: p.image })}>
+            Añadir
+          </button>
+        )}
       </div>
       <div className="cap2">
         <Link className="nm" href={`/producto/${p.id}`}>{p.name}</Link>
         <div className="ct">{p.category}</div>
-        <span className="pr">{p.price} €</span>
+        <span className="pr">{money(p.price)}</span>
       </div>
     </article>
   );
