@@ -22,6 +22,7 @@ export type Customer = {
   balance: number;    // céntimos. + = saldo a favor, - = debe
   movements: BalanceMovement[];
   createdAt: string;
+  passwordHash?: string;  // "scrypt$<salt>$<hash>" — ausente = cuenta invitado (creada por un pedido)
 };
 
 export type OrderItem = { productId: string; name: string; price: number; qty: number; size?: string };

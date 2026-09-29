@@ -342,3 +342,20 @@ section{padding-block:clamp(50px,6vw,92px)}
 .acct-mov .pos,.acct-balance .pos{color:#3f7d4f}
 .acct-mov .neg{color:#b4442f}
 .muted{color:var(--muted);font-family:"Jost",sans-serif;font-size:.82rem}
+
+/* ---- login / registro de cliente ---- */
+.auth-card{max-width:400px;margin:0 auto;background:#fff;border:1px solid var(--hair);border-radius:16px;padding:clamp(24px,4vw,38px);text-align:center}
+.auth-card h1{font-family:"Cormorant Garamond",serif;font-size:clamp(1.9rem,3.6vw,2.6rem);margin:6px 0 4px}
+.auth-sub{color:var(--muted);font-family:"Jost",sans-serif;font-size:.86rem;margin-bottom:20px}
+.auth-form{display:flex;flex-direction:column;gap:14px;text-align:left;margin-bottom:16px}
+.auth-form label{display:flex;flex-direction:column;gap:6px;font-family:"Jost",sans-serif;font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--wood-deep)}
+.auth-form input{border:1px solid var(--hair-2);border-radius:10px;padding:12px 14px;font-family:"Jost",sans-serif;font-size:.92rem;color:var(--ink);background:var(--bg);transition:.2s}
+.auth-form input:focus{outline:none;border-color:var(--gold);background:#fff}
+.auth-form .btn{width:100%;justify-content:center;margin-top:4px}
+.auth-err{background:#f2e0dc;color:#b4442f;border-radius:10px;padding:10px 14px;font-family:"Jost",sans-serif;font-size:.8rem;margin-bottom:16px}
+.auth-alt{font-family:"Jost",sans-serif;font-size:.84rem;color:var(--muted)}
+.auth-alt a{color:var(--gold-deep);border-bottom:1px solid var(--gold);padding-bottom:1px}
+.auth-alt a:hover{color:var(--wood-deep)}
+.acct-side{display:flex;flex-direction:column;gap:12px;align-items:flex-end}
+.acct-logout{font-family:"Jost",sans-serif;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--wood-deep);border:1px solid var(--hair-2);background:#fff;padding:9px 18px;border-radius:999px;transition:.2s}
+.acct-logout:hover{border-color:var(--wood);color:var(--ink)}

@@ -4,6 +4,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { randomUUID } from 'crypto';
 import type { DB, Product, Category, Customer, Order, OrderItem } from './types';
+import { hashPassword, verifyPassword } from './auth';
 
 const FILE = path.join(process.cwd(), 'data', 'db.json');
 
@@ -134,10 +135,41 @@ export async function adjustBalance(id: string, amount: number, reason: string):
   await write(db);
 }
 
-// Consulta de cuenta por email (demo; el login real llega después)
-export async function getAccount(email: string): Promise<{ customer: Customer; orders: Order[] } | undefined> {
+/* -------- Autenticación de clientes -------- */
+export async function registerCustomer(data: { name: string; email: string; password: string }): Promise<{ ok: boolean; customerId?: string; error?: string }> {
+  const email = data.email.toLowerCase().trim();
+  if (!email || !email.includes('@')) return { ok: false, error: 'Introduce un correo válido.' };
+  if (!data.password || data.password.length < 6) return { ok: false, error: 'La contraseña debe tener al menos 6 caracteres.' };
+  const db = await read();
+  const existing = db.customers.find((c) => c.email.toLowerCase() === email);
+  if (existing) {
+    if (existing.passwordHash) return { ok: false, error: 'Ya existe una cuenta con ese correo. Inicia sesión.' };
+    // Cliente creado como invitado por un pedido: reclama su cuenta poniéndole contraseña.
+    existing.passwordHash = hashPassword(data.password);
+    if (data.name) existing.name = data.name;
+    await write(db);
+    return { ok: true, customerId: existing.id };
+  }
+  const cust: Customer = {
+    id: randomUUID().slice(0, 8), name: data.name || email, email, balance: 0, movements: [],
+    createdAt: new Date().toISOString(), passwordHash: hashPassword(data.password),
+  };
+  db.customers.push(cust);
+  await write(db);
+  return { ok: true, customerId: cust.id };
+}
+
+export async function authenticate(email: string, password: string): Promise<{ ok: boolean; customerId?: string; error?: string }> {
   const db = await read();
   const c = db.customers.find((x) => x.email.toLowerCase() === email.toLowerCase().trim());
+  if (!c || !verifyPassword(password, c.passwordHash)) return { ok: false, error: 'Correo o contraseña incorrectos.' };
+  return { ok: true, customerId: c.id };
+}
+
+// Cuenta a partir del id de sesión (login real)
+export async function getAccountById(id: string): Promise<{ customer: Customer; orders: Order[] } | undefined> {
+  const db = await read();
+  const c = db.customers.find((x) => x.id === id);
   if (!c) return undefined;
   const orders = db.orders.filter((o) => o.customerId === c.id).slice().reverse();
   return { customer: c, orders };

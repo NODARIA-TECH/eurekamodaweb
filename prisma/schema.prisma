@@ -32,10 +32,11 @@ model Product {
 
 model Customer {
   id        String            @id @default(cuid())
-  name      String
-  email     String            @unique
-  balance   Int               @default(0) // céntimos. + saldo a favor / - debe
-  createdAt DateTime          @default(now())
+  name         String
+  email        String            @unique
+  balance      Int               @default(0) // céntimos. + saldo a favor / - debe
+  passwordHash String? // "scrypt$<salt>$<hash>"; null = cuenta invitado
+  createdAt    DateTime          @default(now())
   orders    Order[]
   movements BalanceMovement[]
 }

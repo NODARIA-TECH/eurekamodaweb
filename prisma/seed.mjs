@@ -23,7 +23,7 @@ async function main() {
     await prisma.customer.upsert({
       where: { id: c.id }, update: {},
       create: {
-        id: c.id, name: c.name, email: c.email, balance: c.balance, createdAt: new Date(c.createdAt),
+        id: c.id, name: c.name, email: c.email, balance: c.balance, passwordHash: c.passwordHash ?? null, createdAt: new Date(c.createdAt),
         movements: { create: (c.movements ?? []).map((m) => ({ id: m.id, amount: m.amount, reason: m.reason, createdAt: new Date(m.createdAt) })) },
       },
     });

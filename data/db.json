@@ -1,44 +1,222 @@
 {
   "lastOrderNumber": 1002,
   "categories": [
-    { "slug": "vestidos", "name": "Vestidos", "image": "26998033" },
-    { "slug": "punto", "name": "Punto", "image": "1075776" },
-    { "slug": "abrigos", "name": "Abrigos", "image": "37647057" },
-    { "slug": "blazers", "name": "Blazers", "image": "4355156" },
-    { "slug": "jeans", "name": "Jeans", "image": "8991032" },
-    { "slug": "faldas", "name": "Faldas", "image": "6138908" },
-    { "slug": "tops", "name": "Tops", "image": "3960371" }
+    {
+      "slug": "vestidos",
+      "name": "Vestidos",
+      "image": "26998033"
+    },
+    {
+      "slug": "punto",
+      "name": "Punto",
+      "image": "1075776"
+    },
+    {
+      "slug": "abrigos",
+      "name": "Abrigos",
+      "image": "37647057"
+    },
+    {
+      "slug": "blazers",
+      "name": "Blazers",
+      "image": "4355156"
+    },
+    {
+      "slug": "jeans",
+      "name": "Jeans",
+      "image": "8991032"
+    },
+    {
+      "slug": "faldas",
+      "name": "Faldas",
+      "image": "6138908"
+    },
+    {
+      "slug": "tops",
+      "name": "Tops",
+      "image": "3960371"
+    }
   ],
   "products": [
-    { "id": "p1", "slug": "vestido-largo-saten", "name": "Vestido largo satén", "price": 8995, "image": "26998033", "stock": 6, "category": "vestidos", "badge": "Nuevo" },
-    { "id": "p2", "slug": "vestido-midi-entallado", "name": "Vestido midi entallado", "price": 6995, "image": "15481010", "stock": 4, "category": "vestidos" },
-    { "id": "p3", "slug": "trench-largo-cinturon", "name": "Trench largo cinturón", "price": 13995, "image": "34373606", "stock": 3, "category": "abrigos", "badge": "Nuevo" },
-    { "id": "p4", "slug": "blazer-negra-entallada", "name": "Blazer negra entallada", "price": 8995, "image": "4355156", "stock": 8, "category": "blazers" },
-    { "id": "p5", "slug": "jersey-punto-oversize", "name": "Jersey punto oversize", "price": 3200, "image": "1075776", "stock": 0, "category": "punto" },
-    { "id": "p6", "slug": "jean-wide-leg", "name": "Jean wide leg tiro alto", "price": 3995, "image": "8991032", "stock": 12, "category": "jeans", "badge": "Nuevo" },
-    { "id": "p7", "slug": "falda-mini-cuero", "name": "Falda mini efecto cuero", "price": 3595, "image": "6138908", "stock": 5, "category": "faldas" },
-    { "id": "p8", "slug": "top-rayas-canale", "name": "Top rayas canalé", "price": 2595, "image": "3960371", "stock": 20, "category": "tops" },
-    { "id": "p9", "slug": "mono-lino", "name": "Mono largo camisero lino", "price": 7995, "image": "3195981", "stock": 2, "category": "vestidos" },
-    { "id": "p10", "slug": "cardigan-punto", "name": "Cárdigan punto grueso", "price": 5995, "image": "2531089", "stock": 7, "category": "punto" }
+    {
+      "id": "p1",
+      "slug": "vestido-largo-saten",
+      "name": "Vestido largo satén",
+      "price": 8995,
+      "image": "26998033",
+      "stock": 6,
+      "category": "vestidos",
+      "badge": "Nuevo"
+    },
+    {
+      "id": "p2",
+      "slug": "vestido-midi-entallado",
+      "name": "Vestido midi entallado",
+      "price": 6995,
+      "image": "15481010",
+      "stock": 4,
+      "category": "vestidos"
+    },
+    {
+      "id": "p3",
+      "slug": "trench-largo-cinturon",
+      "name": "Trench largo cinturón",
+      "price": 13995,
+      "image": "34373606",
+      "stock": 3,
+      "category": "abrigos",
+      "badge": "Nuevo"
+    },
+    {
+      "id": "p4",
+      "slug": "blazer-negra-entallada",
+      "name": "Blazer negra entallada",
+      "price": 8995,
+      "image": "4355156",
+      "stock": 8,
+      "category": "blazers"
+    },
+    {
+      "id": "p5",
+      "slug": "jersey-punto-oversize",
+      "name": "Jersey punto oversize",
+      "price": 3200,
+      "image": "1075776",
+      "stock": 0,
+      "category": "punto"
+    },
+    {
+      "id": "p6",
+      "slug": "jean-wide-leg",
+      "name": "Jean wide leg tiro alto",
+      "price": 3995,
+      "image": "8991032",
+      "stock": 12,
+      "category": "jeans",
+      "badge": "Nuevo"
+    },
+    {
+      "id": "p7",
+      "slug": "falda-mini-cuero",
+      "name": "Falda mini efecto cuero",
+      "price": 3595,
+      "image": "6138908",
+      "stock": 5,
+      "category": "faldas"
+    },
+    {
+      "id": "p8",
+      "slug": "top-rayas-canale",
+      "name": "Top rayas canalé",
+      "price": 2595,
+      "image": "3960371",
+      "stock": 20,
+      "category": "tops"
+    },
+    {
+      "id": "p9",
+      "slug": "mono-lino",
+      "name": "Mono largo camisero lino",
+      "price": 7995,
+      "image": "3195981",
+      "stock": 2,
+      "category": "vestidos"
+    },
+    {
+      "id": "p10",
+      "slug": "cardigan-punto",
+      "name": "Cárdigan punto grueso",
+      "price": 5995,
+      "image": "2531089",
+      "stock": 7,
+      "category": "punto"
+    }
   ],
   "customers": [
-    { "id": "c1", "name": "María González", "email": "maria@example.com", "balance": 1500, "createdAt": "2026-09-10T10:00:00.000Z",
+    {
+      "id": "c1",
+      "name": "María González",
+      "email": "maria@example.com",
+      "balance": 1500,
+      "createdAt": "2026-09-10T10:00:00.000Z",
       "movements": [
-        { "id": "m1", "amount": 2000, "reason": "Vale de bienvenida", "createdAt": "2026-09-10T10:00:00.000Z" },
-        { "id": "m2", "amount": -500, "reason": "Uso en pedido EUR-1001", "createdAt": "2026-09-18T12:30:00.000Z" }
-      ] },
-    { "id": "c2", "name": "Lucía Ramírez", "email": "lucia@example.com", "balance": -3995, "createdAt": "2026-09-15T09:00:00.000Z",
+        {
+          "id": "m1",
+          "amount": 2000,
+          "reason": "Vale de bienvenida",
+          "createdAt": "2026-09-10T10:00:00.000Z"
+        },
+        {
+          "id": "m2",
+          "amount": -500,
+          "reason": "Uso en pedido EUR-1001",
+          "createdAt": "2026-09-18T12:30:00.000Z"
+        }
+      ],
+      "passwordHash": "scrypt$9d1d40dce6cb38349de7f26a3fc302cf$59b63682fdf352a772f78cf203ff9feeb3e6d8335f1e62c631fb799375bead0b7bd424ebfd03d4bf968d595c2ff784d274d2cf6fc257fd246ca6e675a05aeebc"
+    },
+    {
+      "id": "c2",
+      "name": "Lucía Ramírez",
+      "email": "lucia@example.com",
+      "balance": -3995,
+      "createdAt": "2026-09-15T09:00:00.000Z",
       "movements": [
-        { "id": "m3", "amount": -3995, "reason": "Pedido a crédito EUR-1002", "createdAt": "2026-09-22T17:10:00.000Z" }
-      ] },
-    { "id": "c3", "name": "Carmen Pérez", "email": "carmen@example.com", "balance": 0, "createdAt": "2026-09-20T11:00:00.000Z", "movements": [] }
+        {
+          "id": "m3",
+          "amount": -3995,
+          "reason": "Pedido a crédito EUR-1002",
+          "createdAt": "2026-09-22T17:10:00.000Z"
+        }
+      ],
+      "passwordHash": "scrypt$534e2a1e001f510df9d51b881913236c$cb6a51c57d7656b147e1eb6859507df510392faf8ce572eecac0c4383588e9d24dbcf6c6cafd4e3d443184326963e1739d27b9992e36e7a824d7a264c9eca5bc"
+    },
+    {
+      "id": "c3",
+      "name": "Carmen Pérez",
+      "email": "carmen@example.com",
+      "balance": 0,
+      "createdAt": "2026-09-20T11:00:00.000Z",
+      "movements": [],
+      "passwordHash": "scrypt$3ce2fbe3d920bec31cdf79e4a5ecd641$c023279b3051d9d6f3a0eae1604bee75438c3e79c0427cc2fdae6794d44805d1c7fd40093fa70f96e5fab5b7e920cb7706d134fafb0714f65bfd0aff902b1f7c"
+    }
   ],
   "orders": [
-    { "id": "o1", "ref": "EUR-1001", "customerId": "c1", "customerName": "María González",
-      "items": [ { "productId": "p2", "name": "Vestido midi entallado", "price": 6995, "qty": 1, "size": "M" } ],
-      "total": 6995, "status": "entregado", "createdAt": "2026-09-18T12:30:00.000Z" },
-    { "id": "o2", "ref": "EUR-1002", "customerId": "c2", "customerName": "Lucía Ramírez",
-      "items": [ { "productId": "p6", "name": "Jean wide leg tiro alto", "price": 3995, "qty": 1, "size": "40" } ],
-      "total": 3995, "status": "pendiente", "createdAt": "2026-09-22T17:10:00.000Z" }
+    {
+      "id": "o1",
+      "ref": "EUR-1001",
+      "customerId": "c1",
+      "customerName": "María González",
+      "items": [
+        {
+          "productId": "p2",
+          "name": "Vestido midi entallado",
+          "price": 6995,
+          "qty": 1,
+          "size": "M"
+        }
+      ],
+      "total": 6995,
+      "status": "entregado",
+      "createdAt": "2026-09-18T12:30:00.000Z"
+    },
+    {
+      "id": "o2",
+      "ref": "EUR-1002",
+      "customerId": "c2",
+      "customerName": "Lucía Ramírez",
+      "items": [
+        {
+          "productId": "p6",
+          "name": "Jean wide leg tiro alto",
+          "price": 3995,
+          "qty": 1,
+          "size": "40"
+        }
+      ],
+      "total": 3995,
+      "status": "pendiente",
+      "createdAt": "2026-09-22T17:10:00.000Z"
+    }
   ]
 }

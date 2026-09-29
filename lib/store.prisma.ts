@@ -15,6 +15,7 @@
  */
 import { PrismaClient } from '@prisma/client';
 import type { Product, Category, Customer, Order } from './types';
+import { hashPassword, verifyPassword } from './auth';
 
 const g = globalThis as unknown as { prisma?: PrismaClient };
 export const prisma = g.prisma ?? new PrismaClient();
@@ -119,9 +120,29 @@ export async function adjustBalance(id: string, amount: number, reason: string):
   ]);
 }
 
-// Consulta de cuenta por email (demo; el login real llega después)
-export async function getAccount(email: string): Promise<{ customer: Customer; orders: Order[] } | undefined> {
-  const c = await prisma.customer.findUnique({ where: { email: email.toLowerCase().trim() }, include: { movements: true } });
+/* -------- Autenticación de clientes -------- */
+export async function registerCustomer(data: { name: string; email: string; password: string }) {
+  const email = data.email.toLowerCase().trim();
+  if (!email || !email.includes('@')) return { ok: false, error: 'Introduce un correo válido.' };
+  if (!data.password || data.password.length < 6) return { ok: false, error: 'La contraseña debe tener al menos 6 caracteres.' };
+  const existing = await prisma.customer.findUnique({ where: { email } });
+  if (existing) {
+    if (existing.passwordHash) return { ok: false, error: 'Ya existe una cuenta con ese correo. Inicia sesión.' };
+    const upd = await prisma.customer.update({ where: { id: existing.id }, data: { passwordHash: hashPassword(data.password), name: data.name || existing.name } });
+    return { ok: true, customerId: upd.id };
+  }
+  const cust = await prisma.customer.create({ data: { name: data.name || email, email, passwordHash: hashPassword(data.password) } });
+  return { ok: true, customerId: cust.id };
+}
+
+export async function authenticate(email: string, password: string) {
+  const c = await prisma.customer.findUnique({ where: { email: email.toLowerCase().trim() } });
+  if (!c || !verifyPassword(password, c.passwordHash ?? undefined)) return { ok: false, error: 'Correo o contraseña incorrectos.' };
+  return { ok: true, customerId: c.id };
+}
+
+export async function getAccountById(id: string): Promise<{ customer: Customer; orders: Order[] } | undefined> {
+  const c = await prisma.customer.findUnique({ where: { id }, include: { movements: true } });
   if (!c) return undefined;
   const orders = await prisma.order.findMany({ where: { customerId: c.id }, include: { items: true }, orderBy: { createdAt: 'desc' } });
   return { customer: c as any, orders };
