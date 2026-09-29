@@ -134,6 +134,15 @@ export async function adjustBalance(id: string, amount: number, reason: string):
   await write(db);
 }
 
+// Consulta de cuenta por email (demo; el login real llega después)
+export async function getAccount(email: string): Promise<{ customer: Customer; orders: Order[] } | undefined> {
+  const db = await read();
+  const c = db.customers.find((x) => x.email.toLowerCase() === email.toLowerCase().trim());
+  if (!c) return undefined;
+  const orders = db.orders.filter((o) => o.customerId === c.id).slice().reverse();
+  return { customer: c, orders };
+}
+
 /* -------- Métricas -------- */
 export async function stats() {
   const db = await read();

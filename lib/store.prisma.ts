@@ -119,6 +119,14 @@ export async function adjustBalance(id: string, amount: number, reason: string):
   ]);
 }
 
+// Consulta de cuenta por email (demo; el login real llega después)
+export async function getAccount(email: string): Promise<{ customer: Customer; orders: Order[] } | undefined> {
+  const c = await prisma.customer.findUnique({ where: { email: email.toLowerCase().trim() }, include: { movements: true } });
+  if (!c) return undefined;
+  const orders = await prisma.order.findMany({ where: { customerId: c.id }, include: { items: true }, orderBy: { createdAt: 'desc' } });
+  return { customer: c as any, orders };
+}
+
 /* -------- Métricas -------- */
 export async function stats() {
   const [productos, categorias, pedidos, clientes, agg, pendientes, lowStock] = await Promise.all([

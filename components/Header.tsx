@@ -24,17 +24,17 @@ export default function Header() {
             <button className="gicon burger" aria-label="Menú" onClick={() => setOpen((o) => !o)}>
               <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
             </button>
-            <button className="gicon" aria-label="Buscar">
+            <Link className="gicon" aria-label="Buscar" href="/tienda">
               <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.2-3.2" /></svg>
-            </button>
+            </Link>
           </div>
           <a className="brand" href="#top" aria-label="EUREKA">
             <img src="/eureka-logo.png" alt="EUREKA — tu tienda de moda" />
           </a>
           <div className="nr">
-            <button className="gicon" aria-label="Cuenta">
+            <Link className="gicon" aria-label="Cuenta" href="/cuenta">
               <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" /><path d="M5 20c0-3.9 3.1-6 7-6s7 2.1 7 6" /></svg>
-            </button>
+            </Link>
             <Link className="gicon bag" aria-label="Cesta" href="/cesta">
               <svg viewBox="0 0 24 24"><path d="M6 8h12l-1 12H7L6 8z" /><path d="M9 8V6a3 3 0 0 1 6 0v2" /></svg>
               {count > 0 && <span className="ct">{count}</span>}
