@@ -1,6 +1,9 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { CartProvider } from '@/components/Cart';
+import Promo from '@/components/Promo';
+import Header from '@/components/Header';
+import { Footer } from '@/components/Sections';
 
 export const metadata: Metadata = {
   title: 'EUREKA — Tu tienda de moda',
@@ -19,7 +22,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        <CartProvider>{children}</CartProvider>
+        <CartProvider>
+          <Promo />
+          <Header />
+          {children}
+          <Footer />
+        </CartProvider>
       </body>
     </html>
   );

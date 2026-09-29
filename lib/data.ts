@@ -40,6 +40,16 @@ export const PRODUCTS: Product[] = [
   { id: 'p10', name: 'Cárdigan punto grueso', category: 'Punto', price: '59,95', img: '2531089' },
 ];
 
+export function categoryBySlug(slug: string): Category | undefined {
+  return CATEGORIES.find((c) => c.slug === slug);
+}
+export function productsByCategoryName(name: string): Product[] {
+  return PRODUCTS.filter((p) => p.category === name);
+}
+export function getProduct(id: string): Product | undefined {
+  return PRODUCTS.find((p) => p.id === id);
+}
+
 export const NAV = [
   { href: '#cats', label: 'Ropa' },
   { href: '#edit', label: 'Novedades' },
