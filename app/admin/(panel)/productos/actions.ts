@@ -23,6 +23,7 @@ export async function addProduct(fd: FormData) {
     stock: parseInt(String(fd.get('stock') || '0'), 10) || 0,
     image: String(fd.get('image') || '26998033'),
     badge: String(fd.get('badge') || '') || undefined,
+    sku: String(fd.get('sku') || '').trim() || undefined, // vacío = se genera solo (EUR-0001…)
   });
   revalidatePath('/admin/productos');
 }

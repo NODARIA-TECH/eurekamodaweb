@@ -49,7 +49,15 @@ export async function productsByCategory(slug: string): Promise<Product[]> {
 export async function createProduct(data: Omit<Product, 'id' | 'slug'> & { slug?: string }): Promise<Product> {
   const db = await read();
   const slug = (data.slug || data.name).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  const prod: Product = { id: randomUUID().slice(0, 8), slug, name: data.name, price: data.price, image: data.image || '26998033', stock: data.stock ?? 0, category: data.category, badge: data.badge, sku: data.sku, updatedAt: new Date().toISOString() };
+  // SKU automático con prefijo (EUR-0001, EUR-0002…) si no se indica uno.
+  let sku = (data.sku || '').trim();
+  if (!sku) {
+    const prefix = process.env.EUREKA_SKU_PREFIX || 'EUR';
+    const n = (db.lastSkuNumber ?? 0) + 1;
+    db.lastSkuNumber = n;
+    sku = `${prefix}-${String(n).padStart(4, '0')}`;
+  }
+  const prod: Product = { id: randomUUID().slice(0, 8), slug, name: data.name, price: data.price, image: data.image || '26998033', stock: data.stock ?? 0, category: data.category, badge: data.badge, sku, updatedAt: new Date().toISOString() };
   db.products.push(prod);
   await write(db);
   return prod;

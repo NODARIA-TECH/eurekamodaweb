@@ -1,0 +1,76 @@
+{
+  "name": "EUREKA · FS → Web (catálogo + stock)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "field": "minutes", "minutesInterval": 10 }
+          ]
+        }
+      },
+      "id": "sched1",
+      "name": "Cada 10 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://127.0.0.1/api/3/productos?limit=1000",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-Auth-Token", "value": "PON_TU_TOKEN_FS" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "http_fs_get",
+      "name": "FacturaScripts · GET productos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const slug = s => (s||'').toString().toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');\nconst products = [];\nfor (const it of $input.all()) {\n  const p = it.json;\n  if (p.sevende !== true) continue;      // solo artículos de venta\n  if (!p.referencia) continue;           // necesitamos SKU\n  products.push({\n    sku: String(p.referencia),\n    name: p.descripcion || String(p.referencia),\n    price: Number(p.precio) || 0,        // euros (revisar IVA si hace falta)\n    stock: Number(p.stockfis) || 0,\n    category: slug(p.codfamilia) || 'tops'\n  });\n}\nreturn [{ json: { products } }];"
+      },
+      "id": "code_map",
+      "name": "Mapear a formato web",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:3000/api/sync/products",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-Sync-Secret", "value": "PON_TU_SECRETO_SYNC" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "http_web_post",
+      "name": "Web · POST /api/sync/products",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [940, 300]
+    }
+  ],
+  "connections": {
+    "Cada 10 min": { "main": [ [ { "node": "FacturaScripts · GET productos", "type": "main", "index": 0 } ] ] },
+    "FacturaScripts · GET productos": { "main": [ [ { "node": "Mapear a formato web", "type": "main", "index": 0 } ] ] },
+    "Mapear a formato web": { "main": [ [ { "node": "Web · POST /api/sync/products", "type": "main", "index": 0 } ] ] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" }
+}

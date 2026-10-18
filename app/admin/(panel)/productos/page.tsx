@@ -11,11 +11,12 @@ export default async function ProductosAdmin() {
 
       <div className="adm-card">
         <table className="adm-table">
-          <thead><tr><th>Producto</th><th>Categoría</th><th>Precio (€)</th><th>Stock</th><th>Badge</th><th></th></tr></thead>
+          <thead><tr><th>Producto</th><th>SKU</th><th>Categoría</th><th>Precio (€)</th><th>Stock</th><th>Badge</th><th></th></tr></thead>
           <tbody>
             {products.map((p) => (
               <tr key={p.id}>
                 <td>{p.name}</td>
+                <td style={{ fontFamily: 'monospace', fontSize: '.82rem', color: 'var(--muted)' }}>{p.sku || '—'}</td>
                 <td>{p.category}</td>
                 <td colSpan={3}>
                   <form action={saveProductRow} className="adm-inline">
@@ -39,6 +40,7 @@ export default async function ProductosAdmin() {
         <h2>Añadir producto</h2>
         <form action={addProduct} className="adm-form">
           <label>Nombre<input name="name" required /></label>
+          <label>SKU (ref.)<input name="sku" placeholder="auto (EUR-0001)" /></label>
           <label>Categoría
             <select name="category" defaultValue="vestidos">
               {categories.map((c) => (<option key={c.slug} value={c.slug}>{c.name}</option>))}

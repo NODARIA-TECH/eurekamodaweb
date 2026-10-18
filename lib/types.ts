@@ -52,4 +52,5 @@ export type DB = {
   customers: Customer[];
   orders: Order[];
   lastOrderNumber: number;
+  lastSkuNumber?: number;  // contador para SKU automáticos (EUR-0001…)
 };
