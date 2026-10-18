@@ -1,6 +1,6 @@
 referencia,nombre,categoria,precio_pvp,iva,stock,descripcion
-ERK-0001,Vestido largo satén,Vestidos,89.95,21,6,Vestido largo de satén con caída fluida.
-ERK-0002,Vestido midi entallado,Vestidos,59.95,21,8,Vestido midi entallado de media manga.
-ERK-0003,Blazer entallado,Blazers,69.95,21,10,Blazer entallado con botonadura dorada.
-ERK-0004,Jersey punto fino,Punto,39.95,21,12,Jersey de punto fino cuello redondo.
-ERK-0005,Jeans tiro alto,Jeans,49.95,21,0,Vaquero de tiro alto corte recto.
+PEK-0001,Vestido largo satén,Vestidos,89.95,21,6,Vestido largo de satén con caída fluida.
+PEK-0002,Vestido midi entallado,Vestidos,59.95,21,8,Vestido midi entallado de media manga.
+PEK-0003,Blazer entallado,Blazers,69.95,21,10,Blazer entallado con botonadura dorada.
+PEK-0004,Jersey punto fino,Punto,39.95,21,12,Jersey de punto fino cuello redondo.
+PEK-0005,Jeans tiro alto,Jeans,49.95,21,0,Vaquero de tiro alto corte recto.

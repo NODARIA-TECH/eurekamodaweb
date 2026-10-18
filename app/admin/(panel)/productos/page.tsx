@@ -1,5 +1,5 @@
 import { listProducts, listCategories } from '@/lib/store';
-import { saveProductRow, addProduct, removeProduct } from './actions';
+import { saveProductRow, addProduct, removeProduct, importCsv } from './actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,7 +40,7 @@ export default async function ProductosAdmin() {
         <h2>Añadir producto</h2>
         <form action={addProduct} className="adm-form">
           <label>Nombre<input name="name" required /></label>
-          <label>SKU (ref.)<input name="sku" placeholder="auto (ERK-0001)" /></label>
+          <label>SKU (ref.)<input name="sku" placeholder="auto (PEK-0001)" /></label>
           <label>Categoría
             <select name="category" defaultValue="vestidos">
               {categories.map((c) => (<option key={c.slug} value={c.slug}>{c.name}</option>))}
@@ -52,6 +52,17 @@ export default async function ProductosAdmin() {
           <label>Badge<input name="badge" placeholder="Nuevo" /></label>
           <button className="btn-sm" type="submit" style={{ height: 40 }}>Añadir</button>
         </form>
+      </div>
+
+      <div className="adm-card">
+        <h2>Importar catálogo (CSV)</h2>
+        <form action={importCsv} className="adm-form">
+          <label>Archivo CSV<input name="file" type="file" accept=".csv,text/csv" required /></label>
+          <button className="btn-sm" type="submit" style={{ height: 40 }}>Importar</button>
+        </form>
+        <p style={{ fontSize: '.8rem', color: 'var(--muted)', marginTop: 8 }}>
+          Columnas: <b>referencia</b> (vacío = auto PEK-####), <b>nombre</b>, <b>categoria</b>, <b>precio_pvp</b>, <b>iva</b>, <b>stock</b>, <b>descripcion</b>. Crea o actualiza por SKU y crea las categorías que falten.
+        </p>
       </div>
     </>
   );

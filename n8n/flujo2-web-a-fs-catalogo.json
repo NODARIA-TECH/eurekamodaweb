@@ -1,0 +1,80 @@
+{
+  "name": "EUREKA · Web → FS (catálogo)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual1",
+      "name": "Ejecutar a mano",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://127.0.0.1:3000/api/sync/products",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-Sync-Secret", "value": "PON_TU_SECRETO_SYNC" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get_web",
+      "name": "Web · GET catálogo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "products",
+        "options": {}
+      },
+      "id": "split1",
+      "name": "Separar productos",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1/api/3/productos",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-Auth-Token", "value": "PON_TU_TOKEN_FS" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "referencia", "value": "={{ $json.sku }}" },
+            { "name": "descripcion", "value": "={{ $json.name }}" },
+            { "name": "precio", "value": "={{ Math.round($json.price / 1.21 * 100) / 100 }}" },
+            { "name": "codimpuesto", "value": "IVA21" },
+            { "name": "sevende", "value": "1" },
+            { "name": "secompra", "value": "0" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "post_fs",
+      "name": "FacturaScripts · POST producto",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [910, 300],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Ejecutar a mano": { "main": [ [ { "node": "Web · GET catálogo", "type": "main", "index": 0 } ] ] },
+    "Web · GET catálogo": { "main": [ [ { "node": "Separar productos", "type": "main", "index": 0 } ] ] },
+    "Separar productos": { "main": [ [ { "node": "FacturaScripts · POST producto", "type": "main", "index": 0 } ] ] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" }
+}

@@ -52,7 +52,7 @@ export async function createProduct(data: Omit<Product, 'id' | 'slug'> & { slug?
   // SKU automático con prefijo (EUR-0001, EUR-0002…) si no se indica uno.
   let sku = (data.sku || '').trim();
   if (!sku) {
-    const prefix = process.env.EUREKA_SKU_PREFIX || 'ERK';
+    const prefix = process.env.EUREKA_SKU_PREFIX || 'PEK';
     const n = (db.lastSkuNumber ?? 0) + 1;
     db.lastSkuNumber = n;
     sku = `${prefix}-${String(n).padStart(4, '0')}`;
