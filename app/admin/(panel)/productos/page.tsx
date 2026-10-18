@@ -40,7 +40,7 @@ export default async function ProductosAdmin() {
         <h2>Añadir producto</h2>
         <form action={addProduct} className="adm-form">
           <label>Nombre<input name="name" required /></label>
-          <label>SKU (ref.)<input name="sku" placeholder="auto (EUR-0001)" /></label>
+          <label>SKU (ref.)<input name="sku" placeholder="auto (ERK-0001)" /></label>
           <label>Categoría
             <select name="category" defaultValue="vestidos">
               {categories.map((c) => (<option key={c.slug} value={c.slug}>{c.name}</option>))}
