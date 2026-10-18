@@ -11,6 +11,8 @@ export type Product = {
   stock: number;
   category: string;   // slug de categoría
   badge?: string;
+  sku?: string;       // referencia FacturaScripts (llave de sincronización)
+  updatedAt?: string; // última modificación del catálogo (web)
 };
 
 export type BalanceMovement = { id: string; amount: number; reason: string; createdAt: string };
@@ -36,6 +38,9 @@ export type Order = {
   total: number;      // céntimos
   status: 'pendiente' | 'pagado' | 'enviado' | 'entregado' | 'cancelado';
   createdAt: string;
+  customerEmail?: string;  // para volcar el pedido a FacturaScripts
+  facturaRef?: string;     // referencia del documento creado en FacturaScripts
+  syncedAt?: string;       // cuándo se volcó a FacturaScripts (null = pendiente)
 };
 
 // Item de cesta en el cliente

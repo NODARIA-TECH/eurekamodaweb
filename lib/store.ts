@@ -49,7 +49,7 @@ export async function productsByCategory(slug: string): Promise<Product[]> {
 export async function createProduct(data: Omit<Product, 'id' | 'slug'> & { slug?: string }): Promise<Product> {
   const db = await read();
   const slug = (data.slug || data.name).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  const prod: Product = { id: randomUUID().slice(0, 8), slug, name: data.name, price: data.price, image: data.image || '26998033', stock: data.stock ?? 0, category: data.category, badge: data.badge };
+  const prod: Product = { id: randomUUID().slice(0, 8), slug, name: data.name, price: data.price, image: data.image || '26998033', stock: data.stock ?? 0, category: data.category, badge: data.badge, sku: data.sku, updatedAt: new Date().toISOString() };
   db.products.push(prod);
   await write(db);
   return prod;
@@ -57,13 +57,66 @@ export async function createProduct(data: Omit<Product, 'id' | 'slug'> & { slug?
 export async function updateProduct(id: string, patch: Partial<Product>): Promise<void> {
   const db = await read();
   const p = db.products.find((x) => x.id === id);
-  if (p) Object.assign(p, patch);
+  if (p) { Object.assign(p, patch); p.updatedAt = new Date().toISOString(); }
   await write(db);
 }
 export async function deleteProduct(id: string): Promise<void> {
   const db = await read();
   db.products = db.products.filter((p) => p.id !== id);
   await write(db);
+}
+
+/* -------- Sincronización con FacturaScripts -------- */
+// Alta/actualización de producto por SKU (referencia). FS->web para artículos creados en FacturaScripts.
+export async function upsertProductBySku(data: { sku: string; name: string; price: number; stock?: number; category?: string; image?: string; badge?: string }): Promise<{ created: boolean; product: Product }> {
+  const db = await read();
+  const sku = data.sku.trim();
+  let p = db.products.find((x) => x.sku && x.sku.toLowerCase() === sku.toLowerCase());
+  if (p) {
+    p.name = data.name;
+    p.price = data.price;
+    if (data.category) p.category = data.category;
+    if (data.image) p.image = data.image;
+    if (data.badge !== undefined) p.badge = data.badge;
+    if (data.stock !== undefined) p.stock = data.stock;
+    p.updatedAt = new Date().toISOString();
+    await write(db);
+    return { created: false, product: p };
+  }
+  const slug = (data.name).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || sku.toLowerCase();
+  p = { id: randomUUID().slice(0, 8), slug, name: data.name, price: data.price, image: data.image || '26998033', stock: data.stock ?? 0, category: data.category || 'tops', badge: data.badge, sku, updatedAt: new Date().toISOString() };
+  db.products.push(p);
+  await write(db);
+  return { created: true, product: p };
+}
+
+// Ajuste de stock por SKU (FS manda sobre el stock). No toca campos de catálogo.
+export async function setStockBySku(items: { sku: string; stock: number }[]): Promise<{ updated: number; missing: string[] }> {
+  const db = await read();
+  let updated = 0;
+  const missing: string[] = [];
+  for (const it of items) {
+    const p = db.products.find((x) => x.sku && x.sku.toLowerCase() === it.sku.toLowerCase().trim());
+    if (p) { p.stock = Math.max(0, Math.round(it.stock)); updated++; }
+    else missing.push(it.sku);
+  }
+  await write(db);
+  return { updated, missing };
+}
+
+// Pedidos aún no volcados a FacturaScripts.
+export async function listPendingOrders(): Promise<Order[]> {
+  return (await read()).orders.filter((o) => !o.syncedAt);
+}
+// Marcar un pedido como volcado a FacturaScripts.
+export async function markOrderSynced(id: string, facturaRef?: string): Promise<boolean> {
+  const db = await read();
+  const o = db.orders.find((x) => x.id === id);
+  if (!o) return false;
+  o.syncedAt = new Date().toISOString();
+  if (facturaRef) o.facturaRef = facturaRef;
+  await write(db);
+  return true;
 }
 
 /* -------- Pedidos -------- */
@@ -92,6 +145,7 @@ export async function createOrder(input: { items: { productId: string; qty: numb
     id: randomUUID().slice(0, 8),
     ref: 'EUR-' + db.lastOrderNumber,
     customerName: input.customerName,
+    customerEmail: input.customerEmail,
     items,
     total,
     status: 'pendiente',
