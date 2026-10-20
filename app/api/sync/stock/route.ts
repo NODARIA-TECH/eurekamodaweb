@@ -16,7 +16,7 @@ export async function POST(req: Request) {
   const items = raw
     .map((x: any) => ({ sku: String(x.sku || '').trim(), stock: Number(x.stock) }))
     .filter((x: any) => x.sku && Number.isFinite(x.stock));
-  if (!items.length) return NextResponse.json({ ok: false, error: 'Sin líneas de stock válidas (sku + stock).' }, { status: 400 });
+  if (!items.length) return NextResponse.json({ ok: true, updated: 0, missing: [], note: 'Sin líneas de stock que sincronizar.' });
 
   const res = await setStockBySku(items);
   return NextResponse.json({ ok: true, updated: res.updated, missing: res.missing });

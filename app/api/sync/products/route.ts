@@ -39,7 +39,7 @@ export async function POST(req: Request) {
   let body: any;
   try { body = await req.json(); } catch { return NextResponse.json({ ok: false, error: 'JSON inválido.' }, { status: 400 }); }
   const items = Array.isArray(body?.products) ? body.products : Array.isArray(body) ? body : [];
-  if (!items.length) return NextResponse.json({ ok: false, error: 'Sin productos.' }, { status: 400 });
+  if (!items.length) return NextResponse.json({ ok: true, total: 0, created: 0, updated: 0, note: 'Sin productos que sincronizar.' });
 
   const results: any[] = [];
   for (const it of items) {
