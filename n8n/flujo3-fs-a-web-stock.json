@@ -1,0 +1,70 @@
+{
+  "name": "EUREKA · FS → Web (solo stock)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual1",
+      "name": "Ejecutar a mano",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://127.0.0.1/api/3/productos?limit=1000",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-Auth-Token", "value": "PON_TU_TOKEN_FS" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get_fs",
+      "name": "FacturaScripts · GET productos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const stock = [];\nfor (const it of $input.all()) {\n  const p = it.json;\n  if (!p.referencia) continue;\n  if (p.sevende !== true) continue;\n  stock.push({ sku: String(p.referencia), stock: Number(p.stockfis) || 0 });\n}\nreturn [{ json: { stock } }];"
+      },
+      "id": "code_map",
+      "name": "Mapear stock por SKU",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:3000/api/sync/stock",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-Sync-Secret", "value": "PON_TU_SECRETO_SYNC" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "post_web",
+      "name": "Web · POST /api/sync/stock",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [930, 300]
+    }
+  ],
+  "connections": {
+    "Ejecutar a mano": { "main": [ [ { "node": "FacturaScripts · GET productos", "type": "main", "index": 0 } ] ] },
+    "FacturaScripts · GET productos": { "main": [ [ { "node": "Mapear stock por SKU", "type": "main", "index": 0 } ] ] },
+    "Mapear stock por SKU": { "main": [ [ { "node": "Web · POST /api/sync/stock", "type": "main", "index": 0 } ] ] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" }
+}
