@@ -6,9 +6,21 @@ import { randomUUID } from 'crypto';
 import type { DB, Product, Category, Customer, Order, OrderItem } from './types';
 import { hashPassword, verifyPassword } from './auth';
 
-const FILE = path.join(process.cwd(), 'data', 'db.json');
+const DATA_DIR = path.join(process.cwd(), 'data');
+const SEED = path.join(DATA_DIR, 'db.json');     // semilla versionada en git (no se usa en vivo)
+const FILE = path.join(DATA_DIR, 'live.json');   // datos reales: NO versionados, persisten entre despliegues
+
+// Crea los datos vivos a partir de la semilla la primera vez. Así `git pull` nunca pisa el catálogo real.
+async function ensureFile(): Promise<void> {
+  try { await fs.access(FILE); } catch {
+    await fs.mkdir(DATA_DIR, { recursive: true });
+    const raw = await fs.readFile(SEED, 'utf8');
+    await fs.writeFile(FILE, raw, 'utf8');
+  }
+}
 
 async function read(): Promise<DB> {
+  await ensureFile();
   const raw = await fs.readFile(FILE, 'utf8');
   return JSON.parse(raw) as DB;
 }
