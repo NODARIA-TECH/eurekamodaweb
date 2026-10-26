@@ -7,7 +7,7 @@
       "name": "Ejecutar a mano",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [220, 300]
+      "position": [200, 300]
     },
     {
       "parameters": {
@@ -25,18 +25,17 @@
       "name": "Web · GET catálogo",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [450, 300]
+      "position": [420, 300]
     },
     {
       "parameters": {
-        "fieldToSplitOut": "products",
-        "options": {}
+        "jsCode": "const resp = $input.first().json;\nconst list = (resp.products || []).filter(p => p.sku && String(p.sku).trim() !== '');\n// Solo productos CON SKU; evita que FacturaScripts invente referencias y cree duplicados.\nreturn list.map(p => ({ json: p }));"
       },
-      "id": "split1",
-      "name": "Separar productos",
-      "type": "n8n-nodes-base.splitOut",
-      "typeVersion": 1,
-      "position": [680, 300]
+      "id": "code_filter",
+      "name": "Solo con SKU",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
     },
     {
       "parameters": {
@@ -66,14 +65,14 @@
       "name": "FacturaScripts · POST producto",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [910, 300],
+      "position": [900, 300],
       "onError": "continueRegularOutput"
     }
   ],
   "connections": {
     "Ejecutar a mano": { "main": [ [ { "node": "Web · GET catálogo", "type": "main", "index": 0 } ] ] },
-    "Web · GET catálogo": { "main": [ [ { "node": "Separar productos", "type": "main", "index": 0 } ] ] },
-    "Separar productos": { "main": [ [ { "node": "FacturaScripts · POST producto", "type": "main", "index": 0 } ] ] }
+    "Web · GET catálogo": { "main": [ [ { "node": "Solo con SKU", "type": "main", "index": 0 } ] ] },
+    "Solo con SKU": { "main": [ [ { "node": "FacturaScripts · POST producto", "type": "main", "index": 0 } ] ] }
   },
   "active": false,
   "settings": { "executionOrder": "v1" }

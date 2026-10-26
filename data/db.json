@@ -46,7 +46,8 @@
       "image": "26998033",
       "stock": 6,
       "category": "vestidos",
-      "badge": "Nuevo"
+      "badge": "Nuevo",
+      "sku": "PEK-0900"
     },
     {
       "id": "p2",
@@ -55,7 +56,8 @@
       "price": 6995,
       "image": "15481010",
       "stock": 4,
-      "category": "vestidos"
+      "category": "vestidos",
+      "sku": "PEK-0901"
     },
     {
       "id": "p3",
@@ -65,7 +67,8 @@
       "image": "34373606",
       "stock": 3,
       "category": "abrigos",
-      "badge": "Nuevo"
+      "badge": "Nuevo",
+      "sku": "PEK-0902"
     },
     {
       "id": "p4",
@@ -74,7 +77,8 @@
       "price": 8995,
       "image": "4355156",
       "stock": 8,
-      "category": "blazers"
+      "category": "blazers",
+      "sku": "PEK-0903"
     },
     {
       "id": "p5",
@@ -83,7 +87,8 @@
       "price": 3200,
       "image": "1075776",
       "stock": 0,
-      "category": "punto"
+      "category": "punto",
+      "sku": "PEK-0904"
     },
     {
       "id": "p6",
@@ -93,7 +98,8 @@
       "image": "8991032",
       "stock": 12,
       "category": "jeans",
-      "badge": "Nuevo"
+      "badge": "Nuevo",
+      "sku": "PEK-0905"
     },
     {
       "id": "p7",
@@ -102,7 +108,8 @@
       "price": 3595,
       "image": "6138908",
       "stock": 5,
-      "category": "faldas"
+      "category": "faldas",
+      "sku": "PEK-0906"
     },
     {
       "id": "p8",
@@ -111,7 +118,8 @@
       "price": 2595,
       "image": "3960371",
       "stock": 20,
-      "category": "tops"
+      "category": "tops",
+      "sku": "PEK-0907"
     },
     {
       "id": "p9",
@@ -120,7 +128,8 @@
       "price": 7995,
       "image": "3195981",
       "stock": 2,
-      "category": "vestidos"
+      "category": "vestidos",
+      "sku": "PEK-0908"
     },
     {
       "id": "p10",
@@ -129,7 +138,8 @@
       "price": 5995,
       "image": "2531089",
       "stock": 7,
-      "category": "punto"
+      "category": "punto",
+      "sku": "PEK-0909"
     }
   ],
   "customers": [
@@ -218,5 +228,6 @@
       "status": "pendiente",
       "createdAt": "2026-09-22T17:10:00.000Z"
     }
-  ]
+  ],
+  "lastSkuNumber": 950
 }
