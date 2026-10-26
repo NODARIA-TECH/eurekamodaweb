@@ -29,7 +29,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const stock = [];\nfor (const it of $input.all()) {\n  const p = it.json;\n  if (!p.referencia) continue;\n  if (p.sevende !== true) continue;\n  stock.push({ sku: String(p.referencia), stock: Number(p.stockfis) || 0 });\n}\nreturn [{ json: { stock } }];"
+        "jsCode": "const stock = [];\nfor (const it of $input.all()) {\n  const p = it.json;\n  if (!p || !p.referencia) continue;\n  // Empujamos el stock de TODO artículo con referencia. La web solo actualiza\n  // los SKU que conoce (match por referencia===sku) e ignora el resto.\n  stock.push({ sku: String(p.referencia).trim(), stock: Number(p.stockfis) || 0 });\n}\nreturn [{ json: { stock, _enviados: stock.length } }];"
       },
       "id": "code_map",
       "name": "Mapear stock por SKU",
