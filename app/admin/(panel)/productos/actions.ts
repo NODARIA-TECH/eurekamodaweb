@@ -2,11 +2,14 @@
 import { revalidatePath } from 'next/cache';
 import { createProduct, updateProduct, deleteProduct, upsertProductBySku, listCategories, createCategory } from '@/lib/store';
 import { toCents } from '@/lib/money';
+import * as XLSX from 'xlsx';
 
-// --- Parser CSV sencillo con soporte de comillas ---
+// --- Parser CSV con comillas, BOM y separador auto (',' o ';' de Excel español) ---
 function parseCsv(text: string): Record<string, string>[] {
+  text = text.replace(/^﻿/, ''); // quita BOM
   const lines = text.replace(/\r\n?/g, '\n').split('\n').filter((l) => l.trim().length);
   if (!lines.length) return [];
+  const delim = (lines[0].match(/;/g)?.length || 0) > (lines[0].match(/,/g)?.length || 0) ? ';' : ',';
   const parseLine = (line: string): string[] => {
     const out: string[] = []; let cur = ''; let q = false;
     for (let i = 0; i < line.length; i++) {
@@ -16,7 +19,7 @@ function parseCsv(text: string): Record<string, string>[] {
         else cur += c;
       } else {
         if (c === '"') q = true;
-        else if (c === ',') { out.push(cur); cur = ''; }
+        else if (c === delim) { out.push(cur); cur = ''; }
         else cur += c;
       }
     }
@@ -32,6 +35,24 @@ function parseCsv(text: string): Record<string, string>[] {
     rows.push(o);
   }
   return rows;
+}
+
+// Lee las filas de un archivo CSV o Excel (.xlsx/.xls). Claves en minúsculas.
+async function rowsFromFile(file: File): Promise<Record<string, string>[]> {
+  const name = (file.name || '').toLowerCase();
+  if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
+    const buf = Buffer.from(await file.arrayBuffer());
+    const wb = XLSX.read(buf, { type: 'buffer' });
+    const ws = wb.Sheets[wb.SheetNames[0]]; // primera hoja (Productos)
+    const json = XLSX.utils.sheet_to_json<Record<string, any>>(ws, { defval: '', raw: false });
+    return json.map((r) => {
+      const o: Record<string, string> = {};
+      for (const k of Object.keys(r)) o[String(k).trim().toLowerCase()] = String(r[k] ?? '').trim();
+      return o;
+    });
+  }
+  const text = await file.text();
+  return parseCsv(text);
 }
 const slugify = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
@@ -69,9 +90,8 @@ export async function removeProduct(fd: FormData) {
 // Precio = PVP (con IVA); se guarda tal cual en la web. SKU vacío = autogenerado (PEK-####).
 export async function importCsv(fd: FormData) {
   const file = fd.get('file') as unknown as File | null;
-  if (!file || typeof (file as any).text !== 'function') return;
-  const text = await (file as File).text();
-  const rows = parseCsv(text);
+  if (!file || typeof (file as any).arrayBuffer !== 'function') return;
+  const rows = await rowsFromFile(file as File);
 
   const cats = await listCategories();
   const slugs = new Set(cats.map((c) => c.slug));

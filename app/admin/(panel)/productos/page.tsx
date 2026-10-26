@@ -55,13 +55,13 @@ export default async function ProductosAdmin() {
       </div>
 
       <div className="adm-card">
-        <h2>Importar catálogo (CSV)</h2>
+        <h2>Importar catálogo (Excel o CSV)</h2>
         <form action={importCsv} className="adm-form">
-          <label>Archivo CSV<input name="file" type="file" accept=".csv,text/csv" required /></label>
+          <label>Archivo (.xlsx o .csv)<input name="file" type="file" accept=".csv,text/csv,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required /></label>
           <button className="btn-sm" type="submit" style={{ height: 40 }}>Importar</button>
         </form>
         <p style={{ fontSize: '.8rem', color: 'var(--muted)', marginTop: 8 }}>
-          Columnas: <b>referencia</b> (vacío = auto PEK-####), <b>nombre</b>, <b>categoria</b>, <b>precio_pvp</b>, <b>iva</b>, <b>stock</b>, <b>descripcion</b>. Crea o actualiza por SKU y crea las categorías que falten.
+          Columnas: <b>referencia</b> (vacío = auto PEK-####), <b>nombre</b>, <b>categoria</b>, <b>precio_pvp</b>, <b>stock</b>, <b>descripcion</b>. Crea o actualiza por SKU y crea las categorías que falten. Acepta Excel (.xlsx) y CSV (separador , o ;).
         </p>
       </div>
     </>
