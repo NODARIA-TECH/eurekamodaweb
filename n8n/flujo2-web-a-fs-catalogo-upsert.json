@@ -1,0 +1,46 @@
+{
+  "name": "EUREKA · Web → FS (catálogo, upsert)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trig",
+      "name": "Ejecutar a mano",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        260,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Web -> FS (catálogo) con UPSERT por referencia: crea si no existe, actualiza si existe.\n// Nunca duplica. Hace una pausa entre llamadas para no provocar el 429 de FacturaScripts.\nconst FS_BASE   = 'http://127.0.0.1/api/3';\nconst FS_TOKEN  = 'PON_TU_TOKEN_FS';\nconst WEB_URL   = 'http://127.0.0.1:3000/api/sync/products';\nconst WEB_SECRET = 'PON_TU_SECRETO_SYNC';\n\nconst sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nconst enc = (o) => Object.entries(o).map(([k, v]) => encodeURIComponent(k) + '=' + encodeURIComponent(v)).join('&');\n\n// 1) Catálogo de la web (solo productos CON SKU)\nconst web = await this.helpers.httpRequest({\n  method: 'GET', url: WEB_URL,\n  headers: { 'X-Sync-Secret': WEB_SECRET }, json: true,\n});\nconst productos = (web.products || []).filter((p) => p.sku && String(p.sku).trim() !== '');\n\nconst resumen = [];\nfor (const p of productos) {\n  const ref = String(p.sku).trim();\n  const body = {\n    referencia: ref,\n    descripcion: p.name,\n    precio: Math.round((p.price / 1.21) * 100) / 100,\n    codimpuesto: 'IVA21',\n    codfamilia: String(p.category_slug || 'varios').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8),\n    sevende: 1,\n    secompra: 0,\n  };\n  try {\n    // ¿existe ya en FS por referencia?\n    const found = await this.helpers.httpRequest({\n      method: 'GET',\n      url: FS_BASE + '/productos?filter[referencia]=' + encodeURIComponent(ref) + '&limit=1',\n      headers: { 'X-Auth-Token': FS_TOKEN }, json: true,\n    });\n    const lista = Array.isArray(found) ? found : (found.data || []);\n    if (lista.length && lista[0].idproducto) {\n      await this.helpers.httpRequest({\n        method: 'PUT',\n        url: FS_BASE + '/productos/' + lista[0].idproducto,\n        headers: { 'X-Auth-Token': FS_TOKEN, 'Content-Type': 'application/x-www-form-urlencoded' },\n        body: enc(body),\n      });\n      resumen.push({ json: { referencia: ref, accion: 'actualizado', id: lista[0].idproducto } });\n    } else {\n      await this.helpers.httpRequest({\n        method: 'POST',\n        url: FS_BASE + '/productos',\n        headers: { 'X-Auth-Token': FS_TOKEN, 'Content-Type': 'application/x-www-form-urlencoded' },\n        body: enc(body),\n      });\n      resumen.push({ json: { referencia: ref, accion: 'creado' } });\n    }\n  } catch (e) {\n    resumen.push({ json: { referencia: ref, accion: 'error', error: String((e && e.message) || e) } });\n  }\n  await sleep(1500); // pausa anti-429\n}\nreturn resumen.length ? resumen : [{ json: { info: 'sin productos con SKU' } }];\n"
+      },
+      "id": "code",
+      "name": "Upsert catálogo en FS",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Ejecutar a mano": {
+      "main": [
+        [
+          {
+            "node": "Upsert catálogo en FS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

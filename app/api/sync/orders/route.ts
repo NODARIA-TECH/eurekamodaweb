@@ -1,15 +1,16 @@
 import { NextResponse } from 'next/server';
 import { checkSyncAuth } from '@/lib/sync-auth';
-import { listPendingOrders, markOrderSynced } from '@/lib/store';
+import { listPendingOrders, markOrderSynced, listProducts } from '@/lib/store';
 
 export const dynamic = 'force-dynamic';
 
 // GET /api/sync/orders
-// Pedidos online pendientes de volcar a FacturaScripts (web -> FS crea el pedido/venta).
+// Pedidos online pendientes de volcar a FacturaScripts (web -> FS baja stock).
 export async function GET(req: Request) {
   const unauth = checkSyncAuth(req);
   if (unauth) return unauth;
-  const orders = await listPendingOrders();
+  const [orders, products] = await Promise.all([listPendingOrders(), listProducts()]);
+  const skuById = new Map(products.map((p) => [p.id, p.sku || null]));
   return NextResponse.json({
     ok: true,
     count: orders.length,
@@ -24,6 +25,7 @@ export async function GET(req: Request) {
       createdAt: o.createdAt,
       items: o.items.map((i) => ({
         productId: i.productId,
+        sku: skuById.get(i.productId) || null,
         name: i.name,
         qty: i.qty,
         size: i.size || null,

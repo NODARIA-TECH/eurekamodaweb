@@ -1,0 +1,46 @@
+{
+  "name": "EUREKA · Web → FS (pedidos, baja stock)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trig",
+      "name": "Ejecutar a mano",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        260,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pedidos web pendientes -> baja el stock en FacturaScripts por referencia (SKU).\n// Marca el pedido como volcado en la web solo si todas sus líneas fueron bien.\nconst FS_BASE    = 'http://127.0.0.1/api/3';\nconst FS_TOKEN   = 'PON_TU_TOKEN_FS';\nconst WEB_ORDERS = 'http://127.0.0.1:3000/api/sync/orders';\nconst WEB_SECRET = 'PON_TU_SECRETO_SYNC';\n\nconst sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nconst enc = (o) => Object.entries(o).map(([k, v]) => encodeURIComponent(k) + '=' + encodeURIComponent(v)).join('&');\n\n// 1) Pedidos web pendientes de volcar\nconst web = await this.helpers.httpRequest({\n  method: 'GET', url: WEB_ORDERS,\n  headers: { 'X-Sync-Secret': WEB_SECRET }, json: true,\n});\nconst pedidos = web.orders || [];\n\nconst out = [];\nfor (const o of pedidos) {\n  let okPedido = true;\n  for (const it of (o.items || [])) {\n    const ref = it.sku ? String(it.sku).trim() : '';\n    const qty = Number(it.qty) || 0;\n    if (!ref || qty <= 0) { out.push({ json: { pedido: o.ref, linea: it.name, saltado: 'sin sku' } }); okPedido = false; continue; }\n    try {\n      // stock actual en FS por referencia\n      const st = await this.helpers.httpRequest({\n        method: 'GET',\n        url: FS_BASE + '/stocks?filter[referencia]=' + encodeURIComponent(ref) + '&limit=1',\n        headers: { 'X-Auth-Token': FS_TOKEN }, json: true,\n      });\n      const filas = Array.isArray(st) ? st : (st.data || []);\n      if (!filas.length || !filas[0].idstock) {\n        out.push({ json: { pedido: o.ref, referencia: ref, error: 'sin fila de stock en FS (regulariza antes)' } });\n        okPedido = false; continue;\n      }\n      const fila = filas[0];\n      const nueva = Math.max(0, (Number(fila.cantidad) || 0) - qty);\n      await this.helpers.httpRequest({\n        method: 'PUT',\n        url: FS_BASE + '/stocks/' + fila.idstock,\n        headers: { 'X-Auth-Token': FS_TOKEN, 'Content-Type': 'application/x-www-form-urlencoded' },\n        body: enc({ cantidad: nueva }),\n      });\n      out.push({ json: { pedido: o.ref, referencia: ref, antes: fila.cantidad, vendido: qty, ahora: nueva } });\n    } catch (e) {\n      out.push({ json: { pedido: o.ref, referencia: ref, error: String((e && e.message) || e) } });\n      okPedido = false;\n    }\n    await sleep(1500); // pausa anti-429\n  }\n  // marcar el pedido como volcado SOLO si todo fue bien\n  if (okPedido) {\n    try {\n      await this.helpers.httpRequest({\n        method: 'POST', url: WEB_ORDERS,\n        headers: { 'X-Sync-Secret': WEB_SECRET },\n        body: { id: o.id }, json: true,\n      });\n      out.push({ json: { pedido: o.ref, marcado: true } });\n    } catch (e) {\n      out.push({ json: { pedido: o.ref, marcado: false, error: String((e && e.message) || e) } });\n    }\n  }\n}\nreturn out.length ? out : [{ json: { info: 'sin pedidos pendientes' } }];\n"
+      },
+      "id": "code",
+      "name": "Bajar stock en FS por pedido",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Ejecutar a mano": {
+      "main": [
+        [
+          {
+            "node": "Bajar stock en FS por pedido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
