@@ -60,7 +60,14 @@
             { "name": "secompra", "value": "0" }
           ]
         },
-        "options": {}
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 1500
+            }
+          }
+        }
       },
       "id": "post_fs",
       "name": "FacturaScripts · POST producto",
