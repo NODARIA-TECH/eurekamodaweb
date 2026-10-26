@@ -55,6 +55,7 @@
             { "name": "descripcion", "value": "={{ $json.name }}" },
             { "name": "precio", "value": "={{ Math.round($json.price / 1.21 * 100) / 100 }}" },
             { "name": "codimpuesto", "value": "IVA21" },
+            { "name": "codfamilia", "value": "={{ String($json.category_slug || 'varios').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8) }}" },
             { "name": "sevende", "value": "1" },
             { "name": "secompra", "value": "0" }
           ]
