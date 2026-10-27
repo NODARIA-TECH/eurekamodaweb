@@ -26,6 +26,21 @@ async function saveUpload(file: unknown): Promise<string | null> {
   return '/uploads/' + name;
 }
 
+// Avisa a n8n (webhook) de que el catálogo ha cambiado, para que vuelque a FacturaScripts
+// al momento. Si N8N_CATALOG_WEBHOOK no está configurado, no hace nada. Nunca lanza error.
+async function pingCatalogSync(): Promise<void> {
+  const url = process.env.N8N_CATALOG_WEBHOOK;
+  if (!url) return;
+  try {
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{"source":"web-catalog"}',
+      signal: AbortSignal.timeout(3000),
+    });
+  } catch { /* fire-and-forget: el catálogo ya está guardado en la web */ }
+}
+
 // --- Parser CSV con comillas, BOM y separador auto (',' o ';' de Excel español) ---
 function parseCsv(text: string): Record<string, string>[] {
   text = text.replace(/^﻿/, ''); // quita BOM
@@ -86,6 +101,8 @@ export async function saveProductRow(fd: FormData) {
     badge: String(fd.get('badge') || '') || undefined,
   });
   revalidatePath('/admin/productos');
+  revalidatePath('/tienda');
+  await pingCatalogSync();
 }
 
 export async function addProduct(fd: FormData) {
@@ -104,6 +121,7 @@ export async function addProduct(fd: FormData) {
   });
   revalidatePath('/admin/productos');
   revalidatePath('/tienda');
+  await pingCatalogSync();
 }
 
 // Cambia solo la foto de un producto existente (subida desde el panel).
@@ -148,4 +166,5 @@ export async function importCsv(fd: FormData) {
   }
   revalidatePath('/admin/productos');
   revalidatePath('/tienda');
+  await pingCatalogSync();
 }

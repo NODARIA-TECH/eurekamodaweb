@@ -1,0 +1,74 @@
+{
+  "name": "EUREKA · Web → FS (catálogo, upsert + webhook)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trig",
+      "name": "Ejecutar a mano",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        260,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Web -> FS (catálogo) con UPSERT por referencia + SEMBRADO de stock inicial.\n// - Si el producto NO existe en FS: lo crea y le pone el stock inicial de la web.\n// - Si YA existe: solo actualiza el catálogo; NO toca el stock (a partir de ahí manda FS).\n// Pausas entre llamadas para no provocar el 429 de FacturaScripts.\nconst FS_BASE    = 'http://127.0.0.1/api/3';\nconst FS_TOKEN   = 'PON_TU_TOKEN_FS';\nconst WEB_URL    = 'http://127.0.0.1:3000/api/sync/products';\nconst WEB_SECRET = 'PON_TU_SECRETO_SYNC';\n\nconst sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nconst enc = (o) => Object.entries(o).map(([k, v]) => encodeURIComponent(k) + '=' + encodeURIComponent(v)).join('&');\nconst H  = { 'X-Auth-Token': FS_TOKEN };\nconst HF = { 'X-Auth-Token': FS_TOKEN, 'Content-Type': 'application/x-www-form-urlencoded' };\n\n// Almacén por defecto (necesario para crear filas de stock)\nlet codalmacen = '';\ntry {\n  const alm = await this.helpers.httpRequest({ method: 'GET', url: FS_BASE + '/almacenes?limit=1', headers: H, json: true });\n  const la = Array.isArray(alm) ? alm : (alm.data || []);\n  if (la.length) codalmacen = la[0].codalmacen;\n} catch (e) {}\n\n// Catálogo de la web (solo productos CON SKU)\nconst web = await this.helpers.httpRequest({ method: 'GET', url: WEB_URL, headers: { 'X-Sync-Secret': WEB_SECRET }, json: true });\nconst productos = (web.products || []).filter((p) => p.sku && String(p.sku).trim() !== '');\n\nconst out = [];\nfor (const p of productos) {\n  const ref = String(p.sku).trim();\n  const body = {\n    referencia: ref,\n    descripcion: p.name,\n    precio: Math.round((p.price / 1.21) * 100) / 100,\n    codimpuesto: 'IVA21',\n    codfamilia: String(p.category_slug || 'varios').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8),\n    sevende: 1, secompra: 0,\n  };\n  try {\n    const found = await this.helpers.httpRequest({ method: 'GET', url: FS_BASE + '/productos?filter[referencia]=' + encodeURIComponent(ref) + '&limit=1', headers: H, json: true });\n    const lista = Array.isArray(found) ? found : (found.data || []);\n    if (lista.length && lista[0].idproducto) {\n      // EXISTE -> actualizar catálogo, NO tocar stock\n      await this.helpers.httpRequest({ method: 'PUT', url: FS_BASE + '/productos/' + lista[0].idproducto, headers: HF, body: enc(body) });\n      out.push({ json: { referencia: ref, accion: 'actualizado' } });\n    } else {\n      // NUEVO -> crear producto + sembrar stock inicial\n      const creado = await this.helpers.httpRequest({ method: 'POST', url: FS_BASE + '/productos', headers: HF, body: enc(body) });\n      const idprod = (creado && (creado.idproducto || (creado.data && creado.data.idproducto))) || null;\n      const stockIni = Math.max(0, Math.round(Number(p.stock) || 0));\n      let seed = 'sin almacén -> stock 0';\n      if (codalmacen) {\n        await sleep(1200);\n        const st = await this.helpers.httpRequest({ method: 'GET', url: FS_BASE + '/stocks?filter[referencia]=' + encodeURIComponent(ref) + '&limit=1', headers: H, json: true });\n        const filas = Array.isArray(st) ? st : (st.data || []);\n        if (filas.length && filas[0].idstock) {\n          await this.helpers.httpRequest({ method: 'PUT', url: FS_BASE + '/stocks/' + filas[0].idstock, headers: HF, body: enc({ cantidad: stockIni }) });\n        } else {\n          const sbody = { referencia: ref, codalmacen: codalmacen, cantidad: stockIni };\n          if (idprod) sbody.idproducto = idprod;\n          await this.helpers.httpRequest({ method: 'POST', url: FS_BASE + '/stocks', headers: HF, body: enc(sbody) });\n        }\n        seed = 'stock ' + stockIni;\n      }\n      out.push({ json: { referencia: ref, accion: 'creado', sembrado: seed } });\n    }\n  } catch (e) {\n    out.push({ json: { referencia: ref, accion: 'error', error: String((e && e.message) || e) } });\n  }\n  await sleep(1300); // pausa anti-429\n}\nreturn out.length ? out : [{ json: { info: 'sin productos con SKU' } }];\n"
+      },
+      "id": "code",
+      "name": "Upsert + stock inicial en FS",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "eureka-catalogo",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "wh",
+      "name": "Webhook (la web avisa)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        260,
+        460
+      ],
+      "webhookId": "eureka-catalogo"
+    }
+  ],
+  "connections": {
+    "Ejecutar a mano": {
+      "main": [
+        [
+          {
+            "node": "Upsert + stock inicial en FS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook (la web avisa)": {
+      "main": [
+        [
+          {
+            "node": "Upsert + stock inicial en FS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
