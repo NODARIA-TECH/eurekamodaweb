@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { getAccountById } from '@/lib/store';
 import { readSession, CUSTOMER_COOKIE } from '@/lib/auth';
 import { money } from '@/lib/money';
+import OrderTracker from '@/components/OrderTracker';
 import { logout } from './actions';
 
 export const dynamic = 'force-dynamic';
@@ -71,6 +72,7 @@ export default async function CuentaPage() {
                         <span key={i}>{it.qty}× {it.name}{it.size ? ` (${it.size})` : ''}</span>
                       ))}
                     </div>
+                    {o.status !== 'cancelado' && <OrderTracker status={o.status} history={o.history} />}
                     <div className="ao-bot">
                       <span className="muted">{fecha(o.createdAt)}</span>
                       <strong>{money(o.total)}</strong>

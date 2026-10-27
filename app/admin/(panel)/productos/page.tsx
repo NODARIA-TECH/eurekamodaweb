@@ -1,5 +1,6 @@
 import { listProducts, listCategories } from '@/lib/store';
-import { saveProductRow, addProduct, removeProduct, importCsv } from './actions';
+import { productImg } from '@/lib/data';
+import { saveProductRow, addProduct, removeProduct, importCsv, setProductPhoto } from './actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,10 +12,20 @@ export default async function ProductosAdmin() {
 
       <div className="adm-card">
         <table className="adm-table">
-          <thead><tr><th>Producto</th><th>SKU</th><th>Categoría</th><th>Precio (€)</th><th>Stock</th><th>Badge</th><th></th></tr></thead>
+          <thead><tr><th>Foto</th><th>Producto</th><th>SKU</th><th>Categoría</th><th>Precio (€)</th><th>Stock</th><th>Badge</th><th></th></tr></thead>
           <tbody>
             {products.map((p) => (
               <tr key={p.id}>
+                <td>
+                  <div className="adm-thumb">
+                    <img src={productImg(p.image, 90, 110)} alt="" />
+                    <form action={setProductPhoto} className="adm-photo">
+                      <input type="hidden" name="id" value={p.id} />
+                      <input name="foto" type="file" accept="image/*" required aria-label={`Nueva foto de ${p.name}`} />
+                      <button className="btn-sm ghost" type="submit">Subir</button>
+                    </form>
+                  </div>
+                </td>
                 <td>{p.name}</td>
                 <td style={{ fontFamily: 'monospace', fontSize: '.82rem', color: 'var(--muted)' }}>{p.sku || '—'}</td>
                 <td>{p.category}</td>
@@ -48,7 +59,8 @@ export default async function ProductosAdmin() {
           </label>
           <label>Precio (€)<input name="price" placeholder="39,95" /></label>
           <label>Stock<input name="stock" type="number" min={0} defaultValue={0} /></label>
-          <label>Imagen (id Pexels)<input name="image" placeholder="26998033" /></label>
+          <label>Foto (subir)<input name="foto" type="file" accept="image/*" /></label>
+          <label>…o id Pexels<input name="image" placeholder="26998033" /></label>
           <label>Badge<input name="badge" placeholder="Nuevo" /></label>
           <button className="btn-sm" type="submit" style={{ height: 40 }}>Añadir</button>
         </form>

@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getProduct } from '@/lib/store';
-import { pexels } from '@/lib/data';
+import { productImg } from '@/lib/data';
 import { money } from '@/lib/money';
 import AddToCart from '@/components/AddToCart';
 
@@ -22,7 +22,7 @@ export default async function ProductPage({ params }: { params: { id: string } }
       <div className="wrap">
         <div className="crumbs"><Link href="/tienda">Tienda</Link> · <Link href={`/categoria/${p.category}`}>{p.category}</Link></div>
         <div className="pdp">
-          <div className="pdp-img"><img src={pexels(p.image, 900, 1200)} alt={p.name} /></div>
+          <div className="pdp-img"><img src={productImg(p.image, 900, 1200)} alt={p.name} /></div>
           <div className="pdp-info">
             <span className="lab">{p.category}</span>
             <h1>{p.name}</h1>

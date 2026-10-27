@@ -41,6 +41,7 @@ export type Order = {
   customerEmail?: string;  // para volcar el pedido a FacturaScripts
   facturaRef?: string;     // referencia del documento creado en FacturaScripts
   syncedAt?: string;       // cuándo se volcó a FacturaScripts (null = pendiente)
+  history?: { status: Order['status']; at: string }[]; // historial de estados (para el seguimiento)
 };
 
 // Item de cesta en el cliente

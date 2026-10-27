@@ -3,3 +3,4 @@ node_modules/
 out/
 .DS_Store
 data/live.json
+public/uploads/

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { pexels } from '@/lib/data';
+import { pexels, productImg } from '@/lib/data';
 import type { Category } from '@/lib/types';
 
 const HEART = 'M12 21s-7.5-4.6-10-9.4C.3 8.2 2 5 5.3 5c2 0 3.3 1.1 4.2 2.3l.5.7.5-.7C11.4 6.1 12.7 5 14.7 5 18 5 19.7 8.2 22 11.6 19.5 16.4 12 21 12 21z';
@@ -49,7 +49,7 @@ export function Categories({ categories }: { categories: Category[] }) {
         <div className="cats">
           {categories.slice(0, 4).map((c) => (
             <Link className="catc" href={`/categoria/${c.slug}`} key={c.slug}>
-              <div className="im"><img src={pexels(c.image, 600, 800)} alt={c.name} /></div>
+              <div className="im"><img src={productImg(c.image, 600, 800)} alt={c.name} /></div>
               <b>{c.name}</b>
             </Link>
           ))}

@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useState } from 'react';
-import { pexels } from '@/lib/data';
+import { productImg } from '@/lib/data';
 import type { Product } from '@/lib/types';
 import { money } from '@/lib/money';
 import { useCart } from './Cart';
@@ -27,7 +27,7 @@ export default function ProductCard({ p }: { p: Product }) {
           <Heart />
         </button>
         <Link href={`/producto/${p.id}`} className="imglink" aria-label={p.name}>
-          <img loading="lazy" src={pexels(p.image, 420, 560)} alt={p.name} />
+          <img loading="lazy" src={productImg(p.image, 420, 560)} alt={p.name} />
         </Link>
         {!out && (
           <button className="add" onClick={() => add({ id: p.id, name: p.name, price: p.price, image: p.image })}>

@@ -3,6 +3,28 @@ import { revalidatePath } from 'next/cache';
 import { createProduct, updateProduct, deleteProduct, upsertProductBySku, listCategories, createCategory } from '@/lib/store';
 import { toCents } from '@/lib/money';
 import * as XLSX from 'xlsx';
+import { promises as fs } from 'fs';
+import path from 'path';
+import { randomUUID } from 'crypto';
+
+// Guarda una imagen subida en public/uploads y devuelve su ruta pública (/uploads/xxx).
+// Devuelve null si no hay archivo válido (tipo no permitido, vacío o demasiado grande).
+const UPLOAD_TYPES: Record<string, string> = {
+  'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png',
+  'image/webp': 'webp', 'image/avif': 'avif', 'image/gif': 'gif',
+};
+async function saveUpload(file: unknown): Promise<string | null> {
+  const f = file as File | null;
+  if (!f || typeof (f as any).arrayBuffer !== 'function' || !f.size) return null;
+  const ext = UPLOAD_TYPES[(f.type || '').toLowerCase()];
+  if (!ext) return null;                         // solo imágenes
+  if (f.size > 6 * 1024 * 1024) return null;     // máx. 6 MB
+  const name = randomUUID().slice(0, 12) + '.' + ext;
+  const dir = path.join(process.cwd(), 'public', 'uploads');
+  await fs.mkdir(dir, { recursive: true });
+  await fs.writeFile(path.join(dir, name), new Uint8Array(await f.arrayBuffer()));
+  return '/uploads/' + name;
+}
 
 // --- Parser CSV con comillas, BOM y separador auto (',' o ';' de Excel español) ---
 function parseCsv(text: string): Record<string, string>[] {
@@ -69,16 +91,29 @@ export async function saveProductRow(fd: FormData) {
 export async function addProduct(fd: FormData) {
   const name = String(fd.get('name') || '').trim();
   if (!name) return;
+  const uploaded = await saveUpload(fd.get('foto'));
+  const image = uploaded || String(fd.get('image') || '').trim() || '26998033';
   await createProduct({
     name,
     category: String(fd.get('category') || 'vestidos'),
     price: toCents(String(fd.get('price'))),
     stock: parseInt(String(fd.get('stock') || '0'), 10) || 0,
-    image: String(fd.get('image') || '26998033'),
+    image,
     badge: String(fd.get('badge') || '') || undefined,
-    sku: String(fd.get('sku') || '').trim() || undefined, // vacío = se genera solo (EUR-0001…)
+    sku: String(fd.get('sku') || '').trim() || undefined, // vacío = se genera solo (PEK-0001…)
   });
   revalidatePath('/admin/productos');
+  revalidatePath('/tienda');
+}
+
+// Cambia solo la foto de un producto existente (subida desde el panel).
+export async function setProductPhoto(fd: FormData) {
+  const id = String(fd.get('id') || '').trim();
+  const uploaded = await saveUpload(fd.get('foto'));
+  if (!id || !uploaded) return;
+  await updateProduct(id, { image: uploaded });
+  revalidatePath('/admin/productos');
+  revalidatePath('/tienda');
 }
 
 export async function removeProduct(fd: FormData) {

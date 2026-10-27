@@ -161,6 +161,7 @@ export async function createOrder(input: { items: { productId: string; qty: numb
   }
   const total = items.reduce((s, i) => s + i.price * i.qty, 0);
   db.lastOrderNumber += 1;
+  const now = new Date().toISOString();
   const order: Order = {
     id: randomUUID().slice(0, 8),
     ref: 'EUR-' + db.lastOrderNumber,
@@ -169,7 +170,8 @@ export async function createOrder(input: { items: { productId: string; qty: numb
     items,
     total,
     status: 'pendiente',
-    createdAt: new Date().toISOString(),
+    createdAt: now,
+    history: [{ status: 'pendiente', at: now }],
   };
   // enlazar/crear cliente por email (opcional)
   if (input.customerEmail) {
@@ -188,8 +190,23 @@ export async function createOrder(input: { items: { productId: string; qty: numb
 export async function updateOrderStatus(id: string, status: Order['status']): Promise<void> {
   const db = await read();
   const o = db.orders.find((x) => x.id === id);
-  if (o) o.status = status;
+  if (o && o.status !== status) {
+    o.status = status;
+    if (!o.history) o.history = [];
+    o.history.push({ status, at: new Date().toISOString() });
+  }
   await write(db);
+}
+
+// Busca un pedido por referencia + email para el seguimiento público (sin login).
+export async function findOrderForTracking(ref: string, email: string): Promise<Order | undefined> {
+  const r = ref.trim().toLowerCase();
+  const e = email.trim().toLowerCase();
+  if (!r || !e) return undefined;
+  const db = await read();
+  return db.orders.find(
+    (o) => o.ref.toLowerCase() === r && (o.customerEmail || '').toLowerCase() === e
+  );
 }
 
 /* -------- Clientes / balance -------- */

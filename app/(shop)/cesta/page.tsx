@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useCart } from '@/components/Cart';
-import { pexels } from '@/lib/data';
+import { productImg } from '@/lib/data';
 import { money } from '@/lib/money';
 import { checkout } from './actions';
 
@@ -53,7 +53,7 @@ export default function CestaPage() {
         <div className="cart-items">
           {items.map((it) => (
             <div className="cart-item" key={it.id + (it.size ?? '')}>
-              <img src={pexels(it.image, 200, 260)} alt={it.name} />
+              <img src={productImg(it.image, 200, 260)} alt={it.name} />
               <div className="ci-info">
                 <div className="ci-name">{it.name}</div>
                 {it.size && <div className="ci-size">Talla {it.size}</div>}
