@@ -11,6 +11,7 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
         <nav className="adm-nav">
           <Link href="/admin">Dashboard</Link>
           <Link href="/admin/productos">Productos</Link>
+          <Link href="/admin/etiquetas">Etiquetas</Link>
           <Link href="/admin/categorias">Categorías</Link>
           <Link href="/admin/pedidos">Pedidos</Link>
           <Link href="/admin/clientes">Clientes</Link>

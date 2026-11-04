@@ -407,3 +407,15 @@ section{padding-block:clamp(50px,6vw,92px)}
 .seg-items li{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--hair);font-size:.85rem}
 .seg-foot{margin-top:18px;font-size:.85rem}
 @media(max-width:620px){.seg-form{grid-template-columns:1fr}}
+
+/* ===== Generador de etiquetas (códigos de barras) ===== */
+.etq-row{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px}
+.etq-row label{display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--text)}
+.etq-row label.chk{flex-direction:row;align-items:center;gap:6px}
+.etq-row input[type=number],.etq-row select{padding:8px 10px;border:1px solid var(--hair-2);border-radius:8px;background:#fff}
+.etq-print{display:flex;flex-wrap:wrap;gap:4mm;margin-top:16px}
+.etq-label{border:1px dashed var(--hair-2);border-radius:4px;padding:2mm;display:flex;flex-direction:column;align-items:center;justify-content:center;box-sizing:border-box;background:#fff;overflow:hidden;text-align:center}
+.etq-name{font-size:9pt;font-weight:600;line-height:1.05;max-height:2.2em;overflow:hidden}
+.bc-svg{width:92%;height:auto;max-height:14mm}
+.etq-sku{font-family:monospace;font-size:8pt;margin-top:1px}
+.etq-price{font-size:11pt;font-weight:700;margin-top:1px}
