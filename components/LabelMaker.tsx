@@ -1,11 +1,12 @@
 'use client';
 import { useEffect, useRef, useState, useMemo } from 'react';
 import JsBarcode from 'jsbarcode';
+import { jsPDF } from 'jspdf';
 
 type Item = { id: string; sku: string; name: string; price: number; category: string };
 type Cat = { slug: string; name: string };
 
-// Código de barras Code128 de la referencia (SKU) como SVG escalable.
+// Código de barras Code128 de la referencia (SKU) como SVG escalable (para la vista en pantalla).
 function Barcode({ value }: { value: string }) {
   const ref = useRef<SVGSVGElement>(null);
   useEffect(() => {
@@ -19,6 +20,17 @@ function Barcode({ value }: { value: string }) {
 }
 
 const euros = (c: number) => (c / 100).toFixed(2).replace('.', ',') + ' €';
+
+// Genera el PNG del código de barras y su proporción, para meterlo en el PDF.
+function barcodePng(value: string): { url: string; ratio: number } | null {
+  try {
+    const canvas = document.createElement('canvas');
+    JsBarcode(canvas, value, { format: 'CODE128', displayValue: false, margin: 0, height: 60, width: 2 });
+    return { url: canvas.toDataURL('image/png'), ratio: canvas.width / canvas.height };
+  } catch {
+    return null;
+  }
+}
 
 export default function LabelMaker({ products, categories }: { products: Item[]; categories: Cat[] }) {
   const [cat, setCat] = useState('');
@@ -64,6 +76,67 @@ export default function LabelMaker({ products, categories }: { products: Item[];
     return out;
   }, [sel, products]);
 
+  // Dibuja una etiqueta en el PDF dentro del recuadro (x, y, w, h) en mm.
+  const drawLabel = (doc: jsPDF, p: Item, x: number, y: number, bw: number, bh: number) => {
+    const pad = 1.5;
+    const cx = x + bw / 2;
+    let cursor = y + pad + 1.5;
+
+    if (showName) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7);
+      doc.text(textFor(p) || p.name, cx, cursor, { align: 'center', maxWidth: bw - 2 * pad });
+      cursor += 3;
+    }
+
+    const bc = barcodePng(p.sku);
+    if (bc) {
+      const bcW = Math.min(bw - 2 * pad, bh * 1.6);
+      const bcH = Math.max(6, Math.min(bh * 0.42, bcW / bc.ratio));
+      doc.addImage(bc.url, 'PNG', cx - bcW / 2, cursor, bcW, bcH);
+      cursor += bcH + 1;
+    }
+
+    doc.setFont('courier', 'normal');
+    doc.setFontSize(6);
+    doc.text(p.sku, cx, cursor, { align: 'center' });
+    cursor += 2.5;
+
+    if (showPrice) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text(euros(p.price), cx, cursor + 1, { align: 'center' });
+    }
+  };
+
+  const makePdf = () => {
+    if (!labels.length) return;
+    if (mode === 'rollo') {
+      const doc = new jsPDF({ unit: 'mm', format: [w, h], orientation: w >= h ? 'landscape' : 'portrait' });
+      const pw = doc.internal.pageSize.getWidth();
+      const ph = doc.internal.pageSize.getHeight();
+      labels.forEach((p, idx) => {
+        if (idx > 0) doc.addPage([w, h], w >= h ? 'landscape' : 'portrait');
+        drawLabel(doc, p, 0, 0, pw, ph);
+      });
+      doc.save('etiquetas-eureka.pdf');
+    } else {
+      const margin = 8, gap = 3, pageW = 210, pageH = 297;
+      const cols = Math.max(1, Math.floor((pageW - 2 * margin + gap) / (w + gap)));
+      const rows = Math.max(1, Math.floor((pageH - 2 * margin + gap) / (h + gap)));
+      const perPage = cols * rows;
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+      labels.forEach((p, idx) => {
+        const onPage = idx % perPage;
+        if (idx > 0 && onPage === 0) doc.addPage();
+        const r = Math.floor(onPage / cols), c = onPage % cols;
+        const x = margin + c * (w + gap), y = margin + r * (h + gap);
+        drawLabel(doc, p, x, y, w, h);
+      });
+      doc.save('etiquetas-eureka.pdf');
+    }
+  };
+
   return (
     <div className="etq">
       <style>{`
@@ -101,9 +174,10 @@ export default function LabelMaker({ products, categories }: { products: Item[];
         <div className="etq-row">
           <button className="btn-sm" onClick={selectAllVisible}>Seleccionar todos ({visible.length})</button>
           <button className="btn-sm ghost" onClick={clearAll}>Limpiar selección</button>
-          <button className="btn-sm gold" onClick={() => window.print()} disabled={!labels.length}>
-            Imprimir {labels.length} etiqueta{labels.length === 1 ? '' : 's'}
+          <button className="btn-sm gold" onClick={makePdf} disabled={!labels.length}>
+            Descargar PDF ({labels.length})
           </button>
+          <button className="btn-sm" onClick={() => window.print()} disabled={!labels.length}>Imprimir</button>
         </div>
 
         <table className="adm-table">
