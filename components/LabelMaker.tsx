@@ -22,7 +22,8 @@ const euros = (c: number) => (c / 100).toFixed(2).replace('.', ',') + ' €';
 
 export default function LabelMaker({ products, categories }: { products: Item[]; categories: Cat[] }) {
   const [cat, setCat] = useState('');
-  const [sel, setSel] = useState<Record<string, number>>({}); // id -> nº de copias
+  const [sel, setSel] = useState<Record<string, number>>({});   // id -> nº de copias
+  const [texts, setTexts] = useState<Record<string, string>>({}); // id -> texto de la etiqueta
   const [w, setW] = useState(50);
   const [h, setH] = useState(30);
   const [showName, setShowName] = useState(true);
@@ -34,20 +35,23 @@ export default function LabelMaker({ products, categories }: { products: Item[];
     [cat, products]
   );
 
-  const toggle = (id: string) =>
+  const textFor = (p: Item) => (texts[p.id] !== undefined ? texts[p.id] : p.name);
+  const setText = (id: string, v: string) => setTexts((t) => ({ ...t, [id]: v }));
+
+  const toggle = (p: Item) => {
     setSel((s) => {
       const n = { ...s };
-      if (n[id]) delete n[id];
-      else n[id] = 1;
+      if (n[p.id]) delete n[p.id];
+      else n[p.id] = 1;
       return n;
     });
+    setTexts((t) => (t[p.id] === undefined ? { ...t, [p.id]: p.name } : t));
+  };
   const setCopies = (id: string, v: number) => setSel((s) => ({ ...s, [id]: Math.max(1, Math.floor(v) || 1) }));
-  const selectAllVisible = () =>
-    setSel((s) => {
-      const n = { ...s };
-      visible.forEach((p) => { if (!n[p.id]) n[p.id] = 1; });
-      return n;
-    });
+  const selectAllVisible = () => {
+    setSel((s) => { const n = { ...s }; visible.forEach((p) => { if (!n[p.id]) n[p.id] = 1; }); return n; });
+    setTexts((t) => { const n = { ...t }; visible.forEach((p) => { if (n[p.id] === undefined) n[p.id] = p.name; }); return n; });
+  };
   const clearAll = () => setSel({});
 
   // lista plana de etiquetas (repitiendo según copias)
@@ -90,7 +94,7 @@ export default function LabelMaker({ products, categories }: { products: Item[];
               <option value="hoja">Hoja A4 (rejilla)</option>
             </select>
           </label>
-          <label className="chk"><input type="checkbox" checked={showName} onChange={(e) => setShowName(e.target.checked)} /> Nombre</label>
+          <label className="chk"><input type="checkbox" checked={showName} onChange={(e) => setShowName(e.target.checked)} /> Texto</label>
           <label className="chk"><input type="checkbox" checked={showPrice} onChange={(e) => setShowPrice(e.target.checked)} /> Precio</label>
         </div>
 
@@ -103,13 +107,16 @@ export default function LabelMaker({ products, categories }: { products: Item[];
         </div>
 
         <table className="adm-table">
-          <thead><tr><th></th><th>Ref</th><th>Producto</th><th>Precio</th><th>Copias</th></tr></thead>
+          <thead><tr><th></th><th>Ref</th><th>Producto</th><th>Texto etiqueta</th><th>Precio</th><th>Copias</th></tr></thead>
           <tbody>
             {visible.map((p) => (
               <tr key={p.id}>
-                <td><input type="checkbox" checked={!!sel[p.id]} onChange={() => toggle(p.id)} /></td>
+                <td><input type="checkbox" checked={!!sel[p.id]} onChange={() => toggle(p)} /></td>
                 <td style={{ fontFamily: 'monospace', fontSize: '.82rem' }}>{p.sku}</td>
                 <td>{p.name}</td>
+                <td>{sel[p.id] ? (
+                  <input value={textFor(p)} onChange={(e) => setText(p.id, e.target.value)} placeholder="Blusa Az" style={{ width: 150 }} />
+                ) : '—'}</td>
                 <td>{euros(p.price)}</td>
                 <td>{sel[p.id] ? (
                   <input type="number" min={1} value={sel[p.id]} onChange={(e) => setCopies(p.id, +e.target.value)} style={{ width: 64 }} />
@@ -123,7 +130,7 @@ export default function LabelMaker({ products, categories }: { products: Item[];
       <div className="etq-print">
         {labels.map((p, i) => (
           <div className="etq-label" key={i}>
-            {showName && <div className="etq-name">{p.name}</div>}
+            {showName && <div className="etq-name">{textFor(p)}</div>}
             <Barcode value={p.sku} />
             <div className="etq-sku">{p.sku}</div>
             {showPrice && <div className="etq-price">{euros(p.price)}</div>}
