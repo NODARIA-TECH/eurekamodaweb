@@ -126,7 +126,11 @@ export async function setStockBySku(items: { sku: string; stock: number }[]): Pr
 
 // Pedidos aún no volcados a FacturaScripts.
 export async function listPendingOrders(): Promise<Order[]> {
-  return (await read()).orders.filter((o) => !o.syncedAt);
+  // Pedidos confirmados aún no volcados a FS. Se excluyen los cancelados y los
+  // pedidos online que siguen a la espera de pago en Stripe (sesión creada y todavía 'pendiente').
+  return (await read()).orders.filter(
+    (o) => !o.syncedAt && o.status !== 'cancelado' && !(o.stripeSessionId && o.status === 'pendiente')
+  );
 }
 // Marcar un pedido como volcado a FacturaScripts.
 export async function markOrderSynced(id: string, facturaRef?: string): Promise<boolean> {
@@ -187,6 +191,78 @@ export async function createOrder(input: { items: { productId: string; qty: numb
   await write(db);
   return { ok: true, order };
 }
+// Crea un pedido PENDIENTE de pago (checkout online con Stripe). NO descuenta stock:
+// el stock se descuenta al confirmarse el pago (markOrderPaid). Valida que haya stock.
+export async function createPendingOrder(input: { items: { productId: string; qty: number; size?: string }[]; customerName?: string; customerEmail?: string }): Promise<{ ok: boolean; order?: Order; error?: string }> {
+  const db = await read();
+  if (!input.items.length) return { ok: false, error: 'La cesta está vacía.' };
+  const items: OrderItem[] = [];
+  for (const line of input.items) {
+    const p = db.products.find((x) => x.id === line.productId);
+    if (!p) return { ok: false, error: 'Producto no encontrado.' };
+    if (p.stock < line.qty) return { ok: false, error: `Sin stock suficiente de ${p.name}.` };
+  }
+  for (const line of input.items) {
+    const p = db.products.find((x) => x.id === line.productId)!;
+    items.push({ productId: p.id, name: p.name, price: p.price, qty: line.qty, size: line.size });
+  }
+  const total = items.reduce((s, i) => s + i.price * i.qty, 0);
+  db.lastOrderNumber += 1;
+  const now = new Date().toISOString();
+  const order: Order = {
+    id: randomUUID().slice(0, 8),
+    ref: 'EUR-' + db.lastOrderNumber,
+    customerName: input.customerName,
+    customerEmail: input.customerEmail,
+    items,
+    total,
+    status: 'pendiente',
+    createdAt: now,
+    history: [{ status: 'pendiente', at: now }],
+  };
+  if (input.customerEmail) {
+    let cust = db.customers.find((c) => c.email.toLowerCase() === input.customerEmail!.toLowerCase());
+    if (!cust) {
+      cust = { id: randomUUID().slice(0, 8), name: input.customerName || input.customerEmail, email: input.customerEmail, balance: 0, movements: [], createdAt: new Date().toISOString() };
+      db.customers.push(cust);
+    }
+    order.customerId = cust.id;
+    order.customerName = cust.name;
+  }
+  db.orders.push(order);
+  await write(db);
+  return { ok: true, order };
+}
+
+// Guarda el id de la sesión de Stripe en el pedido.
+export async function setOrderStripeSession(id: string, sessionId: string): Promise<void> {
+  const db = await read();
+  const o = db.orders.find((x) => x.id === id);
+  if (o) o.stripeSessionId = sessionId;
+  await write(db);
+}
+
+export async function getOrderByStripeSession(sessionId: string): Promise<Order | undefined> {
+  return (await read()).orders.find((o) => o.stripeSessionId === sessionId);
+}
+
+// Marca un pedido como pagado y descuenta el stock (idempotente: si ya no está 'pendiente', no hace nada).
+export async function markOrderPaid(id: string): Promise<{ ok: boolean; order?: Order; alreadyPaid?: boolean; error?: string }> {
+  const db = await read();
+  const o = db.orders.find((x) => x.id === id);
+  if (!o) return { ok: false, error: 'Pedido no encontrado.' };
+  if (o.status !== 'pendiente') return { ok: true, order: o, alreadyPaid: true };
+  for (const it of o.items) {
+    const p = db.products.find((x) => x.id === it.productId);
+    if (p) p.stock = Math.max(0, p.stock - it.qty);
+  }
+  o.status = 'pagado';
+  if (!o.history) o.history = [];
+  o.history.push({ status: 'pagado', at: new Date().toISOString() });
+  await write(db);
+  return { ok: true, order: o };
+}
+
 export async function updateOrderStatus(id: string, status: Order['status']): Promise<void> {
   const db = await read();
   const o = db.orders.find((x) => x.id === id);

@@ -20,8 +20,9 @@ export default function CestaPage() {
   async function pay() {
     setLoading(true); setErr('');
     const res = await checkout({ items: items.map((i) => ({ productId: i.id, qty: i.qty, size: i.size })), name, email });
+    if (res.url) { window.location.href = res.url; return; } // redirige a la pasarela de Stripe
     setLoading(false);
-    if (res.ok) { clear(); setDone(res.ref!); } else setErr(res.error || 'No se pudo completar el pedido.');
+    if (res.ok && res.ref) { clear(); setDone(res.ref); } else setErr(res.error || 'No se pudo completar el pedido.');
   }
 
   if (done) {
