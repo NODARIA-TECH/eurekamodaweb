@@ -19,7 +19,11 @@ export type Product = {
   details?: string;                     // composición y cuidados
   images?: string[];                    // galería adicional (la principal es `image`)
   colorImages?: Record<string, string>; // foto por color: { "Rojo": "/media/xxx.webp" }
+  variants?: Variant[];                 // stock por talla × color (si hay, `stock` = suma)
 };
+
+// Combinación talla × color con su propio stock y referencia (PEK-0973-01).
+export type Variant = { size?: string; color?: string; stock: number; sku?: string };
 
 export type BalanceMovement = { id: string; amount: number; reason: string; createdAt: string };
 
@@ -33,7 +37,7 @@ export type Customer = {
   passwordHash?: string;  // "scrypt$<salt>$<hash>" — ausente = cuenta invitado (creada por un pedido)
 };
 
-export type OrderItem = { productId: string; name: string; price: number; qty: number; size?: string; color?: string };
+export type OrderItem = { productId: string; name: string; price: number; qty: number; size?: string; color?: string; variantSku?: string };
 
 export type Order = {
   id: string;

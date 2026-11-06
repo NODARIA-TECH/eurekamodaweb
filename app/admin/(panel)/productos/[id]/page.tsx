@@ -59,8 +59,8 @@ export default async function EditProduct({ params, searchParams }: { params: { 
             </section>
 
             <section className="adm-card">
-              <h2>Tallas y colores</h2>
-              <VariantEditor sizes={p.sizes || []} colors={p.colors || []} colorImages={p.colorImages || {}} gallery={gallery} />
+              <h2>Tallas, colores y stock</h2>
+              <VariantEditor sizes={p.sizes || []} colors={p.colors || []} colorImages={p.colorImages || {}} gallery={gallery} stock={p.stock} variants={p.variants} />
             </section>
           </div>
 
@@ -83,14 +83,6 @@ export default async function EditProduct({ params, searchParams }: { params: { 
                 <input type="file" name="galeria" accept="image/*" multiple />
               </label>
               <p className="adm-help">Se optimizan solas. La marcada como <b>Principal</b> es la que sale en el catálogo.</p>
-            </section>
-
-            <section className="adm-card">
-              <h2>Stock</h2>
-              <div className="adm-form pe-form">
-                <label className="pe-wide">Unidades<input name="stock" type="number" min={0} defaultValue={p.stock} /></label>
-              </div>
-              <p className="adm-help">Se actualiza solo con cada venta (tienda física y web) desde FacturaScripts.</p>
             </section>
 
             <button className="btn btn-gold pe-save" type="submit">Guardar cambios</button>

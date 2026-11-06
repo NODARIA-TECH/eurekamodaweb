@@ -25,7 +25,8 @@ export async function GET(req: Request) {
       createdAt: o.createdAt,
       items: o.items.map((i) => ({
         productId: i.productId,
-        sku: skuById.get(i.productId) || null,
+        sku: skuById.get(i.productId) || null,          // referencia del producto (la que conoce FS hoy)
+        variantSku: i.variantSku || null,              // referencia de la talla/color (PEK-0973-01)
         name: i.name,
         qty: i.qty,
         size: i.size || null,

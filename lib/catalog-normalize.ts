@@ -90,3 +90,54 @@ export function cleanCategory(input: string): string {
 export function slugify(s: string): string {
   return stripAccents(s.toLowerCase()).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
+
+// "Stock por talla y color" escrito a mano -> { "M/L|Beige": 1, ... } (claves como lib/variants vkey).
+// Formatos aceptados (separando grupos con ; o saltos de línea):
+//   "Beige: M/L 1, XL/XXL 1; Camel: M/L 1, XL/XXL 0"   (color: talla unidades, ...)
+//   "M/L 8, XL/XXL 2"  ó  "M/L: 8, XL/XXL: 2"           (solo tallas)
+//   "Negro 3, Rojo 2"                                   (solo colores / talla única)
+//   "Beige M/L 1, Beige XL/XXL 1"                       (color y talla juntos)
+export function parseVariantStock(input: string, sizes: string[], colors: string[]): Record<string, number> | undefined {
+  const text = String(input || '').trim();
+  if (!text) return undefined;
+  const n = (s: string) => stripAccents(String(s).toLowerCase()).replace(/\s*\/\s*/g, '/').replace(/^tallas?\s+/, '').replace(/\s+/g, ' ').trim();
+  const findIn = (list: string[], tok: string) => list.find((x) => n(x) === n(tok));
+  const key = (s?: string, c?: string) => `${s ?? ''}|${c ?? ''}`;
+  const out: Record<string, number> = {};
+
+  for (const group of text.split(/\s*[;\n|]\s*/)) {
+    if (!group.trim()) continue;
+    let gColor: string | undefined;
+    let body = group;
+    const m = /^\s*([^:,]+?)\s*:\s*(.+)$/.exec(group);
+    if (m && findIn(colors, m[1])) { gColor = findIn(colors, m[1]); body = m[2]; }
+
+    for (const item of body.split(/\s*,\s*/)) {
+      const im = /^(.+?)\s*[:=]?\s*(\d+)\s*(uds?\.?|unidades)?\.?$/i.exec(item.trim());
+      if (!im) continue;
+      const tok = im[1].trim();
+      const qty = parseInt(im[2], 10);
+      let size: string | undefined;
+      let color: string | undefined = gColor;
+
+      if (gColor) size = findIn(sizes, tok);
+      else if (findIn(sizes, tok)) {
+        size = findIn(sizes, tok);
+        if (colors.length > 1) continue; // ¿de qué color? ambiguo: se ignora
+        color = colors[0];
+      } else if (findIn(colors, tok)) {
+        color = findIn(colors, tok);
+        if (sizes.length > 1) continue;  // ¿de qué talla? ambiguo
+        size = sizes[0];
+      } else {
+        // "Beige M/L": color + talla en el mismo trozo
+        const c = colors.find((x) => n(tok).startsWith(n(x) + ' '));
+        if (c) { color = c; size = findIn(sizes, n(tok).slice(n(c).length + 1)); }
+      }
+      if (sizes.length && !size) continue;
+      if (colors.length && !color) continue;
+      out[key(size, color)] = qty;
+    }
+  }
+  return Object.keys(out).length ? out : undefined;
+}

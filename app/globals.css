@@ -549,3 +549,18 @@ a.add{display:block;text-align:center}
 .ve-thumb img{width:40px;height:53px;object-fit:cover;display:block}
 .ve-thumb.on{border-color:var(--ink)}
 .ve-clear{align-self:flex-start;border:none;background:none;color:#a23;font-family:"Jost",sans-serif;font-size:.74rem;text-decoration:underline;cursor:pointer;padding:0}
+
+/* Stock por talla × color (panel) */
+.ve-toggle{display:flex;align-items:center;gap:8px;font-family:"Jost",sans-serif;font-size:.86rem;color:var(--ink);margin-bottom:10px;cursor:pointer}
+.ve-grid{border-collapse:collapse;font-family:"Jost",sans-serif;font-size:.84rem;color:var(--ink)}
+.ve-grid th,.ve-grid td{border:1px solid var(--hair);padding:6px 8px;text-align:center;white-space:nowrap}
+.ve-grid thead th{background:var(--cream);font-weight:600;font-size:.76rem;letter-spacing:.04em}
+.ve-grid tbody th{text-align:left;font-weight:500;background:#fdfbf7}
+.ve-grid tbody th .adm-dot{vertical-align:-1px;margin-right:4px}
+.ve-grid input{width:58px;padding:6px 4px;text-align:center;border:1px solid var(--hair-2);border-radius:6px;font-family:inherit;font-size:.9rem;font-variant-numeric:tabular-nums}
+.ve-grid input.zero{background:#fff4f2;color:#a23;border-color:#efc9c2}
+.ve-sum{font-weight:600;font-variant-numeric:tabular-nums;background:var(--cream)}
+/* Tallas/colores agotados en la ficha */
+.size.off{color:#b9ad99;background:repeating-linear-gradient(135deg,transparent 0 6px,rgba(171,156,133,.18) 6px 7px);border-color:var(--hair);cursor:not-allowed;text-decoration:line-through}
+.sw.off{position:relative;opacity:.55}
+.sw.off::after{content:"";position:absolute;left:4px;right:4px;top:50%;height:1.5px;background:#7A6E5C;transform:rotate(-45deg)}

@@ -1,6 +1,8 @@
 'use client';
 import { useState } from 'react';
 import { productImg, swatch } from '@/lib/data';
+import { combos, vkey } from '@/lib/variants';
+import type { Variant } from '@/lib/types';
 
 const PRESETS: { label: string; sizes: string[] }[] = [
   { label: 'XS – XL', sizes: ['XS', 'S', 'M', 'L', 'XL'] },
@@ -50,12 +52,27 @@ type Props = {
   colors: string[];
   colorImages: Record<string, string>;
   gallery: string[]; // fotos ya subidas del producto (para elegir la de cada color)
+  stock: number;       // stock total actual
+  variants?: Variant[]; // stock por talla × color (si ya lo lleva)
 };
 
-export default function VariantEditor({ sizes: s0, colors: c0, colorImages, gallery }: Props) {
+export default function VariantEditor({ sizes: s0, colors: c0, colorImages, gallery, stock: stock0, variants }: Props) {
   const [sizes, setSizes] = useState<string[]>(s0);
   const [colors, setColors] = useState<string[]>(c0);
   const [picked, setPicked] = useState<Record<string, string>>({});
+  const [byVariant, setByVariant] = useState<boolean>(!!variants?.length);
+  const [total, setTotal] = useState<number>(stock0);
+  const [cells, setCells] = useState<Record<string, string>>(() => {
+    const m: Record<string, string> = {};
+    for (const v of variants || []) m[vkey(v.size, v.color)] = String(v.stock);
+    return m;
+  });
+  const grid = combos(sizes, colors);
+  const canVariant = grid.length > 1;
+  const useGrid = byVariant && canVariant;
+  const sum = grid.reduce((acc, c) => acc + (parseInt(cells[vkey(c.size, c.color)] || '0', 10) || 0), 0);
+  const rows = colors.length ? colors : [undefined];
+  const cols = sizes.length ? sizes : [undefined];
 
   return (
     <div className="ve">
@@ -117,6 +134,66 @@ export default function VariantEditor({ sizes: s0, colors: c0, colorImages, gall
                 </div>
               );
             })}
+          </div>
+        )}
+      </div>
+
+      <div className="ve-block">
+        <div className="ve-head">
+          <b>Stock</b>
+          <span className="adm-help">{useGrid ? `Total: ${sum} unidades` : 'Se actualiza solo con cada venta.'}</span>
+        </div>
+        <input type="hidden" name="vmode" value={useGrid ? '1' : '0'} />
+        {canVariant && (
+          <label className="ve-toggle">
+            <input type="checkbox" checked={byVariant} onChange={(e) => setByVariant(e.target.checked)} />
+            Llevar el stock por talla y color (recomendado)
+          </label>
+        )}
+        {useGrid ? (
+          <div className="adm-scroll">
+            <table className="ve-grid">
+              <thead>
+                <tr>
+                  <th>{colors.length ? 'Color' : ''}</th>
+                  {cols.map((s) => <th key={s ?? 'u'}>{s ?? 'Única'}</th>)}
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((c) => {
+                  const rowSum = cols.reduce((a, s) => a + (parseInt(cells[vkey(s, c)] || '0', 10) || 0), 0);
+                  return (
+                    <tr key={c ?? 'u'}>
+                      <th>{c ? <><span className="adm-dot" style={{ background: swatch(c) }} /> {c}</> : 'Unidades'}</th>
+                      {cols.map((s) => {
+                        const k = vkey(s, c);
+                        const v = cells[k] ?? '0';
+                        return (
+                          <td key={k}>
+                            <input
+                              type="number" min={0} inputMode="numeric" name={`vs:${k}`} value={v}
+                              aria-label={`Stock ${[s, c].filter(Boolean).join(' ')}`}
+                              className={(parseInt(v, 10) || 0) === 0 ? 'zero' : ''}
+                              onFocus={(e) => e.target.select()}
+                              onChange={(e) => setCells({ ...cells, [k]: e.target.value })}
+                            />
+                          </td>
+                        );
+                      })}
+                      <td className="ve-sum">{rowSum}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <p className="adm-help">Las casillas a 0 se muestran como agotadas en la tienda (esa talla no se puede elegir en ese color).</p>
+          </div>
+        ) : (
+          <div className="adm-form pe-form">
+            <label className="pe-wide">Unidades (total)
+              <input name="stock" type="number" min={0} value={total} onChange={(e) => setTotal(parseInt(e.target.value, 10) || 0)} />
+            </label>
           </div>
         )}
       </div>

@@ -83,7 +83,10 @@ export default async function ProductosAdmin({ searchParams }: { searchParams: S
                     </td>
                     <td>{catName.get(p.category) || p.category}</td>
                     <td className="adm-num">{money(p.price)}</td>
-                    <td className={'adm-num' + (p.stock <= 0 ? ' adm-out' : p.stock <= 3 ? ' adm-low' : '')}>{p.stock}</td>
+                    <td className={'adm-num' + (p.stock <= 0 ? ' adm-out' : p.stock <= 3 ? ' adm-low' : '')}>
+                      {p.stock}
+                      {!!p.variants?.length && <div className="adm-sku" title="Stock llevado por talla y color">por talla{(() => { const n = p.variants!.filter((v) => v.stock <= 0).length; return n ? ` · ${n} agotad${n > 1 ? 'as' : 'a'}` : ''; })()}</div>}
+                    </td>
                     <td className="adm-muted">{p.sizes?.length ? p.sizes.join(' · ') : 'Única'}</td>
                     <td>
                       <div className="adm-dots" title={(p.colors || []).join(', ')}>

@@ -28,6 +28,7 @@ export async function GET(req: Request) {
       description: p.description || null,
       sizes: p.sizes || [],
       colors: p.colors || [],
+      variants: (p.variants || []).map((v) => ({ sku: v.sku || null, size: v.size || null, color: v.color || null, stock: v.stock })),
       updatedAt: p.updatedAt || null,
     })),
   });

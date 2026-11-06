@@ -19,5 +19,5 @@ export async function POST(req: Request) {
   if (!items.length) return NextResponse.json({ ok: true, updated: 0, missing: [], note: 'Sin líneas de stock que sincronizar.' });
 
   const res = await setStockBySku(items);
-  return NextResponse.json({ ok: true, updated: res.updated, missing: res.missing });
+  return NextResponse.json({ ok: true, updated: res.updated, missing: res.missing, ignored: res.ignored });
 }

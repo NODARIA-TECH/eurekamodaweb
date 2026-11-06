@@ -4,6 +4,8 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { randomUUID } from 'crypto';
 import type { DB, Product, Category, Customer, Order, OrderItem } from './types';
+import { hasVariants, findVariant, buildVariants, totalStock, vkey, vlabel } from './variants';
+import { parseVariantStock } from './catalog-normalize';
 import { hashPassword, verifyPassword } from './auth';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -26,6 +28,51 @@ async function read(): Promise<DB> {
 }
 async function write(db: DB): Promise<void> {
   await fs.writeFile(FILE, JSON.stringify(db, null, 2) + '\n', 'utf8');
+}
+
+// Recalcula las variantes (talla × color) tras cambiar tallas/colores: conserva referencias y stock.
+// `seedText` (columna "Stock por talla y color" del Excel) solo se aplica si el producto aún no
+// tiene stock por variante: después el stock se lleva en el panel / con las ventas.
+// Sin variantes previas ni `seedText`, el producto sigue con stock total.
+function refreshVariants(p: Product, seedText?: string) {
+  const seed = seedText ? parseVariantStock(seedText, p.sizes || [], p.colors || []) : undefined;
+  const had = hasVariants(p);
+  if (!had && !seed) return;
+  const hadStock = had && p.variants!.some((v) => v.stock > 0);
+  p.variants = buildVariants(p.sku || p.id, p.variants, p.sizes || [], p.colors || [], hadStock ? null : seed);
+  if (p.variants) p.stock = totalStock(p.variants);
+}
+
+type StockLine = { productId: string; qty: number; size?: string; color?: string };
+const lineName = (p: Product, l: StockLine) => {
+  const lab = vlabel(l.size, l.color);
+  return lab ? `${p.name} (${lab})` : p.name;
+};
+
+// Comprueba que hay unidades para todas las líneas (por variante si el producto la tiene).
+function checkStock(db: DB, lines: StockLine[]): string | null {
+  const need = new Map<string, number>();
+  for (const l of lines) {
+    const p = db.products.find((x) => x.id === l.productId);
+    if (!p) return 'Producto no encontrado.';
+    if (!Number.isInteger(l.qty) || l.qty < 1 || l.qty > 99) return 'Cantidad no válida.';
+    const k = p.id + '#' + (hasVariants(p) ? vkey(l.size, l.color) : '');
+    const want = (need.get(k) || 0) + l.qty;
+    need.set(k, want);
+    const avail = hasVariants(p) ? findVariant(p, l.size, l.color)?.stock : p.stock;
+    if (avail === undefined) return `${lineName(p, l)}: esa combinación ya no está disponible.`;
+    if (avail < want) return avail <= 0 ? `${lineName(p, l)} está agotado.` : avail === 1 ? `Solo queda 1 unidad de ${lineName(p, l)}.` : `Solo quedan ${avail} unidades de ${lineName(p, l)}.`;
+  }
+  return null;
+}
+
+// Descuenta las unidades de una línea (de su variante, o del total).
+function takeStock(p: Product, l: StockLine) {
+  if (hasVariants(p)) {
+    const v = findVariant(p, l.size, l.color);
+    if (v) v.stock = Math.max(0, v.stock - l.qty);
+    p.stock = totalStock(p.variants!);
+  } else p.stock = Math.max(0, p.stock - l.qty);
 }
 
 /* -------- Categorías -------- */
@@ -58,7 +105,7 @@ export async function getProduct(id: string): Promise<Product | undefined> {
 export async function productsByCategory(slug: string): Promise<Product[]> {
   return (await read()).products.filter((p) => p.category === slug);
 }
-export async function createProduct(data: Omit<Product, 'id' | 'slug'> & { slug?: string }): Promise<Product> {
+export async function createProduct(data: Omit<Product, 'id' | 'slug'> & { slug?: string }, opts?: { variantStockText?: string }): Promise<Product> {
   const db = await read();
   const slug = (data.slug || data.name).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   // SKU automático con prefijo (EUR-0001, EUR-0002…) si no se indica uno.
@@ -70,6 +117,7 @@ export async function createProduct(data: Omit<Product, 'id' | 'slug'> & { slug?
     sku = `${prefix}-${String(n).padStart(4, '0')}`;
   }
   const prod: Product = { id: randomUUID().slice(0, 8), slug, name: data.name, price: data.price, image: data.image || '26998033', stock: data.stock ?? 0, category: data.category, badge: data.badge, sku, sizes: data.sizes, colors: data.colors, description: data.description, details: data.details, images: data.images, colorImages: data.colorImages, updatedAt: new Date().toISOString() };
+  refreshVariants(prod, opts?.variantStockText);
   db.products.push(prod);
   await write(db);
   return prod;
@@ -77,7 +125,11 @@ export async function createProduct(data: Omit<Product, 'id' | 'slug'> & { slug?
 export async function updateProduct(id: string, patch: Partial<Product>): Promise<void> {
   const db = await read();
   const p = db.products.find((x) => x.id === id);
-  if (p) { Object.assign(p, patch); p.updatedAt = new Date().toISOString(); }
+  if (p) {
+    Object.assign(p, patch);
+    if (hasVariants(p)) p.stock = totalStock(p.variants!); // con variantes, el total es la suma
+    p.updatedAt = new Date().toISOString();
+  }
   await write(db);
 }
 export async function deleteProduct(id: string): Promise<void> {
@@ -88,7 +140,7 @@ export async function deleteProduct(id: string): Promise<void> {
 
 /* -------- Sincronización con FacturaScripts -------- */
 // Alta/actualización de producto por SKU (referencia). FS->web para artículos creados en FacturaScripts.
-export async function upsertProductBySku(data: { sku: string; name: string; price: number; stock?: number; category?: string; image?: string; badge?: string; sizes?: string[]; colors?: string[]; description?: string; details?: string; keepStock?: boolean }): Promise<{ created: boolean; product: Product }> {
+export async function upsertProductBySku(data: { sku: string; name: string; price: number; stock?: number; category?: string; image?: string; badge?: string; sizes?: string[]; colors?: string[]; description?: string; details?: string; keepStock?: boolean; variantStockText?: string }): Promise<{ created: boolean; product: Product }> {
   const db = await read();
   const sku = data.sku.trim();
   let p = db.products.find((x) => x.sku && x.sku.toLowerCase() === sku.toLowerCase());
@@ -103,12 +155,14 @@ export async function upsertProductBySku(data: { sku: string; name: string; pric
     if (data.colors !== undefined) p.colors = data.colors;
     if (data.description !== undefined) p.description = data.description;
     if (data.details !== undefined) p.details = data.details;
+    refreshVariants(p, data.variantStockText);
     p.updatedAt = new Date().toISOString();
     await write(db);
     return { created: false, product: p };
   }
   const slug = (data.name).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || sku.toLowerCase();
   p = { id: randomUUID().slice(0, 8), slug, name: data.name, price: data.price, image: data.image || '26998033', stock: data.stock ?? 0, category: data.category || 'tops', badge: data.badge, sku, sizes: data.sizes, colors: data.colors, description: data.description, details: data.details, updatedAt: new Date().toISOString() };
+  refreshVariants(p, data.variantStockText);
   db.products.push(p);
   await write(db);
   return { created: true, product: p };
@@ -117,7 +171,7 @@ export async function upsertProductBySku(data: { sku: string; name: string; pric
 // Alta/actualización por NOMBRE (para importaciones de Excel SIN referencia).
 // Empareja por nombre normalizado (ignora mayúsculas/acentos/espacios) para no duplicar.
 // Si el existente no tiene SKU aún, NO lo inventa aquí (se respeta el que ya tenga).
-export async function upsertProductByName(data: { name: string; price: number; stock?: number; category?: string; image?: string; badge?: string; sizes?: string[]; colors?: string[]; description?: string; details?: string; keepStock?: boolean; previousName?: string }): Promise<{ created: boolean; product: Product }> {
+export async function upsertProductByName(data: { name: string; price: number; stock?: number; category?: string; image?: string; badge?: string; sizes?: string[]; colors?: string[]; description?: string; details?: string; keepStock?: boolean; previousName?: string; variantStockText?: string }): Promise<{ created: boolean; product: Product }> {
   const db = await read();
   const norm = (s: string) => s.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ');
   const target = norm(data.name);
@@ -135,26 +189,39 @@ export async function upsertProductByName(data: { name: string; price: number; s
     if (data.colors !== undefined) p.colors = data.colors;
     if (data.description !== undefined) p.description = data.description;
     if (data.details !== undefined) p.details = data.details;
+    refreshVariants(p, data.variantStockText);
     p.updatedAt = new Date().toISOString();
     await write(db);
     return { created: false, product: p };
   } // sin cambios; el alta la hace createProduct (genera SKU y slug)
-  const created = await createProduct({ name: data.name, price: data.price, stock: data.stock ?? 0, category: data.category || 'tops', image: data.image || '26998033', badge: data.badge, sizes: data.sizes, colors: data.colors, description: data.description, details: data.details });
+  const created = await createProduct({ name: data.name, price: data.price, stock: data.stock ?? 0, category: data.category || 'tops', image: data.image || '26998033', badge: data.badge, sizes: data.sizes, colors: data.colors, description: data.description, details: data.details }, { variantStockText: data.variantStockText });
   return { created: true, product: created };
 }
 
 // Ajuste de stock por SKU (FS manda sobre el stock). No toca campos de catálogo.
-export async function setStockBySku(items: { sku: string; stock: number }[]): Promise<{ updated: number; missing: string[] }> {
+// Acepta la referencia del producto o la de una variante (PEK-0973-01). Si llega la referencia
+// del producto entero y éste lleva stock por talla/color, se ignora para no pisar el desglose.
+export async function setStockBySku(items: { sku: string; stock: number }[]): Promise<{ updated: number; missing: string[]; ignored: string[] }> {
   const db = await read();
   let updated = 0;
   const missing: string[] = [];
+  const ignored: string[] = [];
   for (const it of items) {
-    const p = db.products.find((x) => x.sku && x.sku.toLowerCase() === it.sku.toLowerCase().trim());
-    if (p) { p.stock = Math.max(0, Math.round(it.stock)); updated++; }
-    else missing.push(it.sku);
+    const sku = it.sku.toLowerCase().trim();
+    const qty = Math.max(0, Math.round(it.stock));
+    let found = false;
+    for (const p of db.products) {
+      const v = p.variants?.find((x) => x.sku && x.sku.toLowerCase() === sku);
+      if (v) { v.stock = qty; p.stock = totalStock(p.variants!); updated++; found = true; break; }
+      if (p.sku && p.sku.toLowerCase() === sku) {
+        if (hasVariants(p)) ignored.push(it.sku); else { p.stock = qty; updated++; }
+        found = true; break;
+      }
+    }
+    if (!found) missing.push(it.sku);
   }
   await write(db);
-  return { updated, missing };
+  return { updated, missing, ignored };
 }
 
 // Pedidos aún no volcados a FacturaScripts.
@@ -184,17 +251,13 @@ export async function createOrder(input: { items: { productId: string; qty: numb
   const db = await read();
   if (!input.items.length) return { ok: false, error: 'La cesta está vacía.' };
   const items: OrderItem[] = [];
-  // validar stock
-  for (const line of input.items) {
-    const p = db.products.find((x) => x.id === line.productId);
-    if (!p) return { ok: false, error: 'Producto no encontrado.' };
-    if (p.stock < line.qty) return { ok: false, error: `Sin stock suficiente de ${p.name}.` };
-  }
-  // descontar stock + construir líneas
+  const err = checkStock(db, input.items); // por talla/color si el producto la lleva
+  if (err) return { ok: false, error: err };
   for (const line of input.items) {
     const p = db.products.find((x) => x.id === line.productId)!;
-    p.stock -= line.qty;
-    items.push({ productId: p.id, name: p.name, price: p.price, qty: line.qty, size: line.size, color: line.color });
+    const variantSku = findVariant(p, line.size, line.color)?.sku;
+    takeStock(p, line);
+    items.push({ productId: p.id, name: p.name, price: p.price, qty: line.qty, size: line.size, color: line.color, variantSku });
   }
   const total = items.reduce((s, i) => s + i.price * i.qty, 0);
   db.lastOrderNumber += 1;
@@ -230,14 +293,12 @@ export async function createPendingOrder(input: { items: { productId: string; qt
   const db = await read();
   if (!input.items.length) return { ok: false, error: 'La cesta está vacía.' };
   const items: OrderItem[] = [];
-  for (const line of input.items) {
-    const p = db.products.find((x) => x.id === line.productId);
-    if (!p) return { ok: false, error: 'Producto no encontrado.' };
-    if (p.stock < line.qty) return { ok: false, error: `Sin stock suficiente de ${p.name}.` };
-  }
+  const err = checkStock(db, input.items); // no descuenta: se descuenta al confirmarse el pago
+  if (err) return { ok: false, error: err };
   for (const line of input.items) {
     const p = db.products.find((x) => x.id === line.productId)!;
-    items.push({ productId: p.id, name: p.name, price: p.price, qty: line.qty, size: line.size, color: line.color });
+    const variantSku = findVariant(p, line.size, line.color)?.sku;
+    items.push({ productId: p.id, name: p.name, price: p.price, qty: line.qty, size: line.size, color: line.color, variantSku });
   }
   const total = items.reduce((s, i) => s + i.price * i.qty, 0);
   db.lastOrderNumber += 1;
@@ -287,7 +348,7 @@ export async function markOrderPaid(id: string): Promise<{ ok: boolean; order?: 
   if (o.status !== 'pendiente') return { ok: true, order: o, alreadyPaid: true };
   for (const it of o.items) {
     const p = db.products.find((x) => x.id === it.productId);
-    if (p) p.stock = Math.max(0, p.stock - it.qty);
+    if (p) takeStock(p, it);
   }
   o.status = 'pagado';
   if (!o.history) o.history = [];

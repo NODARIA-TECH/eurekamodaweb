@@ -8,6 +8,8 @@ import {
 } from '@/lib/store';
 import { requireAdmin } from '@/lib/admin-auth';
 import { saveUpload } from '@/lib/uploads';
+import { buildVariants, combos, totalStock, vkey } from '@/lib/variants';
+import type { Variant } from '@/lib/types';
 import { toCents } from '@/lib/money';
 import {
   headerKey, pick, parseColors, parseSizes, parseEuroCents, parseStock, cleanCategory, slugify,
@@ -91,11 +93,25 @@ export async function saveProduct(fd: FormData) {
     else colorImages[c] = choice;
   }
 
+  // Stock: por talla × color (cuadrícula) o total.
+  let variants: Variant[] | undefined;
+  let stock = Math.max(0, parseInt(String(fd.get('stock') ?? p!.stock), 10) || 0);
+  if (String(fd.get('vmode')) === '1') {
+    const cells: Record<string, number> = {};
+    for (const c of combos(sizes, colors)) {
+      const k = vkey(c.size, c.color);
+      cells[k] = Math.max(0, parseInt(String(fd.get(`vs:${k}`) ?? '0'), 10) || 0);
+    }
+    variants = buildVariants(p!.sku || p!.id, p!.variants, sizes, colors, cells);
+    if (variants) stock = totalStock(variants);
+  }
+
   await updateProduct(id, {
     name: String(fd.get('name') || p!.name).trim() || p!.name,
     category: String(fd.get('category') || p!.category),
     price: toCents(String(fd.get('price') || '0')) || p!.price,
-    stock: Math.max(0, parseInt(String(fd.get('stock') ?? p!.stock), 10) || 0),
+    stock,
+    variants,
     badge: String(fd.get('badge') || '').trim() || undefined,
     description: String(fd.get('description') || '').trim() || undefined,
     details: String(fd.get('details') || '').trim() || undefined,
@@ -197,6 +213,7 @@ export async function importCsv(fd: FormData) {
       badge: pick(r, ['etiqueta', 'badge']) || undefined,
       keepStock: true, // al actualizar, el stock lo manda FacturaScripts
       previousName: pick(r, ['nombre_anterior', 'antes_se_llamaba']) || undefined,
+      variantStockText: pick(r, ['stock_por_talla_y_color', 'stock_por_variante', 'stock_por_talla', 'stock_por_color']) || undefined,
     };
     const sku = pick(r, ['referencia', 'sku', 'ref']);
     const { previousName, ...bySku } = data;
