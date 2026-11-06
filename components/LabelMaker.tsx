@@ -11,12 +11,12 @@ type Cat = { slug: string; name: string };
 // ("29mm x 90mm"): w = ancho del rollo (lo que cruza la impresora), h = largo de la etiqueta.
 type Roll = { id: string; name: string; driver: string; w: number; h: number; continuous?: boolean };
 const ROLLS: Roll[] = [
+  { id: 'dk22205', name: 'DK-22205 · Cinta continua 62 mm (cortada a medida)', driver: '62mm', w: 62, h: 35, continuous: true },
   { id: 'dk11209', name: 'DK-11209 · Dirección pequeña 62 × 29 mm', driver: '62mm x 29mm', w: 62, h: 29 },
   { id: 'dk11201', name: 'DK-11201 · Dirección estándar 29 × 90 mm', driver: '29mm x 90mm', w: 29, h: 90 },
   { id: 'dk11208', name: 'DK-11208 · Dirección grande 38 × 90 mm', driver: '38mm x 90mm', w: 38, h: 90 },
   { id: 'dk11204', name: 'DK-11204 · Multiuso 17 × 54 mm', driver: '17mm x 54mm', w: 17, h: 54 },
   { id: 'dk11203', name: 'DK-11203 · Carpetas 17 × 87 mm', driver: '17mm x 87mm', w: 17, h: 87 },
-  { id: 'dk22205', name: 'DK-22205 · Continuo 62 mm (cortado a medida)', driver: '62mm', w: 62, h: 29, continuous: true },
   { id: 'dk22210', name: 'DK-22210 · Continuo 29 mm (cortado a medida)', driver: '29mm', w: 29, h: 62, continuous: true },
   { id: 'r35x70', name: 'Rollo compatible 70 × 35 mm (35 mm de ancho)', driver: '35mm x 70mm (personalizado)', w: 35, h: 70 },
 ];
@@ -129,8 +129,8 @@ export default function LabelMaker({ products, categories }: { products: Item[];
   const [cat, setCat] = useState('');
   const [sel, setSel] = useState<Record<string, number>>({});   // id -> nº de copias
   const [texts, setTexts] = useState<Record<string, string>>({}); // id -> texto de la etiqueta
-  const [rollId, setRollId] = useState('dk11209');
-  const [len, setLen] = useState(29);                            // largo para rollos continuos
+  const [rollId, setRollId] = useState('dk22205');
+  const [len, setLen] = useState(35);                            // largo para rollos continuos
   const [custom, setCustom] = useState({ w: 62, h: 29 });
   const [showName, setShowName] = useState(true);
   const [showPrice, setShowPrice] = useState(true);
@@ -292,7 +292,7 @@ export default function LabelMaker({ products, categories }: { products: Item[];
             </>
           ) : (
             <>
-              <b>Al imprimir:</b> impresora <b>Brother QL-570</b> · Tamaño del papel <b>{roll.driver}</b>{roll.continuous ? <> (largo {len} mm)</> : null} ·
+              <b>Al imprimir:</b> impresora <b>Brother QL-570</b> · Tamaño del papel <b>{roll.driver}{roll.continuous ? ' (cinta continua)' : ''}</b>{roll.continuous ? <>, largo <b>{len} mm</b></> : null} ·
               Orientación <b>Vertical</b> · Escala <b>100 % / Tamaño real</b> (no "Ajustar") · Márgenes <b>Ninguno</b>.
               {needRotate && <> El PDF ya va girado para este rollo: verás la etiqueta de lado en la vista previa de impresión, es normal.</>}
               {roll.id === 'r35x70' && <> Este tamaño no viene en la lista de la Brother: créalo una vez en <i>Preferencias de impresión → Ajustes de tamaño de papel</i> con 35 mm de ancho y 70 mm de largo.</>}
