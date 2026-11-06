@@ -8,6 +8,7 @@ type Payload = {
   items: { productId: string; qty: number; size?: string }[];
   name?: string;
   email?: string;
+  code?: string; // código de descuento (promotion code de Stripe)
 };
 
 // Checkout. Si hay STRIPE_SECRET_KEY configurada, crea una sesión de Stripe Checkout
@@ -25,6 +26,22 @@ export async function checkout(payload: Payload): Promise<{ ok: boolean; url?: s
   }
 
   // --- Flujo con Stripe ---
+  const stripe = new Stripe(key);
+
+  // Si hay código de descuento, lo validamos ANTES de crear el pedido (y lo resolvemos a su promotion_code).
+  let discounts: Stripe.Checkout.SessionCreateParams.Discount[] | undefined;
+  const code = (payload.code || '').trim();
+  if (code) {
+    try {
+      const list = await stripe.promotionCodes.list({ code, active: true, limit: 1 });
+      const pc = list.data[0];
+      if (!pc) return { ok: false, error: 'El código de descuento no es válido o ha caducado.' };
+      discounts = [{ promotion_code: pc.id }];
+    } catch {
+      return { ok: false, error: 'No se pudo validar el código de descuento.' };
+    }
+  }
+
   const res = await createPendingOrder({ items: payload.items, customerName: payload.name, customerEmail: payload.email });
   if (!res.ok) return { ok: false, error: res.error };
   const order = res.order!;
@@ -42,7 +59,6 @@ export async function checkout(payload: Payload): Promise<{ ok: boolean; url?: s
   }
   base = base.replace(/\/+$/, '');
 
-  const stripe = new Stripe(key);
   const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = order.items.map((it) => ({
     price_data: {
       currency: 'eur',
@@ -62,7 +78,9 @@ export async function checkout(payload: Payload): Promise<{ ok: boolean; url?: s
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       line_items,
-      allow_promotion_codes: true, // permite introducir el código de bienvenida (p.ej. BIENVENIDA20)
+      // Si el cliente metió un código válido en la cesta, lo aplicamos ya; si no, dejamos
+      // que pueda introducirlo en la página de Stripe.
+      ...(discounts ? { discounts } : { allow_promotion_codes: true }),
       customer_email: payload.email || undefined,
       metadata: { orderId: order.id, ref: order.ref },
       success_url: `${base}/cesta/gracias?session_id={CHECKOUT_SESSION_ID}`,

@@ -10,6 +10,7 @@ export default function CestaPage() {
   const { items, total, setQty, remove, clear } = useCart();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
   const [done, setDone] = useState<string | null>(null);
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
@@ -19,7 +20,7 @@ export default function CestaPage() {
 
   async function pay() {
     setLoading(true); setErr('');
-    const res = await checkout({ items: items.map((i) => ({ productId: i.id, qty: i.qty, size: i.size })), name, email });
+    const res = await checkout({ items: items.map((i) => ({ productId: i.id, qty: i.qty, size: i.size })), name, email, code: code.trim() || undefined });
     if (res.url) { window.location.href = res.url; return; } // redirige a la pasarela de Stripe
     setLoading(false);
     if (res.ok && res.ref) { clear(); setDone(res.ref); } else setErr(res.error || 'No se pudo completar el pedido.');
@@ -73,6 +74,11 @@ export default function CestaPage() {
           <h3>Resumen</h3>
           <div className="row"><span>Subtotal</span><b>{money(total)}</b></div>
           <div className="row"><span>Envío</span><b>{envio === 0 ? 'Gratis' : money(envio)}</b></div>
+          <div className="cart-code">
+            <label htmlFor="promo">¿Tienes un código?</label>
+            <input id="promo" placeholder="BIENVENIDA20" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} />
+            <small>El descuento se aplica en el pago.</small>
+          </div>
           <div className="row total"><span>Total</span><b>{money(grand)}</b></div>
           <div className="cart-form">
             <input placeholder="Nombre" value={name} onChange={(e) => setName(e.target.value)} />
@@ -82,7 +88,12 @@ export default function CestaPage() {
           <button className="btn btn-gold" style={{ width: '100%', justifyContent: 'center' }} onClick={pay} disabled={loading}>
             {loading ? 'Procesando…' : 'Finalizar compra'}
           </button>
-          <p className="cart-note">Demo: el pedido se registra y descuenta stock. La pasarela de pago (Stripe/Redsys) se integra en el nivel Estándar+.</p>
+          <ul className="cart-trust">
+            <li>Pago seguro con tarjeta (Stripe)</li>
+            <li>Devoluciones en 7 días</li>
+            <li>Envío gratis desde 50 €</li>
+          </ul>
+          <p className="cart-legal">Al finalizar aceptas las <Link href="/legal/condiciones">condiciones de compra</Link> y la <Link href="/legal/devoluciones">política de devoluciones</Link>.</p>
         </aside>
       </div>
     </div></main>
