@@ -1,9 +1,11 @@
 import Link from 'next/link';
 import { logout } from '../login/actions';
+import { requireAdmin } from '@/lib/admin-auth';
 
 export const metadata = { title: 'Panel · EUREKA' };
 
 export default function PanelLayout({ children }: { children: React.ReactNode }) {
+  requireAdmin(); // doble cerrojo además del middleware
   return (
     <div className="adm-shell">
       <aside className="adm-side">

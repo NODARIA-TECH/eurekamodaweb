@@ -25,6 +25,9 @@ export async function GET(req: Request) {
       category_name: catName.get(p.category) || p.category,
       image: p.image,
       badge: p.badge || null,
+      description: p.description || null,
+      sizes: p.sizes || [],
+      colors: p.colors || [],
       updatedAt: p.updatedAt || null,
     })),
   });

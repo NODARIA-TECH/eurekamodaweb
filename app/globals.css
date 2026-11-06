@@ -440,3 +440,112 @@ section{padding-block:clamp(50px,6vw,92px)}
 .legal-body li{margin:4px 0}
 .legal-body a{color:var(--ink);text-decoration:underline}
 .legal-body b{color:var(--ink)}
+
+/* ===================== Ficha de producto (galería, colores, acordeones) ===================== */
+.pdp-media{position:sticky;top:96px;display:flex;flex-direction:column;gap:12px}
+.pdp-thumbs{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px}
+.pdp-thumb{flex:0 0 auto;width:72px;aspect-ratio:3/4;border-radius:10px;overflow:hidden;border:2px solid transparent;padding:0;background:var(--cream);cursor:pointer;transition:.15s}
+.pdp-thumb img{width:100%;height:100%;object-fit:cover}
+.pdp-thumb.on{border-color:var(--ink)}.pdp-thumb:hover{border-color:var(--gold)}
+.pdp-opt{margin-bottom:20px}
+.pdp-optl{display:block;font-family:"Jost",sans-serif;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.pdp-optl b{color:var(--ink);font-weight:600;letter-spacing:.06em}
+.swatches{display:flex;flex-wrap:wrap;gap:10px}
+.sw{width:34px;height:34px;border-radius:999px;border:1px solid var(--hair-2);background:#fff;padding:3px;cursor:pointer;transition:.15s}
+.sw span{display:block;width:100%;height:100%;border-radius:999px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
+.sw:hover{border-color:var(--gold)}.sw.on{border:2px solid var(--ink);padding:2px}
+.size.wide{width:auto;min-width:44px;padding:0 14px}
+.pdp-unica{font-family:"Jost",sans-serif;font-size:.86rem;color:var(--ink)}
+.pdp-need{margin-top:10px;font-family:"Jost",sans-serif;font-size:.8rem;color:#a23}
+.pdp-add{width:100%;justify-content:center;padding-block:15px}
+.pdp-acc{margin-top:26px;border-top:1px solid var(--hair)}
+.pdp-acc details{border-bottom:1px solid var(--hair)}
+.pdp-acc summary{list-style:none;cursor:pointer;padding:16px 0;font-family:"Jost",sans-serif;font-weight:500;font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ink);display:flex;justify-content:space-between;align-items:center}
+.pdp-acc summary::-webkit-details-marker{display:none}
+.pdp-acc summary::after{content:"+";font-size:1.1rem;color:var(--gold-deep);transition:transform .2s}
+.pdp-acc details[open] summary::after{transform:rotate(45deg)}
+.pdp-acc-b{padding:0 0 18px;color:var(--text);font-size:.94rem;display:flex;flex-direction:column;gap:8px;max-width:58ch}
+.pdp-acc-b a{color:var(--gold-deep);text-decoration:underline}
+.pdp-muted{color:var(--muted);font-size:.86rem}
+.pdp-ref{margin-top:16px;font-family:"Jost",sans-serif;font-size:.7rem;letter-spacing:.12em;color:var(--muted);text-transform:uppercase}
+@media(max-width:720px){.pdp-media{position:static}}
+
+/* Tarjeta de catálogo: segunda foto al pasar el ratón + colores */
+.pc .img img.alt{position:absolute;inset:0;opacity:0;transition:opacity .35s ease, transform .5s ease}
+.pc:hover .img img.alt{opacity:1}
+a.add{display:block;text-align:center}
+.pc-sw{display:flex;justify-content:center;align-items:center;gap:5px;margin-top:7px}
+.pc-sw span{width:11px;height:11px;border-radius:999px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
+.pc-sw small{font-family:"Jost",sans-serif;font-size:.64rem;color:var(--muted)}
+
+/* ===================== Panel: productos ===================== */
+.adm-actions{display:flex;gap:8px;flex-wrap:wrap}
+.adm-actions .btn-sm{padding:10px 14px;text-decoration:none}
+.adm-ok{background:#f1f6ec;border:1px solid #cfe0bf;color:#3c5a2a;border-radius:10px;padding:12px 16px;margin-bottom:18px;font-family:"Jost",sans-serif;font-size:.86rem}
+.adm-link{color:var(--gold-deep);text-decoration:underline}
+.adm-help{font-family:"Jost",sans-serif;font-size:.8rem;color:var(--muted);margin:2px 0 12px;line-height:1.5}
+.adm-back{display:inline-block;font-family:"Jost",sans-serif;font-size:.78rem;color:var(--muted);margin-bottom:6px}
+.adm-back:hover{color:var(--ink)}
+.adm-filter{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.adm-filter input,.adm-filter select{padding:9px 11px;border:1px solid var(--hair-2);border-radius:8px;font-family:"Jost",sans-serif;font-size:.86rem;background:#fff}
+.adm-filter input{flex:1 1 240px}
+.adm-scroll{overflow-x:auto}
+.adm-products td{white-space:nowrap}
+.adm-products td:nth-child(2){white-space:normal;min-width:200px}
+.adm-pimg{width:44px;height:58px;object-fit:cover;border-radius:6px;border:1px solid var(--hair);background:var(--cream);display:block}
+.adm-pname{font-weight:600;color:var(--ink)}.adm-pname:hover{color:var(--gold-deep)}
+.adm-sku{font-family:ui-monospace,monospace;font-size:.74rem;color:var(--muted)}
+.adm-num{font-variant-numeric:tabular-nums}
+.adm-low{color:#b26b00;font-weight:600}.adm-out{color:#a23;font-weight:600}
+.adm-muted{color:var(--muted)}
+.adm-dots{display:flex;align-items:center;gap:4px}
+.adm-dots small{font-size:.7rem;color:var(--muted)}
+.adm-dot{display:inline-block;width:12px;height:12px;border-radius:999px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15);flex:0 0 auto}
+.adm-dot.has{outline:2px solid #9bc28a;outline-offset:1px}
+.adm-tag{display:inline-block;font-family:"Jost",sans-serif;font-size:.66rem;font-weight:600;letter-spacing:.02em;padding:3px 8px;border-radius:999px;margin:1px 4px 1px 0}
+.adm-tag.warn{background:#fff4e0;color:#8a5a00}.adm-tag.ok{background:#eef6e8;color:#3c5a2a}
+.adm-two{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:980px){.adm-two{grid-template-columns:1fr}}
+.adm-form textarea{padding:10px 12px;border:1px solid var(--hair-2);border-radius:8px;font-family:"Jost",sans-serif;font-size:.9rem;background:#fff;resize:vertical;text-transform:none;letter-spacing:0;color:var(--ink);line-height:1.5}
+
+/* Ficha de edición */
+.pe-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(280px,1fr);gap:20px;align-items:start}
+.pe-side{position:sticky;top:20px;display:flex;flex-direction:column}
+.pe-form{grid-template-columns:repeat(3,minmax(0,1fr))}
+.pe-form .pe-wide{grid-column:1 / -1}
+.pe-form input,.pe-form select{text-transform:none;letter-spacing:0;color:var(--ink)}
+.pe-gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
+.pe-ph{display:flex;flex-direction:column;gap:4px;font-family:"Jost",sans-serif;font-size:.72rem;color:var(--ink)}
+.pe-ph img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:8px;border:1px solid var(--hair)}
+.pe-ph label{display:flex;gap:5px;align-items:center;cursor:pointer}
+.pe-del{color:#a23}
+.pe-save{width:100%;justify-content:center;margin-bottom:20px}
+.pe-danger{margin-top:4px;padding-bottom:30px}
+@media(max-width:980px){.pe-grid{grid-template-columns:1fr}.pe-side{position:static}.pe-form{grid-template-columns:1fr 1fr}}
+
+/* Editor de tallas y colores */
+.ve{display:flex;flex-direction:column;gap:22px}
+.ve-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:8px;font-family:"Jost",sans-serif;color:var(--ink)}
+.ve-head .adm-help{margin:0}
+.chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;border:1px solid var(--hair-2);border-radius:10px;padding:6px;background:#fff;min-height:44px}
+.chip{display:inline-flex;align-items:center;gap:4px;background:var(--cream);border-radius:999px;padding:4px 6px 4px 11px;font-family:"Jost",sans-serif;font-size:.82rem;color:var(--ink)}
+.chip button{border:none;background:none;cursor:pointer;color:var(--muted);font-size:1rem;line-height:1;padding:0 4px}
+.chip button:hover{color:#a23}
+.chips input{flex:1 1 160px;border:none;outline:none;font-family:"Jost",sans-serif;font-size:.86rem;padding:6px;background:transparent}
+.ve-presets{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.ve-colors{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.ve-color{display:grid;grid-template-columns:72px 1fr;gap:14px;border:1px solid var(--hair);border-radius:12px;padding:10px;background:#fdfbf7}
+.ve-cimg img,.ve-noimg{width:72px;height:96px;object-fit:cover;border-radius:8px;display:block;border:1px solid var(--hair)}
+.ve-noimg{opacity:.55}
+.ve-cbody{display:flex;flex-direction:column;gap:8px;min-width:0}
+.ve-cname{display:flex;align-items:center;gap:7px;font-family:"Jost",sans-serif;font-weight:600;color:var(--ink)}
+.ve-upload{display:flex;flex-direction:column;gap:4px;font-family:"Jost",sans-serif;font-size:.74rem;color:var(--muted)}
+.ve-upload input{font-size:.78rem}
+.pe-up{border:1.5px dashed var(--hair-2);border-radius:10px;padding:12px;background:#fdfbf7}
+.ve-pick span{font-family:"Jost",sans-serif;font-size:.74rem;color:var(--muted)}
+.ve-thumbs{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.ve-thumb{position:relative;cursor:pointer;border-radius:6px;border:2px solid transparent;overflow:hidden}
+.ve-thumb input{position:absolute;opacity:0;pointer-events:none}
+.ve-thumb img{width:40px;height:53px;object-fit:cover;display:block}
+.ve-thumb.on{border-color:var(--ink)}
+.ve-clear{align-self:flex-start;border:none;background:none;color:#a23;font-family:"Jost",sans-serif;font-size:.74rem;text-decoration:underline;cursor:pointer;padding:0}

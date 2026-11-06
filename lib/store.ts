@@ -69,7 +69,7 @@ export async function createProduct(data: Omit<Product, 'id' | 'slug'> & { slug?
     db.lastSkuNumber = n;
     sku = `${prefix}-${String(n).padStart(4, '0')}`;
   }
-  const prod: Product = { id: randomUUID().slice(0, 8), slug, name: data.name, price: data.price, image: data.image || '26998033', stock: data.stock ?? 0, category: data.category, badge: data.badge, sku, sizes: data.sizes, colors: data.colors, updatedAt: new Date().toISOString() };
+  const prod: Product = { id: randomUUID().slice(0, 8), slug, name: data.name, price: data.price, image: data.image || '26998033', stock: data.stock ?? 0, category: data.category, badge: data.badge, sku, sizes: data.sizes, colors: data.colors, description: data.description, details: data.details, images: data.images, colorImages: data.colorImages, updatedAt: new Date().toISOString() };
   db.products.push(prod);
   await write(db);
   return prod;
@@ -88,7 +88,7 @@ export async function deleteProduct(id: string): Promise<void> {
 
 /* -------- Sincronización con FacturaScripts -------- */
 // Alta/actualización de producto por SKU (referencia). FS->web para artículos creados en FacturaScripts.
-export async function upsertProductBySku(data: { sku: string; name: string; price: number; stock?: number; category?: string; image?: string; badge?: string; sizes?: string[]; colors?: string[] }): Promise<{ created: boolean; product: Product }> {
+export async function upsertProductBySku(data: { sku: string; name: string; price: number; stock?: number; category?: string; image?: string; badge?: string; sizes?: string[]; colors?: string[]; description?: string; details?: string; keepStock?: boolean }): Promise<{ created: boolean; product: Product }> {
   const db = await read();
   const sku = data.sku.trim();
   let p = db.products.find((x) => x.sku && x.sku.toLowerCase() === sku.toLowerCase());
@@ -98,15 +98,17 @@ export async function upsertProductBySku(data: { sku: string; name: string; pric
     if (data.category) p.category = data.category;
     if (data.image) p.image = data.image;
     if (data.badge !== undefined) p.badge = data.badge;
-    if (data.stock !== undefined) p.stock = data.stock;
+    if (data.stock !== undefined && !data.keepStock) p.stock = data.stock; // keepStock: el stock lo manda FS
     if (data.sizes !== undefined) p.sizes = data.sizes;
     if (data.colors !== undefined) p.colors = data.colors;
+    if (data.description !== undefined) p.description = data.description;
+    if (data.details !== undefined) p.details = data.details;
     p.updatedAt = new Date().toISOString();
     await write(db);
     return { created: false, product: p };
   }
   const slug = (data.name).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || sku.toLowerCase();
-  p = { id: randomUUID().slice(0, 8), slug, name: data.name, price: data.price, image: data.image || '26998033', stock: data.stock ?? 0, category: data.category || 'tops', badge: data.badge, sku, sizes: data.sizes, colors: data.colors, updatedAt: new Date().toISOString() };
+  p = { id: randomUUID().slice(0, 8), slug, name: data.name, price: data.price, image: data.image || '26998033', stock: data.stock ?? 0, category: data.category || 'tops', badge: data.badge, sku, sizes: data.sizes, colors: data.colors, description: data.description, details: data.details, updatedAt: new Date().toISOString() };
   db.products.push(p);
   await write(db);
   return { created: true, product: p };
@@ -115,25 +117,29 @@ export async function upsertProductBySku(data: { sku: string; name: string; pric
 // Alta/actualización por NOMBRE (para importaciones de Excel SIN referencia).
 // Empareja por nombre normalizado (ignora mayúsculas/acentos/espacios) para no duplicar.
 // Si el existente no tiene SKU aún, NO lo inventa aquí (se respeta el que ya tenga).
-export async function upsertProductByName(data: { name: string; price: number; stock?: number; category?: string; image?: string; badge?: string; sizes?: string[]; colors?: string[] }): Promise<{ created: boolean; product: Product }> {
+export async function upsertProductByName(data: { name: string; price: number; stock?: number; category?: string; image?: string; badge?: string; sizes?: string[]; colors?: string[]; description?: string; details?: string; keepStock?: boolean; previousName?: string }): Promise<{ created: boolean; product: Product }> {
   const db = await read();
   const norm = (s: string) => s.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ');
   const target = norm(data.name);
-  const p = db.products.find((x) => norm(x.name) === target);
+  // Busca por el nombre actual; si no está y viene "nombre anterior", por ese (y lo renombra).
+  const prev = data.previousName ? norm(data.previousName) : '';
+  const p = db.products.find((x) => norm(x.name) === target) || (prev ? db.products.find((x) => norm(x.name) === prev) : undefined);
   if (p) {
+    p.name = data.name;
     p.price = data.price;
     if (data.category) p.category = data.category;
     if (data.image) p.image = data.image;
     if (data.badge !== undefined) p.badge = data.badge;
-    if (data.stock !== undefined) p.stock = data.stock;
+    if (data.stock !== undefined && !data.keepStock) p.stock = data.stock; // keepStock: el stock lo manda FS
     if (data.sizes !== undefined) p.sizes = data.sizes;
     if (data.colors !== undefined) p.colors = data.colors;
+    if (data.description !== undefined) p.description = data.description;
+    if (data.details !== undefined) p.details = data.details;
     p.updatedAt = new Date().toISOString();
     await write(db);
     return { created: false, product: p };
-  }
-  await write(db); // sin cambios; el alta la hace createProduct (genera SKU y slug)
-  const created = await createProduct({ name: data.name, price: data.price, stock: data.stock ?? 0, category: data.category || 'tops', image: data.image || '26998033', badge: data.badge, sizes: data.sizes, colors: data.colors });
+  } // sin cambios; el alta la hace createProduct (genera SKU y slug)
+  const created = await createProduct({ name: data.name, price: data.price, stock: data.stock ?? 0, category: data.category || 'tops', image: data.image || '26998033', badge: data.badge, sizes: data.sizes, colors: data.colors, description: data.description, details: data.details });
   return { created: true, product: created };
 }
 

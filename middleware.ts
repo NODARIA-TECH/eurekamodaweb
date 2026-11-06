@@ -1,12 +1,28 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export function middleware(req: NextRequest) {
+// Verifica la cookie firmada del panel ("<exp>.<hmac>") con Web Crypto (runtime Edge).
+async function validAdmin(token?: string): Promise<boolean> {
+  if (!token) return false;
+  const [exp, sig] = token.split('.');
+  if (!exp || !sig || !/^\d+$/.test(exp) || Number(exp) < Date.now() / 1000) return false;
+  const secret = process.env.EUREKA_AUTH_SECRET || 'eureka-dev-secret-cambiame';
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const mac = new Uint8Array(await crypto.subtle.sign('HMAC', key, enc.encode('admin:' + exp)));
+  const hex = Array.from(mac, (b) => b.toString(16).padStart(2, '0')).join('');
+  if (hex.length !== sig.length) return false;
+  let diff = 0;
+  for (let i = 0; i < hex.length; i++) diff |= hex.charCodeAt(i) ^ sig.charCodeAt(i);
+  return diff === 0;
+}
+
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Panel interno
   if (pathname.startsWith('/admin') && !pathname.startsWith('/admin/login')) {
-    const ok = req.cookies.get('eureka_admin')?.value === '1';
+    const ok = await validAdmin(req.cookies.get('eureka_admin')?.value);
     if (!ok) {
       const url = req.nextUrl.clone();
       url.pathname = '/admin/login';

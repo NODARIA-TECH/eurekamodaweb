@@ -1,9 +1,11 @@
 'use server';
+import { requireAdmin } from '@/lib/admin-auth';
 import { revalidatePath } from 'next/cache';
 import { adjustBalance } from '@/lib/store';
 import { toCents } from '@/lib/money';
 
 export async function adjust(fd: FormData) {
+  requireAdmin();
   const id = String(fd.get('id'));
   const raw = String(fd.get('amount') || '0');
   const neg = raw.trim().startsWith('-');

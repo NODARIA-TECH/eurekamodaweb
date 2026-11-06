@@ -13,8 +13,31 @@ export function pexels(id: string, w = 600, h = 800): string {
 export function productImg(image?: string, w = 600, h = 800): string {
   const v = (image || '').trim();
   if (!v) return pexels('26998033', w, h);
-  if (v.startsWith('/uploads/') || v.startsWith('http://') || v.startsWith('https://')) return v;
+  if (v.startsWith('/media/') || v.startsWith('/uploads/') || v.startsWith('http://') || v.startsWith('https://')) return v;
   return pexels(v, w, h);
+}
+
+// Foto a mostrar para un color concreto (si tiene foto propia), si no la principal.
+export function imageForColor(p: { image: string; colorImages?: Record<string, string> }, color?: string): string {
+  return (color && p.colorImages?.[color]) || p.image;
+}
+
+// Muestra de color aproximada para los círculos de la ficha (por nombre en español).
+const SWATCH: [RegExp, string][] = [
+  [/negr/, '#1d1d1d'], [/blanco roto|crudo|hueso|marfil/, '#efe8da'], [/blanc/, '#ffffff'],
+  [/gris marengo|marengo/, '#4a4c50'], [/gris/, '#a3a3a3'], [/plat/, '#c9c9c9'], [/dorad|oro/, '#c9a54a'],
+  [/beige|arena/, '#d8c3a0'], [/camel/, '#b9874f'], [/taupe|tauper|topo/, '#8b7d6b'], [/caldera|teja|cobre/, '#a4512c'],
+  [/chocolate|marr[oó]n|cuero/, '#5a3a26'], [/burdeos|granate|vino/, '#6d1a2a'], [/rojo|roja/, '#c0262d'],
+  [/coral/, '#f07c66'], [/naranja/, '#ec7a2c'], [/amarill/, '#f2cf3c'], [/lila|malva|lavanda/, '#b49ac9'],
+  [/fucsia/, '#d6338a'], [/chicle/, '#f27bb1'], [/rosa/, '#f2b8c6'],
+  [/azul[oó]n|azul klein|klein/, '#1f4fb4'], [/marino/, '#1f2a44'], [/celeste|azul claro/, '#9cc8ea'], [/azul/, '#3c64a8'],
+  [/turquesa/, '#2bb3b1'], [/verde agua/, '#9fd8c8'], [/pistacho|lima|fl[uú]or/, '#b5d96b'],
+  [/botella/, '#1f4a33'], [/militar|caqui|kaki|oliva/, '#5e6440'], [/verde/, '#4f8f5f'],
+];
+export function swatch(color: string): string {
+  const c = color.toLowerCase();
+  for (const [re, hex] of SWATCH) if (re.test(c)) return hex;
+  return '#d9cfbf';
 }
 
 export const NAV = [

@@ -13,8 +13,12 @@ export type Product = {
   badge?: string;
   sku?: string;       // referencia FacturaScripts (llave de sincronización)
   updatedAt?: string; // última modificación del catálogo (web)
-  sizes?: string[];   // tallas disponibles (vacío = talla única / lista por defecto)
+  sizes?: string[];   // tallas disponibles (vacío = talla única)
   colors?: string[];  // colores disponibles (vacío = sin elección de color)
+  description?: string;                 // descripción comercial (ficha de producto)
+  details?: string;                     // composición y cuidados
+  images?: string[];                    // galería adicional (la principal es `image`)
+  colorImages?: Record<string, string>; // foto por color: { "Rojo": "/media/xxx.webp" }
 };
 
 export type BalanceMovement = { id: string; amount: number; reason: string; createdAt: string };
