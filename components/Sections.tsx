@@ -126,7 +126,7 @@ export function Footer() {
           <div className="top"><img src="/eureka-logo.png" alt="EUREKA" /><div className="script">estilo con buena vibra</div></div>
           <div className="ftop">
             <div><h4>Tienda</h4><ul><li><a href="#edit">Novedades</a></li><li><a href="#cats">Vestidos</a></li><li><a href="#cats">Punto</a></li><li><a href="#cats">Abrigos</a></li></ul></div>
-            <div><h4>Ayuda</h4><ul><li><a href="/legal/condiciones">Envíos</a></li><li><a href="/legal/devoluciones">Cambios y devoluciones</a></li><li><a href="/seguimiento">Seguir pedido</a></li><li><a href="mailto:info@eurekamoda.com">Contacto</a></li></ul></div>
+            <div><h4>Ayuda</h4><ul><li><a href="/legal/condiciones">Envíos</a></li><li><a href="/legal/devoluciones">Cambios y devoluciones</a></li><li><a href="/seguimiento">Seguir pedido</a></li><li><a href="mailto:eurekamodaecija@gmail.com">Contacto</a></li></ul></div>
             <div><h4>Legal</h4><ul><li><a href="/legal/aviso-legal">Aviso legal</a></li><li><a href="/legal/privacidad">Privacidad</a></li><li><a href="/legal/condiciones">Condiciones de compra</a></li><li><a href="/legal/cookies">Cookies</a></li></ul></div>
             <div><h4>Síguenos</h4><ul><li><a href="#">Instagram</a></li><li><a href="#">TikTok</a></li><li><a href="#">Pinterest</a></li></ul></div>
           </div>

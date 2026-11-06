@@ -4,8 +4,8 @@ export const TITULAR = {
   nombre: 'Mónica Marín Laguna',
   nif: '14618436G',
   domicilio: 'C/ La Victoria 2A',
-  localidad: 'Écija (Sevilla)', // confirmar CP y localidad
-  email: 'info@eurekamoda.com', // confirmar correo de contacto
+  localidad: '41400 Écija (Sevilla)',
+  email: 'eurekamodaecija@gmail.com',
   web: 'https://eurekamoda.com',
 };
 export const DIAS_DEVOLUCION = 7;
