@@ -28,9 +28,9 @@ export default function Header() {
               <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.2-3.2" /></svg>
             </Link>
           </div>
-          <a className="brand" href="#top" aria-label="EUREKA">
+          <Link className="brand" href="/" aria-label="EUREKA — ir al inicio">
             <img src="/eureka-logo.png" alt="EUREKA — tu tienda de moda" />
-          </a>
+          </Link>
           <div className="nr">
             <Link className="gicon" aria-label="Cuenta" href="/cuenta">
               <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" /><path d="M5 20c0-3.9 3.1-6 7-6s7 2.1 7 6" /></svg>
