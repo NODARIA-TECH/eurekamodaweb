@@ -62,6 +62,7 @@ export async function checkout(payload: Payload): Promise<{ ok: boolean; url?: s
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       line_items,
+      allow_promotion_codes: true, // permite introducir el código de bienvenida (p.ej. BIENVENIDA20)
       customer_email: payload.email || undefined,
       metadata: { orderId: order.id, ref: order.ref },
       success_url: `${base}/cesta/gracias?session_id={CHECKOUT_SESSION_ID}`,

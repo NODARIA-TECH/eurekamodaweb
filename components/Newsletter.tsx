@@ -8,7 +8,7 @@ export default function Newsletter() {
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) {
-      setNote({ ok: true, msg: '¡Listo! Tu código de bienvenida está en tu correo.' });
+      setNote({ ok: true, msg: '¡Bienvenida! Tu código: BIENVENIDA20 — 20% en tu primera compra. Aplícalo al pagar.' });
       setEmail('');
     } else {
       setNote({ ok: false, msg: 'Introduce un correo válido.' });
@@ -19,7 +19,7 @@ export default function Newsletter() {
     <section className="news" id="nl">
       <div className="wrap">
         <span className="script">únete al</span>
-        <h2>Club EUREKA · 10% de bienvenida</h2>
+        <h2>Club EUREKA · 20% de bienvenida</h2>
         <p>Suscríbete y recibe tu descuento, además de acceso anticipado a novedades y rebajas.</p>
         <form onSubmit={submit}>
           <div className="nlf">
