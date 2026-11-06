@@ -31,10 +31,16 @@ export async function checkout(payload: Payload): Promise<{ ok: boolean; url?: s
 
   const envio = order.total >= 5000 || order.total === 0 ? 0 : 395; // envío gratis desde 50 €
 
-  const h = headers();
-  const host = h.get('host') || '';
-  const proto = h.get('x-forwarded-proto') || 'http';
-  const base = `${proto}://${host}`;
+  // URL base para las vueltas de Stripe. Prioriza EUREKA_BASE_URL (p.ej. https://eurekamoda.com);
+  // si no, la deduce de la petición (host + protocolo reenviado por Nginx/Cloudflare).
+  let base = process.env.EUREKA_BASE_URL;
+  if (!base) {
+    const h = headers();
+    const host = h.get('host') || '';
+    const proto = h.get('x-forwarded-proto') || 'http';
+    base = `${proto}://${host}`;
+  }
+  base = base.replace(/\/+$/, '');
 
   const stripe = new Stripe(key);
   const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = order.items.map((it) => ({
