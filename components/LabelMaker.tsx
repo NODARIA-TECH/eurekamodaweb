@@ -1,62 +1,153 @@
 'use client';
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import JsBarcode from 'jsbarcode';
 import { jsPDF } from 'jspdf';
 
-type Item = { id: string; sku: string; name: string; price: number; category: string };
+type V = { size?: string; color?: string; stock: number };
+type Item = { id: string; sku: string; name: string; price: number; category: string; variants?: V[] };
 type Cat = { slug: string; name: string };
 
-// Código de barras Code128 de la referencia (SKU) como SVG escalable (para la vista en pantalla).
-function Barcode({ value }: { value: string }) {
-  const ref = useRef<SVGSVGElement>(null);
-  useEffect(() => {
-    if (ref.current) {
-      try {
-        JsBarcode(ref.current, value, { format: 'CODE128', displayValue: false, margin: 0, height: 50, width: 2 });
-      } catch { /* valor no codificable */ }
-    }
-  }, [value]);
-  return <svg ref={ref} className="bc-svg" />;
-}
+// Rollos Brother DK para la QL-570. `w` × `h` = como los nombra el driver de Brother
+// ("29mm x 90mm"): w = ancho del rollo (lo que cruza la impresora), h = largo de la etiqueta.
+type Roll = { id: string; name: string; driver: string; w: number; h: number; continuous?: boolean };
+const ROLLS: Roll[] = [
+  { id: 'dk11209', name: 'DK-11209 · Dirección pequeña 62 × 29 mm', driver: '62mm x 29mm', w: 62, h: 29 },
+  { id: 'dk11201', name: 'DK-11201 · Dirección estándar 29 × 90 mm', driver: '29mm x 90mm', w: 29, h: 90 },
+  { id: 'dk11208', name: 'DK-11208 · Dirección grande 38 × 90 mm', driver: '38mm x 90mm', w: 38, h: 90 },
+  { id: 'dk11204', name: 'DK-11204 · Multiuso 17 × 54 mm', driver: '17mm x 54mm', w: 17, h: 54 },
+  { id: 'dk11203', name: 'DK-11203 · Carpetas 17 × 87 mm', driver: '17mm x 87mm', w: 17, h: 87 },
+  { id: 'dk22205', name: 'DK-22205 · Continuo 62 mm (cortado a medida)', driver: '62mm', w: 62, h: 29, continuous: true },
+  { id: 'dk22210', name: 'DK-22210 · Continuo 29 mm (cortado a medida)', driver: '29mm', w: 29, h: 62, continuous: true },
+];
 
+const DPMM = 300 / 25.4; // la QL-570 imprime a 300 ppp
 const euros = (c: number) => (c / 100).toFixed(2).replace('.', ',') + ' €';
+const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 
-// Genera el PNG del código de barras y su proporción, para meterlo en el PDF.
-function barcodePng(value: string): { url: string; ratio: number } | null {
-  try {
-    const canvas = document.createElement('canvas');
-    JsBarcode(canvas, value, { format: 'CODE128', displayValue: false, margin: 0, height: 60, width: 2 });
-    return { url: canvas.toDataURL('image/png'), ratio: canvas.width / canvas.height };
-  } catch {
-    return null;
+type Label = { sku: string; text: string; price: number };
+type Opts = { showName: boolean; showPrice: boolean; showSku: boolean };
+
+// Dibuja UNA etiqueta en un canvas a 300 ppp, en horizontal (el lado largo en horizontal),
+// que es como se lee la etiqueta pegada en la prenda.
+function drawLabel(lab: Label, Wmm: number, Hmm: number, o: Opts): HTMLCanvasElement {
+  const W = Math.round(Wmm * DPMM), H = Math.round(Hmm * DPMM);
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d')!;
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#000'; ctx.textBaseline = 'alphabetic';
+
+  const mm = (v: number) => v * DPMM;
+  const pad = clamp(Hmm * 0.08, 1.6, 3);
+  const availW = Wmm - 2 * pad;
+  const wide = Wmm / Hmm >= 2.1; // referencia y precio en la misma línea
+  let nameEm = clamp(Hmm * 0.2, 2.2, 5);
+  const priceEm = clamp(Hmm * (wide ? 0.22 : 0.2), 2.6, 6);
+  const skuEm = clamp(Hmm * 0.12, 1.7, 2.8);
+  const gap = clamp(Hmm * 0.035, 0.6, 1.5);
+
+  let showName = o.showName && !!lab.text;
+  let showSku = o.showSku;
+  const showPrice = o.showPrice;
+  const bottomH = () => (wide ? Math.max(showSku ? skuEm : 0, showPrice ? priceEm : 0) : (showSku ? skuEm + gap : 0) + (showPrice ? priceEm : 0));
+  const bcHmm = () => Hmm - 2 * pad - (showName ? nameEm + gap : 0) - bottomH() - gap;
+  if (bcHmm() < 5 && showSku) showSku = false;
+  if (bcHmm() < 4.5 && showName) { nameEm = Math.max(1.8, nameEm * 0.8); }
+  if (bcHmm() < 4 && showName) showName = false;
+
+  let y = pad;
+  // Texto (nombre corto): se reduce hasta que quepa; si no, se corta con "…"
+  if (showName) {
+    let size = mm(nameEm);
+    ctx.font = `700 ${size}px Arial, Helvetica, sans-serif`;
+    let t = lab.text;
+    while (ctx.measureText(t).width > mm(availW) && size > mm(1.8)) { size *= 0.94; ctx.font = `700 ${size}px Arial, Helvetica, sans-serif`; }
+    if (ctx.measureText(t).width > mm(availW)) { // ni con la letra mínima cabe: se corta con "…"
+      while (ctx.measureText(t + '…').width > mm(availW) && t.length > 1) t = t.slice(0, -1);
+      t = t.trimEnd() + '…';
+    }
+    ctx.textAlign = 'center';
+    ctx.fillText(t, W / 2, mm(y + nameEm * 0.8));
+    y += nameEm + gap;
   }
+
+  // Código de barras Code128: cada barra ocupa un nº ENTERO de puntos de la impresora (lectura fiable)
+  const bcH = Math.max(3, bcHmm());
+  try {
+    const probe = document.createElement('canvas');
+    JsBarcode(probe, lab.sku, { format: 'CODE128', displayValue: false, margin: 0, width: 1, height: 10 });
+    const modules = probe.width;
+    const maxW = mm(Math.min(availW, 64));
+    const dots = clamp(Math.floor(maxW / modules), 1, 4);
+    const bc = document.createElement('canvas');
+    JsBarcode(bc, lab.sku, { format: 'CODE128', displayValue: false, margin: 0, width: dots, height: Math.round(mm(bcH)) });
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(bc, Math.round((W - bc.width) / 2), Math.round(mm(y)));
+  } catch { /* referencia no codificable */ }
+  y += bcH + gap;
+
+  // Referencia + precio
+  if (wide) {
+    const base = mm(Hmm - pad);
+    if (showSku) { ctx.font = `400 ${mm(skuEm)}px "Courier New", monospace`; ctx.textAlign = showPrice ? 'left' : 'center'; ctx.fillText(lab.sku, showPrice ? mm(pad) : W / 2, base); }
+    if (showPrice) { ctx.font = `700 ${mm(priceEm)}px Arial, Helvetica, sans-serif`; ctx.textAlign = showSku ? 'right' : 'center'; ctx.fillText(euros(lab.price), showSku ? W - mm(pad) : W / 2, base); }
+  } else {
+    ctx.textAlign = 'center';
+    if (showSku) { ctx.font = `400 ${mm(skuEm)}px "Courier New", monospace`; ctx.fillText(lab.sku, W / 2, mm(y + skuEm * 0.8)); y += skuEm + gap; }
+    if (showPrice) { ctx.font = `700 ${mm(priceEm)}px Arial, Helvetica, sans-serif`; ctx.fillText(euros(lab.price), W / 2, mm(Hmm - pad)); }
+  }
+  return cv;
 }
+
+// Gira 90° un canvas (para rollos cuya etiqueta es más larga que el ancho del rollo).
+function rotate(cv: HTMLCanvasElement): HTMLCanvasElement {
+  const r = document.createElement('canvas');
+  r.width = cv.height; r.height = cv.width;
+  const ctx = r.getContext('2d')!;
+  ctx.translate(r.width, 0);
+  ctx.rotate(Math.PI / 2);
+  ctx.drawImage(cv, 0, 0);
+  return r;
+}
+
+const store = {
+  get(k: string) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k: string, v: string) { try { localStorage.setItem(k, v); } catch { /* sin almacenamiento */ } },
+};
 
 export default function LabelMaker({ products, categories }: { products: Item[]; categories: Cat[] }) {
   const [cat, setCat] = useState('');
   const [sel, setSel] = useState<Record<string, number>>({});   // id -> nº de copias
   const [texts, setTexts] = useState<Record<string, string>>({}); // id -> texto de la etiqueta
-  const [w, setW] = useState(50);
-  const [h, setH] = useState(30);
+  const [rollId, setRollId] = useState('dk11209');
+  const [len, setLen] = useState(29);                            // largo para rollos continuos
+  const [custom, setCustom] = useState({ w: 62, h: 29 });
   const [showName, setShowName] = useState(true);
   const [showPrice, setShowPrice] = useState(true);
-  const [mode, setMode] = useState<'rollo' | 'hoja'>('rollo');
+  const [showSku, setShowSku] = useState(true);
+  const [perVariant, setPerVariant] = useState(false);
+  const [preview, setPreview] = useState<string>('');
 
-  const visible = useMemo(
-    () => (cat ? products.filter((p) => p.category === cat) : products),
-    [cat, products]
-  );
+  useEffect(() => {
+    const r = store.get('eureka_label_roll'); if (r) setRollId(r);
+    const l = Number(store.get('eureka_label_len')); if (l >= 15) setLen(l);
+  }, []);
+  useEffect(() => { store.set('eureka_label_roll', rollId); store.set('eureka_label_len', String(len)); }, [rollId, len]);
 
+  const roll: Roll = rollId === 'custom'
+    ? { id: 'custom', name: 'Personalizado', driver: `${custom.w}mm x ${custom.h}mm`, w: custom.w, h: custom.h }
+    : (() => { const r = ROLLS.find((x) => x.id === rollId) || ROLLS[0]; return r.continuous ? { ...r, h: len } : r; })();
+  // Página del PDF = medida del driver (vertical). Se dibuja en horizontal y se gira si hace falta.
+  const pageW = roll.w, pageH = roll.h;
+  const needRotate = pageH > pageW;
+  const labW = Math.max(pageW, pageH), labH = Math.min(pageW, pageH);
+  const opts: Opts = { showName, showPrice, showSku };
+
+  const visible = useMemo(() => (cat ? products.filter((p) => p.category === cat) : products), [cat, products]);
   const textFor = (p: Item) => (texts[p.id] !== undefined ? texts[p.id] : p.name);
   const setText = (id: string, v: string) => setTexts((t) => ({ ...t, [id]: v }));
-
   const toggle = (p: Item) => {
-    setSel((s) => {
-      const n = { ...s };
-      if (n[p.id]) delete n[p.id];
-      else n[p.id] = 1;
-      return n;
-    });
+    setSel((s) => { const n = { ...s }; if (n[p.id]) delete n[p.id]; else n[p.id] = 1; return n; });
     setTexts((t) => (t[p.id] === undefined ? { ...t, [p.id]: p.name } : t));
   };
   const setCopies = (id: string, v: number) => setSel((s) => ({ ...s, [id]: Math.max(1, Math.floor(v) || 1) }));
@@ -64,152 +155,129 @@ export default function LabelMaker({ products, categories }: { products: Item[];
     setSel((s) => { const n = { ...s }; visible.forEach((p) => { if (!n[p.id]) n[p.id] = 1; }); return n; });
     setTexts((t) => { const n = { ...t }; visible.forEach((p) => { if (n[p.id] === undefined) n[p.id] = p.name; }); return n; });
   };
-  const clearAll = () => setSel({});
 
-  // lista plana de etiquetas (repitiendo según copias)
+  // Lista de etiquetas. "Una por unidad": por cada talla/color tantas como su stock, con la talla y el color en el texto.
   const labels = useMemo(() => {
-    const out: Item[] = [];
+    const out: Label[] = [];
     for (const p of products) {
       const c = sel[p.id];
-      if (c) for (let i = 0; i < c; i++) out.push(p);
+      if (!c) continue;
+      const base = textFor(p);
+      if (perVariant && p.variants?.length) {
+        for (const v of p.variants) {
+          const t = [base, v.color, v.size].filter(Boolean).join(' ');
+          for (let i = 0; i < v.stock; i++) out.push({ sku: p.sku, text: t, price: p.price });
+        }
+      } else for (let i = 0; i < c; i++) out.push({ sku: p.sku, text: base, price: p.price });
     }
     return out;
-  }, [sel, products]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sel, products, texts, perVariant]);
 
-  // Dibuja una etiqueta en el PDF dentro del recuadro (x, y, w, h) en mm.
-  const drawLabel = (doc: jsPDF, p: Item, x: number, y: number, bw: number, bh: number) => {
-    const pad = 1.5;
-    const cx = x + bw / 2;
-    let cursor = y + pad + 1.5;
+  // Vista previa de la primera etiqueta, tal cual saldrá (en horizontal)
+  const sample: Label = labels[0] || { sku: products[0]?.sku || 'PEK-0001', text: products[0] ? textFor(products[0]) : 'Blusa Az', price: products[0]?.price || 1990 };
+  useEffect(() => {
+    try { setPreview(drawLabel(sample, labW, labH, opts).toDataURL('image/png')); } catch { setPreview(''); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [labW, labH, showName, showPrice, showSku, sample.sku, sample.text, sample.price]);
 
-    if (showName) {
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(7);
-      doc.text(textFor(p) || p.name, cx, cursor, { align: 'center', maxWidth: bw - 2 * pad });
-      cursor += 3;
-    }
-
-    const bc = barcodePng(p.sku);
-    if (bc) {
-      const bcW = Math.min(bw - 2 * pad, bh * 1.6);
-      const bcH = Math.max(6, Math.min(bh * 0.42, bcW / bc.ratio));
-      doc.addImage(bc.url, 'PNG', cx - bcW / 2, cursor, bcW, bcH);
-      cursor += bcH + 1;
-    }
-
-    doc.setFont('courier', 'normal');
-    doc.setFontSize(6);
-    doc.text(p.sku, cx, cursor, { align: 'center' });
-    cursor += 2.5;
-
-    if (showPrice) {
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.text(euros(p.price), cx, cursor + 1, { align: 'center' });
-    }
-  };
-
-  const makePdf = () => {
-    if (!labels.length) return;
-    if (mode === 'rollo') {
-      const doc = new jsPDF({ unit: 'mm', format: [w, h], orientation: w >= h ? 'landscape' : 'portrait' });
-      const pw = doc.internal.pageSize.getWidth();
-      const ph = doc.internal.pageSize.getHeight();
-      labels.forEach((p, idx) => {
-        if (idx > 0) doc.addPage([w, h], w >= h ? 'landscape' : 'portrait');
-        drawLabel(doc, p, 0, 0, pw, ph);
-      });
-      doc.save('etiquetas-eureka.pdf');
-    } else {
-      const margin = 8, gap = 3, pageW = 210, pageH = 297;
-      const cols = Math.max(1, Math.floor((pageW - 2 * margin + gap) / (w + gap)));
-      const rows = Math.max(1, Math.floor((pageH - 2 * margin + gap) / (h + gap)));
-      const perPage = cols * rows;
-      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-      labels.forEach((p, idx) => {
-        const onPage = idx % perPage;
-        if (idx > 0 && onPage === 0) doc.addPage();
-        const r = Math.floor(onPage / cols), c = onPage % cols;
-        const x = margin + c * (w + gap), y = margin + r * (h + gap);
-        drawLabel(doc, p, x, y, w, h);
-      });
-      doc.save('etiquetas-eureka.pdf');
-    }
+  function buildPdf(): jsPDF | null {
+    if (!labels.length) return null;
+    const orient = pageW > pageH ? 'landscape' : 'portrait';
+    const doc = new jsPDF({ unit: 'mm', format: [pageW, pageH], orientation: orient, compress: true });
+    labels.forEach((lab, i) => {
+      if (i > 0) doc.addPage([pageW, pageH], orient);
+      let cv = drawLabel(lab, labW, labH, opts);
+      if (needRotate) cv = rotate(cv);
+      doc.addImage(cv.toDataURL('image/png'), 'PNG', 0, 0, pageW, pageH, undefined, 'FAST');
+    });
+    return doc;
+  }
+  const download = () => buildPdf()?.save(`etiquetas-eureka-${roll.id}.pdf`);
+  const print = () => {
+    const doc = buildPdf();
+    if (!doc) return;
+    doc.autoPrint();
+    const url = doc.output('bloburl') as unknown as string;
+    const win = window.open(url, '_blank');
+    if (!win) doc.save(`etiquetas-eureka-${roll.id}.pdf`); // bloqueador de ventanas: se descarga
   };
 
   return (
     <div className="etq">
-      <style>{`
-        .etq-label { width: ${w}mm; height: ${h}mm; }
-        @media print {
-          body * { visibility: hidden !important; }
-          .etq-print, .etq-print * { visibility: visible !important; }
-          .etq-print { position: absolute; left: 0; top: 0; width: 100%; gap: ${mode === 'rollo' ? '0' : '3mm'}; }
-          .etq-config { display: none !important; }
-          .etq-label { border: 0 !important; ${mode === 'rollo' ? 'page-break-after: always;' : 'page-break-inside: avoid;'} }
-          @page { size: ${mode === 'rollo' ? `${w}mm ${h}mm` : 'A4'}; margin: ${mode === 'rollo' ? '0' : '8mm'}; }
-        }
-      `}</style>
-
       <div className="etq-config adm-card">
-        <div className="etq-row">
-          <label>Categoría
-            <select value={cat} onChange={(e) => setCat(e.target.value)}>
-              <option value="">Todas</option>
-              {categories.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}
-            </select>
-          </label>
-          <label>Ancho (mm)<input type="number" min={20} value={w} onChange={(e) => setW(+e.target.value || 50)} /></label>
-          <label>Alto (mm)<input type="number" min={15} value={h} onChange={(e) => setH(+e.target.value || 30)} /></label>
-          <label>Formato
-            <select value={mode} onChange={(e) => setMode(e.target.value as 'rollo' | 'hoja')}>
-              <option value="rollo">Rollo (1 por etiqueta)</option>
-              <option value="hoja">Hoja A4 (rejilla)</option>
-            </select>
-          </label>
-          <label className="chk"><input type="checkbox" checked={showName} onChange={(e) => setShowName(e.target.checked)} /> Texto</label>
-          <label className="chk"><input type="checkbox" checked={showPrice} onChange={(e) => setShowPrice(e.target.checked)} /> Precio</label>
+        <div className="etq-setup">
+          <div className="etq-fields">
+            <label>Rollo de la Brother QL-570
+              <select value={rollId} onChange={(e) => setRollId(e.target.value)}>
+                {ROLLS.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                <option value="custom">Personalizado…</option>
+              </select>
+            </label>
+            {roll.continuous && (
+              <label>Largo de cada etiqueta (mm)<input type="number" min={15} max={200} value={len} onChange={(e) => setLen(clamp(+e.target.value || 29, 15, 200))} /></label>
+            )}
+            {rollId === 'custom' && (
+              <>
+                <label>Ancho del rollo (mm)<input type="number" min={12} max={62} value={custom.w} onChange={(e) => setCustom({ ...custom, w: clamp(+e.target.value || 29, 12, 62) })} /></label>
+                <label>Largo (mm)<input type="number" min={15} max={200} value={custom.h} onChange={(e) => setCustom({ ...custom, h: clamp(+e.target.value || 29, 15, 200) })} /></label>
+              </>
+            )}
+            <label>Categoría
+              <select value={cat} onChange={(e) => setCat(e.target.value)}>
+                <option value="">Todas</option>
+                {categories.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}
+              </select>
+            </label>
+            <div className="etq-checks">
+              <label className="chk"><input type="checkbox" checked={showName} onChange={(e) => setShowName(e.target.checked)} /> Texto</label>
+              <label className="chk"><input type="checkbox" checked={showSku} onChange={(e) => setShowSku(e.target.checked)} /> Referencia</label>
+              <label className="chk"><input type="checkbox" checked={showPrice} onChange={(e) => setShowPrice(e.target.checked)} /> Precio</label>
+              <label className="chk"><input type="checkbox" checked={perVariant} onChange={(e) => setPerVariant(e.target.checked)} /> Una por unidad (según stock de cada talla y color)</label>
+            </div>
+          </div>
+          <div className="etq-preview">
+            <span className="adm-help">Vista previa · {labW} × {labH} mm</span>
+            {preview && <img src={preview} alt="Vista previa de la etiqueta" style={{ width: `${Math.min(300, labW * 4)}px` }} />}
+          </div>
+        </div>
+
+        <div className="etq-howto">
+          <b>Al imprimir:</b> impresora <b>Brother QL-570</b> · Tamaño del papel <b>{roll.driver}</b>{roll.continuous ? <> (largo {len} mm)</> : null} ·
+          Orientación <b>Vertical</b> · Escala <b>100 % / Tamaño real</b> (no "Ajustar") · Márgenes <b>Ninguno</b>.
+          {needRotate && <> El PDF ya va girado para este rollo: verás la etiqueta de lado en la vista previa de impresión, es normal.</>}
         </div>
 
         <div className="etq-row">
           <button className="btn-sm" onClick={selectAllVisible}>Seleccionar todos ({visible.length})</button>
-          <button className="btn-sm ghost" onClick={clearAll}>Limpiar selección</button>
-          <button className="btn-sm gold" onClick={makePdf} disabled={!labels.length}>
-            Descargar PDF ({labels.length})
-          </button>
-          <button className="btn-sm" onClick={() => window.print()} disabled={!labels.length}>Imprimir</button>
+          <button className="btn-sm ghost" onClick={() => setSel({})}>Limpiar selección</button>
+          <button className="btn-sm gold" onClick={print} disabled={!labels.length}>Imprimir ({labels.length})</button>
+          <button className="btn-sm" onClick={download} disabled={!labels.length}>Descargar PDF</button>
         </div>
 
-        <table className="adm-table">
-          <thead><tr><th></th><th>Ref</th><th>Producto</th><th>Texto etiqueta</th><th>Precio</th><th>Copias</th></tr></thead>
-          <tbody>
-            {visible.map((p) => (
-              <tr key={p.id}>
-                <td><input type="checkbox" checked={!!sel[p.id]} onChange={() => toggle(p)} /></td>
-                <td style={{ fontFamily: 'monospace', fontSize: '.82rem' }}>{p.sku}</td>
-                <td>{p.name}</td>
-                <td>{sel[p.id] ? (
-                  <input value={textFor(p)} onChange={(e) => setText(p.id, e.target.value)} placeholder="Blusa Az" style={{ width: 150 }} />
-                ) : '—'}</td>
-                <td>{euros(p.price)}</td>
-                <td>{sel[p.id] ? (
-                  <input type="number" min={1} value={sel[p.id]} onChange={(e) => setCopies(p.id, +e.target.value)} style={{ width: 64 }} />
-                ) : '—'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="etq-print">
-        {labels.map((p, i) => (
-          <div className="etq-label" key={i}>
-            {showName && <div className="etq-name">{textFor(p)}</div>}
-            <Barcode value={p.sku} />
-            <div className="etq-sku">{p.sku}</div>
-            {showPrice && <div className="etq-price">{euros(p.price)}</div>}
-          </div>
-        ))}
+        <div className="adm-scroll">
+          <table className="adm-table">
+            <thead><tr><th></th><th>Ref</th><th>Producto</th><th>Texto etiqueta</th><th>Precio</th><th>Copias</th></tr></thead>
+            <tbody>
+              {visible.map((p) => (
+                <tr key={p.id}>
+                  <td><input type="checkbox" checked={!!sel[p.id]} onChange={() => toggle(p)} aria-label={`Seleccionar ${p.name}`} /></td>
+                  <td style={{ fontFamily: 'monospace', fontSize: '.82rem' }}>{p.sku}</td>
+                  <td>{p.name}{p.variants?.length ? <div className="adm-sku">{p.variants.length} tallas/colores · {p.variants.reduce((a, v) => a + v.stock, 0)} uds</div> : null}</td>
+                  <td>{sel[p.id] ? (
+                    <input value={textFor(p)} onChange={(e) => setText(p.id, e.target.value)} placeholder="Blusa Az" style={{ width: 150 }} />
+                  ) : '—'}</td>
+                  <td>{euros(p.price)}</td>
+                  <td>{sel[p.id] ? (
+                    perVariant && p.variants?.length
+                      ? <span className="adm-muted">según stock</span>
+                      : <input type="number" min={1} value={sel[p.id]} onChange={(e) => setCopies(p.id, +e.target.value)} style={{ width: 64 }} />
+                  ) : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

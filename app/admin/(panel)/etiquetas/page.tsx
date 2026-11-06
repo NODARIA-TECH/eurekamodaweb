@@ -7,7 +7,8 @@ export default async function EtiquetasAdmin() {
   const [products, categories] = await Promise.all([listProducts(), listCategories()]);
   const items = products
     .filter((p) => p.sku)
-    .map((p) => ({ id: p.id, sku: p.sku as string, name: p.name, price: p.price, category: p.category }));
+    .map((p) => ({ id: p.id, sku: p.sku as string, name: p.name, price: p.price, category: p.category,
+      variants: p.variants?.map((v) => ({ size: v.size, color: v.color, stock: v.stock })) }));
   const cats = categories.map((c) => ({ slug: c.slug, name: c.name }));
 
   return (
@@ -15,7 +16,7 @@ export default async function EtiquetasAdmin() {
       <div className="adm-h">
         <div>
           <h1>Etiquetas</h1>
-          <p>Genera e imprime códigos de barras (Code128 de la referencia) de tus productos</p>
+          <p>Códigos de barras para la Brother QL-570: elige tu rollo y se imprime una etiqueta por página, a su medida exacta</p>
         </div>
       </div>
       {items.length === 0 ? (
