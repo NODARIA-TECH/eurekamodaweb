@@ -48,7 +48,7 @@ export default async function SeguimientoPage({
               <ul>
                 {order.items.map((it, i) => (
                   <li key={i}>
-                    <span>{it.qty}× {it.name}{it.size ? ` (${it.size})` : ''}</span>
+                    <span>{it.qty}× {it.name}{(it.size || it.color) ? ` (${[it.size, it.color].filter(Boolean).join(' · ')})` : ''}</span>
                     <span>{money(it.price * it.qty)}</span>
                   </li>
                 ))}

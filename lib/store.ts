@@ -69,7 +69,7 @@ export async function createProduct(data: Omit<Product, 'id' | 'slug'> & { slug?
     db.lastSkuNumber = n;
     sku = `${prefix}-${String(n).padStart(4, '0')}`;
   }
-  const prod: Product = { id: randomUUID().slice(0, 8), slug, name: data.name, price: data.price, image: data.image || '26998033', stock: data.stock ?? 0, category: data.category, badge: data.badge, sku, updatedAt: new Date().toISOString() };
+  const prod: Product = { id: randomUUID().slice(0, 8), slug, name: data.name, price: data.price, image: data.image || '26998033', stock: data.stock ?? 0, category: data.category, badge: data.badge, sku, sizes: data.sizes, colors: data.colors, updatedAt: new Date().toISOString() };
   db.products.push(prod);
   await write(db);
   return prod;
@@ -88,7 +88,7 @@ export async function deleteProduct(id: string): Promise<void> {
 
 /* -------- Sincronización con FacturaScripts -------- */
 // Alta/actualización de producto por SKU (referencia). FS->web para artículos creados en FacturaScripts.
-export async function upsertProductBySku(data: { sku: string; name: string; price: number; stock?: number; category?: string; image?: string; badge?: string }): Promise<{ created: boolean; product: Product }> {
+export async function upsertProductBySku(data: { sku: string; name: string; price: number; stock?: number; category?: string; image?: string; badge?: string; sizes?: string[]; colors?: string[] }): Promise<{ created: boolean; product: Product }> {
   const db = await read();
   const sku = data.sku.trim();
   let p = db.products.find((x) => x.sku && x.sku.toLowerCase() === sku.toLowerCase());
@@ -99,12 +99,14 @@ export async function upsertProductBySku(data: { sku: string; name: string; pric
     if (data.image) p.image = data.image;
     if (data.badge !== undefined) p.badge = data.badge;
     if (data.stock !== undefined) p.stock = data.stock;
+    if (data.sizes !== undefined) p.sizes = data.sizes;
+    if (data.colors !== undefined) p.colors = data.colors;
     p.updatedAt = new Date().toISOString();
     await write(db);
     return { created: false, product: p };
   }
   const slug = (data.name).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || sku.toLowerCase();
-  p = { id: randomUUID().slice(0, 8), slug, name: data.name, price: data.price, image: data.image || '26998033', stock: data.stock ?? 0, category: data.category || 'tops', badge: data.badge, sku, updatedAt: new Date().toISOString() };
+  p = { id: randomUUID().slice(0, 8), slug, name: data.name, price: data.price, image: data.image || '26998033', stock: data.stock ?? 0, category: data.category || 'tops', badge: data.badge, sku, sizes: data.sizes, colors: data.colors, updatedAt: new Date().toISOString() };
   db.products.push(p);
   await write(db);
   return { created: true, product: p };
@@ -147,7 +149,7 @@ export async function markOrderSynced(id: string, facturaRef?: string): Promise<
 export async function listOrders(): Promise<Order[]> {
   return (await read()).orders.slice().reverse();
 }
-export async function createOrder(input: { items: { productId: string; qty: number; size?: string }[]; customerName?: string; customerEmail?: string }): Promise<{ ok: boolean; order?: Order; error?: string }> {
+export async function createOrder(input: { items: { productId: string; qty: number; size?: string; color?: string }[]; customerName?: string; customerEmail?: string }): Promise<{ ok: boolean; order?: Order; error?: string }> {
   const db = await read();
   if (!input.items.length) return { ok: false, error: 'La cesta está vacía.' };
   const items: OrderItem[] = [];
@@ -161,7 +163,7 @@ export async function createOrder(input: { items: { productId: string; qty: numb
   for (const line of input.items) {
     const p = db.products.find((x) => x.id === line.productId)!;
     p.stock -= line.qty;
-    items.push({ productId: p.id, name: p.name, price: p.price, qty: line.qty, size: line.size });
+    items.push({ productId: p.id, name: p.name, price: p.price, qty: line.qty, size: line.size, color: line.color });
   }
   const total = items.reduce((s, i) => s + i.price * i.qty, 0);
   db.lastOrderNumber += 1;
@@ -193,7 +195,7 @@ export async function createOrder(input: { items: { productId: string; qty: numb
 }
 // Crea un pedido PENDIENTE de pago (checkout online con Stripe). NO descuenta stock:
 // el stock se descuenta al confirmarse el pago (markOrderPaid). Valida que haya stock.
-export async function createPendingOrder(input: { items: { productId: string; qty: number; size?: string }[]; customerName?: string; customerEmail?: string }): Promise<{ ok: boolean; order?: Order; error?: string }> {
+export async function createPendingOrder(input: { items: { productId: string; qty: number; size?: string; color?: string }[]; customerName?: string; customerEmail?: string }): Promise<{ ok: boolean; order?: Order; error?: string }> {
   const db = await read();
   if (!input.items.length) return { ok: false, error: 'La cesta está vacía.' };
   const items: OrderItem[] = [];
@@ -204,7 +206,7 @@ export async function createPendingOrder(input: { items: { productId: string; qt
   }
   for (const line of input.items) {
     const p = db.products.find((x) => x.id === line.productId)!;
-    items.push({ productId: p.id, name: p.name, price: p.price, qty: line.qty, size: line.size });
+    items.push({ productId: p.id, name: p.name, price: p.price, qty: line.qty, size: line.size, color: line.color });
   }
   const total = items.reduce((s, i) => s + i.price * i.qty, 0);
   db.lastOrderNumber += 1;

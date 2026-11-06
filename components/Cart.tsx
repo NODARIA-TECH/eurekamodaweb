@@ -2,21 +2,22 @@
 import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import type { CartItem } from '@/lib/types';
 
-type AddInput = { id: string; name: string; price: number; image: string; size?: string; qty?: number };
+type AddInput = { id: string; name: string; price: number; image: string; size?: string; color?: string; qty?: number };
 type CartCtx = {
   items: CartItem[];
   count: number;
   total: number;
   add: (item: AddInput) => void;
-  remove: (id: string, size?: string) => void;
-  setQty: (id: string, size: string | undefined, qty: number) => void;
+  remove: (id: string, size?: string, color?: string) => void;
+  setQty: (id: string, size: string | undefined, color: string | undefined, qty: number) => void;
   clear: () => void;
 };
 const Ctx = createContext<CartCtx>({ items: [], count: 0, total: 0, add: () => {}, remove: () => {}, setQty: () => {}, clear: () => {} });
 export const useCart = () => useContext(Ctx);
 
 const KEY = 'eureka_cart';
-const same = (a: CartItem, id: string, size?: string) => a.id === id && (a.size ?? '') === (size ?? '');
+const same = (a: CartItem, id: string, size?: string, color?: string) =>
+  a.id === id && (a.size ?? '') === (size ?? '') && (a.color ?? '') === (color ?? '');
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
@@ -38,15 +39,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const add = useCallback((it: AddInput) => {
     setItems((prev) => {
-      const i = prev.findIndex((x) => same(x, it.id, it.size));
+      const i = prev.findIndex((x) => same(x, it.id, it.size, it.color));
       if (i >= 0) { const copy = [...prev]; copy[i] = { ...copy[i], qty: copy[i].qty + (it.qty ?? 1) }; return copy; }
-      return [...prev, { id: it.id, name: it.name, price: it.price, image: it.image, size: it.size, qty: it.qty ?? 1 }];
+      return [...prev, { id: it.id, name: it.name, price: it.price, image: it.image, size: it.size, color: it.color, qty: it.qty ?? 1 }];
     });
     flash('Añadido · ' + it.name);
   }, []);
-  const remove = useCallback((id: string, size?: string) => setItems((p) => p.filter((x) => !same(x, id, size))), []);
-  const setQty = useCallback((id: string, size: string | undefined, qty: number) =>
-    setItems((p) => p.map((x) => (same(x, id, size) ? { ...x, qty: Math.max(1, qty) } : x))), []);
+  const remove = useCallback((id: string, size?: string, color?: string) => setItems((p) => p.filter((x) => !same(x, id, size, color))), []);
+  const setQty = useCallback((id: string, size: string | undefined, color: string | undefined, qty: number) =>
+    setItems((p) => p.map((x) => (same(x, id, size, color) ? { ...x, qty: Math.max(1, qty) } : x))), []);
   const clear = useCallback(() => setItems([]), []);
 
   const count = items.reduce((s, i) => s + i.qty, 0);

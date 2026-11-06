@@ -32,7 +32,7 @@ export default async function ProductPage({ params }: { params: { id: string } }
               Prenda seleccionada de la colección EUREKA. (Descripción de ejemplo — se completa
               con el catálogo real de la clienta.)
             </p>
-            <AddToCart product={{ id: p.id, name: p.name, price: p.price, image: p.image }} disabled={out} />
+            <AddToCart product={{ id: p.id, name: p.name, price: p.price, image: p.image, sizes: p.sizes, colors: p.colors }} disabled={out} />
             <ul className="pdp-notes">
               <li>Envío en 24–48h</li>
               <li>Cambios y devoluciones en 30 días</li>

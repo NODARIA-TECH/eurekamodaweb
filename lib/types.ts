@@ -13,6 +13,8 @@ export type Product = {
   badge?: string;
   sku?: string;       // referencia FacturaScripts (llave de sincronización)
   updatedAt?: string; // última modificación del catálogo (web)
+  sizes?: string[];   // tallas disponibles (vacío = talla única / lista por defecto)
+  colors?: string[];  // colores disponibles (vacío = sin elección de color)
 };
 
 export type BalanceMovement = { id: string; amount: number; reason: string; createdAt: string };
@@ -27,7 +29,7 @@ export type Customer = {
   passwordHash?: string;  // "scrypt$<salt>$<hash>" — ausente = cuenta invitado (creada por un pedido)
 };
 
-export type OrderItem = { productId: string; name: string; price: number; qty: number; size?: string };
+export type OrderItem = { productId: string; name: string; price: number; qty: number; size?: string; color?: string };
 
 export type Order = {
   id: string;
@@ -46,7 +48,7 @@ export type Order = {
 };
 
 // Item de cesta en el cliente
-export type CartItem = { id: string; name: string; price: number; image: string; qty: number; size?: string };
+export type CartItem = { id: string; name: string; price: number; image: string; qty: number; size?: string; color?: string };
 
 export type DB = {
   categories: Category[];

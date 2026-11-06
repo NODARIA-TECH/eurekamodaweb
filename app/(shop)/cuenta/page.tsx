@@ -69,7 +69,7 @@ export default async function CuentaPage() {
                     </div>
                     <div className="ao-items">
                       {o.items.map((it, i) => (
-                        <span key={i}>{it.qty}× {it.name}{it.size ? ` (${it.size})` : ''}</span>
+                        <span key={i}>{it.qty}× {it.name}{(it.size || it.color) ? ` (${[it.size, it.color].filter(Boolean).join(' · ')})` : ''}</span>
                       ))}
                     </div>
                     {o.status !== 'cancelado' && <OrderTracker status={o.status} history={o.history} />}

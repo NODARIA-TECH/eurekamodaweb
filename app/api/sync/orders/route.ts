@@ -29,6 +29,7 @@ export async function GET(req: Request) {
         name: i.name,
         qty: i.qty,
         size: i.size || null,
+        color: i.color || null,
         price_cents: i.price,
         price: +(i.price / 100).toFixed(2),
       })),

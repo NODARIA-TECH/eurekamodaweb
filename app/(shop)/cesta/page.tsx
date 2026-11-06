@@ -20,7 +20,7 @@ export default function CestaPage() {
 
   async function pay() {
     setLoading(true); setErr('');
-    const res = await checkout({ items: items.map((i) => ({ productId: i.id, qty: i.qty, size: i.size })), name, email, code: code.trim() || undefined });
+    const res = await checkout({ items: items.map((i) => ({ productId: i.id, qty: i.qty, size: i.size, color: i.color })), name, email, code: code.trim() || undefined });
     if (res.url) { window.location.href = res.url; return; } // redirige a la pasarela de Stripe
     setLoading(false);
     if (res.ok && res.ref) { clear(); setDone(res.ref); } else setErr(res.error || 'No se pudo completar el pedido.');
@@ -54,17 +54,21 @@ export default function CestaPage() {
       <div className="cart">
         <div className="cart-items">
           {items.map((it) => (
-            <div className="cart-item" key={it.id + (it.size ?? '')}>
+            <div className="cart-item" key={it.id + (it.size ?? '') + (it.color ?? '')}>
               <img src={productImg(it.image, 200, 260)} alt={it.name} />
               <div className="ci-info">
                 <div className="ci-name">{it.name}</div>
-                {it.size && <div className="ci-size">Talla {it.size}</div>}
-                <button className="ci-remove" onClick={() => remove(it.id, it.size)}>Eliminar</button>
+                {(it.size || it.color) && (
+                  <div className="ci-size">
+                    {it.size ? `Talla ${it.size}` : ''}{it.size && it.color ? ' · ' : ''}{it.color ? `Color ${it.color}` : ''}
+                  </div>
+                )}
+                <button className="ci-remove" onClick={() => remove(it.id, it.size, it.color)}>Eliminar</button>
               </div>
               <div className="ci-qty">
-                <button onClick={() => setQty(it.id, it.size, it.qty - 1)} aria-label="Menos">−</button>
+                <button onClick={() => setQty(it.id, it.size, it.color, it.qty - 1)} aria-label="Menos">−</button>
                 <span>{it.qty}</span>
-                <button onClick={() => setQty(it.id, it.size, it.qty + 1)} aria-label="Más">+</button>
+                <button onClick={() => setQty(it.id, it.size, it.color, it.qty + 1)} aria-label="Más">+</button>
               </div>
               <div className="ci-price">{money(it.price * it.qty)}</div>
             </div>

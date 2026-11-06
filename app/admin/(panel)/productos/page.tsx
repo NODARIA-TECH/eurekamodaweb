@@ -8,7 +8,7 @@ export default async function ProductosAdmin() {
   const [products, categories] = await Promise.all([listProducts(), listCategories()]);
   return (
     <>
-      <div className="adm-h"><div><h1>Productos</h1><p>{products.length} productos · edita precio, stock y badge</p></div></div>
+      <div className="adm-h"><div><h1>Productos</h1><p>{products.length} productos · edita precio, stock, badge, tallas y colores</p></div></div>
 
       <div className="adm-card">
         <table className="adm-table">
@@ -35,6 +35,8 @@ export default async function ProductosAdmin() {
                     <input name="price" defaultValue={(p.price / 100).toFixed(2)} inputMode="decimal" aria-label="Precio" />
                     <input name="stock" type="number" min={0} defaultValue={p.stock} aria-label="Stock" style={{ maxWidth: 80 }} className={p.stock <= 3 ? 'low' : ''} />
                     <input name="badge" defaultValue={p.badge ?? ''} placeholder="—" aria-label="Badge" style={{ maxWidth: 90 }} />
+                    <input name="tallas" defaultValue={(p.sizes ?? []).join(', ')} placeholder="S, M, L" aria-label="Tallas" style={{ maxWidth: 120 }} />
+                    <input name="colores" defaultValue={(p.colors ?? []).join(', ')} placeholder="Negro, Rojo" aria-label="Colores" style={{ maxWidth: 140 }} />
                     <button className="btn-sm gold" type="submit">Guardar</button>
                   </form>
                 </td>
@@ -62,6 +64,8 @@ export default async function ProductosAdmin() {
           <label>Foto (subir)<input name="foto" type="file" accept="image/*" /></label>
           <label>…o id Pexels<input name="image" placeholder="26998033" /></label>
           <label>Badge<input name="badge" placeholder="Nuevo" /></label>
+          <label>Tallas<input name="tallas" placeholder="S, M, L (vacío = XS–XL)" /></label>
+          <label>Colores<input name="colores" placeholder="Negro, Rojo (opcional)" /></label>
           <button className="btn-sm" type="submit" style={{ height: 40 }}>Añadir</button>
         </form>
       </div>
@@ -73,7 +77,7 @@ export default async function ProductosAdmin() {
           <button className="btn-sm" type="submit" style={{ height: 40 }}>Importar</button>
         </form>
         <p style={{ fontSize: '.8rem', color: 'var(--muted)', marginTop: 8 }}>
-          Columnas: <b>referencia</b> (vacío = auto PEK-####), <b>nombre</b>, <b>categoria</b>, <b>precio_pvp</b>, <b>stock</b>, <b>descripcion</b>. Crea o actualiza por SKU y crea las categorías que falten. Acepta Excel (.xlsx) y CSV (separador , o ;).
+          Columnas: <b>referencia</b> (vacío = auto PEK-####), <b>nombre</b>, <b>categoria</b>, <b>precio_pvp</b>, <b>stock</b>, <b>descripcion</b>, <b>tallas</b> (ej. «S, M, L»), <b>colores</b> (ej. «Negro, Rojo»). Crea o actualiza por SKU y crea las categorías que falten. Acepta Excel (.xlsx) y CSV (separador , o ;).
         </p>
       </div>
     </>

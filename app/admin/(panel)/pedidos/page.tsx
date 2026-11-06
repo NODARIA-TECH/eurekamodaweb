@@ -19,7 +19,7 @@ export default async function PedidosAdmin() {
                 <td><b>{o.ref}</b></td>
                 <td>{new Date(o.createdAt).toLocaleDateString('es-ES')}</td>
                 <td>{o.customerName ?? '—'}</td>
-                <td>{o.items.map((i) => `${i.qty}× ${i.name}${i.size ? ' (' + i.size + ')' : ''}`).join(', ')}</td>
+                <td>{o.items.map((i) => `${i.qty}× ${i.name}${(i.size || i.color) ? ' (' + [i.size, i.color].filter(Boolean).join(' · ') + ')' : ''}`).join(', ')}</td>
                 <td><b>{money(o.total)}</b></td>
                 <td>
                   <form action={setStatus} className="adm-inline">

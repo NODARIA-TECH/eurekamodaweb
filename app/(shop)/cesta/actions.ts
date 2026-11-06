@@ -5,7 +5,7 @@ import Stripe from 'stripe';
 import { createOrder, createPendingOrder, setOrderStripeSession } from '@/lib/store';
 
 type Payload = {
-  items: { productId: string; qty: number; size?: string }[];
+  items: { productId: string; qty: number; size?: string; color?: string }[];
   name?: string;
   email?: string;
   code?: string; // código de descuento (promotion code de Stripe)
@@ -62,7 +62,7 @@ export async function checkout(payload: Payload): Promise<{ ok: boolean; url?: s
   const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = order.items.map((it) => ({
     price_data: {
       currency: 'eur',
-      product_data: { name: it.name + (it.size ? ` (Talla ${it.size})` : '') },
+      product_data: { name: it.name + (it.size || it.color ? ` (${[it.size && `Talla ${it.size}`, it.color && `Color ${it.color}`].filter(Boolean).join(', ')})` : '') },
       unit_amount: it.price, // céntimos
     },
     quantity: it.qty,

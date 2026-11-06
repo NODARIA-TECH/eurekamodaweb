@@ -93,12 +93,20 @@ async function rowsFromFile(file: File): Promise<Record<string, string>[]> {
 }
 const slugify = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
+// "S, M, L" / "S;M;L" -> ['S','M','L']. Vacío -> undefined (no toca el campo).
+const parseList = (s: unknown): string[] | undefined => {
+  const arr = String(s ?? '').split(/[,;|]/).map((x) => x.trim()).filter(Boolean);
+  return arr.length ? arr : undefined;
+};
+
 export async function saveProductRow(fd: FormData) {
   const id = String(fd.get('id'));
   await updateProduct(id, {
     price: toCents(String(fd.get('price'))),
     stock: parseInt(String(fd.get('stock') || '0'), 10) || 0,
     badge: String(fd.get('badge') || '') || undefined,
+    sizes: parseList(fd.get('tallas')),   // vacío = sin tallas propias (lista por defecto en la ficha)
+    colors: parseList(fd.get('colores')), // vacío = sin selector de color
   });
   revalidatePath('/admin/productos');
   revalidatePath('/tienda');
@@ -118,6 +126,8 @@ export async function addProduct(fd: FormData) {
     image,
     badge: String(fd.get('badge') || '') || undefined,
     sku: String(fd.get('sku') || '').trim() || undefined, // vacío = se genera solo (PEK-0001…)
+    sizes: parseList(fd.get('tallas')),
+    colors: parseList(fd.get('colores')),
   });
   revalidatePath('/admin/productos');
   revalidatePath('/tienda');
@@ -157,11 +167,13 @@ export async function importCsv(fd: FormData) {
     const categoria = (r.categoria || r.category || 'Tops').trim();
     const slug = slugify(categoria) || 'tops';
     if (!slugs.has(slug)) { await createCategory({ name: categoria, slug, image: '26998033' }); slugs.add(slug); }
+    const sizes = parseList(r.tallas || r.sizes || r.talla);
+    const colors = parseList(r.colores || r.colors || r.color);
     const sku = (r.referencia || r.sku || '').trim();
     if (sku) {
-      await upsertProductBySku({ sku, name, price: priceCents, stock, category: slug });
+      await upsertProductBySku({ sku, name, price: priceCents, stock, category: slug, sizes, colors });
     } else {
-      await createProduct({ name, price: priceCents, stock, category: slug, image: '26998033' });
+      await createProduct({ name, price: priceCents, stock, category: slug, image: '26998033', sizes, colors });
     }
   }
   revalidatePath('/admin/productos');
