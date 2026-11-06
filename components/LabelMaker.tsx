@@ -51,34 +51,53 @@ function drawLabel(lab: Label, Wmm: number, Hmm: number, o: Opts): HTMLCanvasEle
   const pad = clamp(Hmm * 0.08, 1.6, 3);
   const availW = Wmm - 2 * pad;
   const wide = Wmm / Hmm >= 2.1; // referencia y precio en la misma línea
-  let nameEm = clamp(Hmm * 0.2, 2.2, 5);
+  const nameEm = clamp(Hmm * 0.2, 2.2, 5);
   const priceEm = clamp(Hmm * (wide ? 0.22 : 0.2), 2.6, 6);
   const skuEm = clamp(Hmm * 0.12, 1.7, 2.8);
   const gap = clamp(Hmm * 0.035, 0.6, 1.5);
 
-  let showName = o.showName && !!lab.text;
+  // Texto: en una línea si cabe; si es largo, en dos líneas (mejor que letra diminuta).
+  const font = (emMm: number) => `700 ${mm(emMm)}px Arial, Helvetica, sans-serif`;
+  const widthPerMm = (t: string) => { ctx.font = font(10); return ctx.measureText(t).width / DPMM / 10; }; // mm de ancho por mm de letra
+  const text = (lab.text || '').replace(/\s+/g, ' ').trim();
+  let showName = o.showName && !!text;
+  let nameLines: string[] = [text];
+  let nameSize = Math.min(nameEm, availW / Math.max(0.01, widthPerMm(text)));
+  if (showName && nameSize < nameEm) {
+    const words = text.split(' ');
+    let best: string[] | null = null, bestW = Infinity;
+    for (let i = 1; i < words.length; i++) {
+      const a = words.slice(0, i).join(' '), b = words.slice(i).join(' ');
+      const w = Math.max(widthPerMm(a), widthPerMm(b));
+      if (w < bestW) { bestW = w; best = [a, b]; }
+    }
+    const size2 = best ? Math.min(nameEm * 0.92, availW / bestW) : 0;
+    if (best && size2 > nameSize * 1.2) { nameLines = best; nameSize = size2; }
+  }
+  nameSize = Math.max(1.8, nameSize);
+
   let showSku = o.showSku;
   const showPrice = o.showPrice;
+  const nameBlock = () => (showName ? nameLines.length * nameSize * 1.08 + gap : 0);
   const bottomH = () => (wide ? Math.max(showSku ? skuEm : 0, showPrice ? priceEm : 0) : (showSku ? skuEm + gap : 0) + (showPrice ? priceEm : 0));
-  const bcHmm = () => Hmm - 2 * pad - (showName ? nameEm + gap : 0) - bottomH() - gap;
+  const bcHmm = () => Hmm - 2 * pad - nameBlock() - bottomH() - gap;
   if (bcHmm() < 5 && showSku) showSku = false;
-  if (bcHmm() < 4.5 && showName) { nameEm = Math.max(1.8, nameEm * 0.8); }
+  if (bcHmm() < 6 && nameLines.length > 1) { nameLines = [text]; nameSize = Math.max(1.8, Math.min(nameEm, availW / widthPerMm(text))); }
   if (bcHmm() < 4 && showName) showName = false;
 
   let y = pad;
-  // Texto (nombre corto): se reduce hasta que quepa; si no, se corta con "…"
   if (showName) {
-    let size = mm(nameEm);
-    ctx.font = `700 ${size}px Arial, Helvetica, sans-serif`;
-    let t = lab.text;
-    while (ctx.measureText(t).width > mm(availW) && size > mm(1.8)) { size *= 0.94; ctx.font = `700 ${size}px Arial, Helvetica, sans-serif`; }
-    if (ctx.measureText(t).width > mm(availW)) { // ni con la letra mínima cabe: se corta con "…"
-      while (ctx.measureText(t + '…').width > mm(availW) && t.length > 1) t = t.slice(0, -1);
-      t = t.trimEnd() + '…';
-    }
+    ctx.font = font(nameSize);
     ctx.textAlign = 'center';
-    ctx.fillText(t, W / 2, mm(y + nameEm * 0.8));
-    y += nameEm + gap;
+    nameLines.forEach((line, i) => {
+      let t = line;
+      if (ctx.measureText(t).width > mm(availW)) { // ni así cabe: se corta con "…"
+        while (ctx.measureText(t + '…').width > mm(availW) && t.length > 1) t = t.slice(0, -1);
+        t = t.trimEnd() + '…';
+      }
+      ctx.fillText(t, W / 2, mm(y + nameSize * 0.8 + i * nameSize * 1.08));
+    });
+    y += nameBlock();
   }
 
   // Código de barras Code128: cada barra ocupa un nº ENTERO de puntos de la impresora (lectura fiable)
