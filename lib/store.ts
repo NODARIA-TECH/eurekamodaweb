@@ -112,6 +112,31 @@ export async function upsertProductBySku(data: { sku: string; name: string; pric
   return { created: true, product: p };
 }
 
+// Alta/actualización por NOMBRE (para importaciones de Excel SIN referencia).
+// Empareja por nombre normalizado (ignora mayúsculas/acentos/espacios) para no duplicar.
+// Si el existente no tiene SKU aún, NO lo inventa aquí (se respeta el que ya tenga).
+export async function upsertProductByName(data: { name: string; price: number; stock?: number; category?: string; image?: string; badge?: string; sizes?: string[]; colors?: string[] }): Promise<{ created: boolean; product: Product }> {
+  const db = await read();
+  const norm = (s: string) => s.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ');
+  const target = norm(data.name);
+  const p = db.products.find((x) => norm(x.name) === target);
+  if (p) {
+    p.price = data.price;
+    if (data.category) p.category = data.category;
+    if (data.image) p.image = data.image;
+    if (data.badge !== undefined) p.badge = data.badge;
+    if (data.stock !== undefined) p.stock = data.stock;
+    if (data.sizes !== undefined) p.sizes = data.sizes;
+    if (data.colors !== undefined) p.colors = data.colors;
+    p.updatedAt = new Date().toISOString();
+    await write(db);
+    return { created: false, product: p };
+  }
+  await write(db); // sin cambios; el alta la hace createProduct (genera SKU y slug)
+  const created = await createProduct({ name: data.name, price: data.price, stock: data.stock ?? 0, category: data.category || 'tops', image: data.image || '26998033', badge: data.badge, sizes: data.sizes, colors: data.colors });
+  return { created: true, product: created };
+}
+
 // Ajuste de stock por SKU (FS manda sobre el stock). No toca campos de catálogo.
 export async function setStockBySku(items: { sku: string; stock: number }[]): Promise<{ updated: number; missing: string[] }> {
   const db = await read();

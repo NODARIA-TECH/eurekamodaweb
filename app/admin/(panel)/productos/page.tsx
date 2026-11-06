@@ -77,7 +77,7 @@ export default async function ProductosAdmin() {
           <button className="btn-sm" type="submit" style={{ height: 40 }}>Importar</button>
         </form>
         <p style={{ fontSize: '.8rem', color: 'var(--muted)', marginTop: 8 }}>
-          Columnas: <b>referencia</b> (vacío = auto PEK-####), <b>nombre</b>, <b>categoria</b>, <b>precio_pvp</b>, <b>stock</b>, <b>descripcion</b>, <b>tallas</b> (ej. «S, M, L»), <b>colores</b> (ej. «Negro, Rojo»). Crea o actualiza por SKU y crea las categorías que falten. Acepta Excel (.xlsx) y CSV (separador , o ;).
+          Columnas: <b>referencia</b> (vacío = auto PEK-####), <b>nombre</b>, <b>categoria</b>, <b>precio_pvp</b>, <b>stock</b>, <b>descripcion</b>, <b>tallas</b> (ej. «S, M, L»), <b>colores</b> (ej. «Negro, Rojo»). No duplica: si la fila trae <b>referencia</b> empareja por SKU; si no, empareja por <b>nombre</b> y actualiza el producto existente. Crea las categorías que falten. Acepta Excel (.xlsx) y CSV (separador , o ;).
         </p>
       </div>
     </>

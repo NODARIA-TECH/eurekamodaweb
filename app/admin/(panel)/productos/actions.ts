@@ -1,6 +1,6 @@
 'use server';
 import { revalidatePath } from 'next/cache';
-import { createProduct, updateProduct, deleteProduct, upsertProductBySku, listCategories, createCategory } from '@/lib/store';
+import { createProduct, updateProduct, deleteProduct, upsertProductBySku, upsertProductByName, listCategories, createCategory } from '@/lib/store';
 import { toCents } from '@/lib/money';
 import * as XLSX from 'xlsx';
 import { promises as fs } from 'fs';
@@ -171,9 +171,11 @@ export async function importCsv(fd: FormData) {
     const colors = parseList(r.colores || r.colors || r.color);
     const sku = (r.referencia || r.sku || '').trim();
     if (sku) {
+      // Con referencia: empareja por SKU (no duplica).
       await upsertProductBySku({ sku, name, price: priceCents, stock, category: slug, sizes, colors });
     } else {
-      await createProduct({ name, price: priceCents, stock, category: slug, image: '26998033', sizes, colors });
+      // Sin referencia: empareja por nombre (no duplica si ya existe en la web).
+      await upsertProductByName({ name, price: priceCents, stock, category: slug, sizes, colors });
     }
   }
   revalidatePath('/admin/productos');
