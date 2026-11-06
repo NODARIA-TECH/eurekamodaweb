@@ -16,10 +16,10 @@ export function rateLimit(key: string, max: number, windowMs: number): { ok: boo
   hits.set(key, arr);
   // limpieza oportunista para que el Map no crezca sin control
   if (hits.size > 5000) {
-    for (const [k, v] of hits) {
+    hits.forEach((v, k) => {
       const f = v.filter((t) => now - t < windowMs);
       if (f.length) hits.set(k, f); else hits.delete(k);
-    }
+    });
   }
   return { ok: true };
 }
