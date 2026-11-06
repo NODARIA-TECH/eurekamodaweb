@@ -18,6 +18,16 @@ const ROLLS: Roll[] = [
   { id: 'dk11203', name: 'DK-11203 · Carpetas 17 × 87 mm', driver: '17mm x 87mm', w: 17, h: 87 },
   { id: 'dk22205', name: 'DK-22205 · Continuo 62 mm (cortado a medida)', driver: '62mm', w: 62, h: 29, continuous: true },
   { id: 'dk22210', name: 'DK-22210 · Continuo 29 mm (cortado a medida)', driver: '29mm', w: 29, h: 62, continuous: true },
+  { id: 'r35x70', name: 'Rollo compatible 70 × 35 mm (35 mm de ancho)', driver: '35mm x 70mm (personalizado)', w: 35, h: 70 },
+];
+
+// Hojas A4 de etiquetas adhesivas (impresora normal de tinta o láser).
+type Sheet = { id: string; name: string; w: number; h: number; cols: number; rows: number; top: number; left: number };
+const SHEETS: Sheet[] = [
+  { id: 'a4-70x35', name: 'Hoja A4 · 24 etiquetas 70 × 35 mm (3 × 8)', w: 70, h: 35, cols: 3, rows: 8, top: 8.5, left: 0 },
+  { id: 'a4-70x36', name: 'Hoja A4 · 24 etiquetas 70 × 36 mm (3 × 8)', w: 70, h: 36, cols: 3, rows: 8, top: 4.5, left: 0 },
+  { id: 'a4-70x37', name: 'Hoja A4 · 24 etiquetas 70 × 37 mm (3 × 8)', w: 70, h: 37, cols: 3, rows: 8, top: 0.5, left: 0 },
+  { id: 'a4-70x42', name: 'Hoja A4 · 21 etiquetas 70 × 42,4 mm (3 × 7)', w: 70, h: 42.4, cols: 3, rows: 7, top: 0.2, left: 0 },
 ];
 
 const DPMM = 300 / 25.4; // la QL-570 imprime a 300 ppp
@@ -127,6 +137,8 @@ export default function LabelMaker({ products, categories }: { products: Item[];
   const [showSku, setShowSku] = useState(true);
   const [perVariant, setPerVariant] = useState(false);
   const [preview, setPreview] = useState<string>('');
+  const [offset, setOffset] = useState({ x: 0, y: 0 }); // ajuste fino de la hoja A4 (mm)
+  const [startAt, setStartAt] = useState(1);             // empezar en la etiqueta nº (hojas ya usadas)
 
   useEffect(() => {
     const r = store.get('eureka_label_roll'); if (r) setRollId(r);
@@ -134,12 +146,15 @@ export default function LabelMaker({ products, categories }: { products: Item[];
   }, []);
   useEffect(() => { store.set('eureka_label_roll', rollId); store.set('eureka_label_len', String(len)); }, [rollId, len]);
 
-  const roll: Roll = rollId === 'custom'
+  const sheet = SHEETS.find((x) => x.id === rollId);
+  const roll: Roll = sheet
+    ? { id: sheet.id, name: sheet.name, driver: 'A4', w: sheet.w, h: sheet.h }
+    : rollId === 'custom'
     ? { id: 'custom', name: 'Personalizado', driver: `${custom.w}mm x ${custom.h}mm`, w: custom.w, h: custom.h }
     : (() => { const r = ROLLS.find((x) => x.id === rollId) || ROLLS[0]; return r.continuous ? { ...r, h: len } : r; })();
   // Página del PDF = medida del driver (vertical). Se dibuja en horizontal y se gira si hace falta.
   const pageW = roll.w, pageH = roll.h;
-  const needRotate = pageH > pageW;
+  const needRotate = !sheet && pageH > pageW;
   const labW = Math.max(pageW, pageH), labH = Math.min(pageW, pageH);
   const opts: Opts = { showName, showPrice, showSku };
 
@@ -183,6 +198,20 @@ export default function LabelMaker({ products, categories }: { products: Item[];
 
   function buildPdf(): jsPDF | null {
     if (!labels.length) return null;
+    if (sheet) {
+      // Rejilla en A4: se salta las primeras etiquetas si la hoja ya está empezada.
+      const per = sheet.cols * sheet.rows;
+      const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
+      const skip = clamp(startAt, 1, per) - 1;
+      labels.forEach((lab, i) => {
+        const slot = i + skip;
+        if (slot > 0 && slot % per === 0) doc.addPage('a4', 'portrait');
+        const k = slot % per, r = Math.floor(k / sheet.cols), c = k % sheet.cols;
+        const cv = drawLabel(lab, sheet.w, sheet.h, opts);
+        doc.addImage(cv.toDataURL('image/png'), 'PNG', sheet.left + offset.x + c * sheet.w, sheet.top + offset.y + r * sheet.h, sheet.w, sheet.h, undefined, 'FAST');
+      });
+      return doc;
+    }
     const orient = pageW > pageH ? 'landscape' : 'portrait';
     const doc = new jsPDF({ unit: 'mm', format: [pageW, pageH], orientation: orient, compress: true });
     labels.forEach((lab, i) => {
@@ -208,14 +237,26 @@ export default function LabelMaker({ products, categories }: { products: Item[];
       <div className="etq-config adm-card">
         <div className="etq-setup">
           <div className="etq-fields">
-            <label>Rollo de la Brother QL-570
+            <label>Etiquetas
               <select value={rollId} onChange={(e) => setRollId(e.target.value)}>
-                {ROLLS.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-                <option value="custom">Personalizado…</option>
+                <optgroup label="Rollo en la Brother QL-570">
+                  {ROLLS.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                  <option value="custom">Rollo personalizado…</option>
+                </optgroup>
+                <optgroup label="Hoja A4 (impresora normal)">
+                  {SHEETS.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+                </optgroup>
               </select>
             </label>
             {roll.continuous && (
               <label>Largo de cada etiqueta (mm)<input type="number" min={15} max={200} value={len} onChange={(e) => setLen(clamp(+e.target.value || 29, 15, 200))} /></label>
+            )}
+            {sheet && (
+              <>
+                <label>Empezar en la etiqueta nº<input type="number" min={1} max={sheet.cols * sheet.rows} value={startAt} onChange={(e) => setStartAt(clamp(+e.target.value || 1, 1, sheet.cols * sheet.rows))} /></label>
+                <label>Ajuste → (mm)<input type="number" step={0.5} value={offset.x} onChange={(e) => setOffset({ ...offset, x: +e.target.value || 0 })} /></label>
+                <label>Ajuste ↓ (mm)<input type="number" step={0.5} value={offset.y} onChange={(e) => setOffset({ ...offset, y: +e.target.value || 0 })} /></label>
+              </>
             )}
             {rollId === 'custom' && (
               <>
@@ -243,9 +284,20 @@ export default function LabelMaker({ products, categories }: { products: Item[];
         </div>
 
         <div className="etq-howto">
-          <b>Al imprimir:</b> impresora <b>Brother QL-570</b> · Tamaño del papel <b>{roll.driver}</b>{roll.continuous ? <> (largo {len} mm)</> : null} ·
-          Orientación <b>Vertical</b> · Escala <b>100 % / Tamaño real</b> (no "Ajustar") · Márgenes <b>Ninguno</b>.
-          {needRotate && <> El PDF ya va girado para este rollo: verás la etiqueta de lado en la vista previa de impresión, es normal.</>}
+          {sheet ? (
+            <>
+              <b>Al imprimir:</b> en tu impresora normal (no la Brother) · Papel <b>A4</b> · Escala <b>100 % / Tamaño real</b> (no "Ajustar") · Márgenes <b>Ninguno</b>.
+              Prueba primero en una hoja de papel normal y ponla a contraluz sobre la de etiquetas: si no cuadra, corrige con "Ajuste → / ↓".
+              Si la hoja ya está empezada, pon en "Empezar en la etiqueta nº" la primera libre (se cuentan de izquierda a derecha y de arriba abajo).
+            </>
+          ) : (
+            <>
+              <b>Al imprimir:</b> impresora <b>Brother QL-570</b> · Tamaño del papel <b>{roll.driver}</b>{roll.continuous ? <> (largo {len} mm)</> : null} ·
+              Orientación <b>Vertical</b> · Escala <b>100 % / Tamaño real</b> (no "Ajustar") · Márgenes <b>Ninguno</b>.
+              {needRotate && <> El PDF ya va girado para este rollo: verás la etiqueta de lado en la vista previa de impresión, es normal.</>}
+              {roll.id === 'r35x70' && <> Este tamaño no viene en la lista de la Brother: créalo una vez en <i>Preferencias de impresión → Ajustes de tamaño de papel</i> con 35 mm de ancho y 70 mm de largo.</>}
+            </>
+          )}
         </div>
 
         <div className="etq-row">
