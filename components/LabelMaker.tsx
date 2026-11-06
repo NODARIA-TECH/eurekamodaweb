@@ -31,6 +31,10 @@ const SHEETS: Sheet[] = [
 ];
 
 const DPMM = 300 / 25.4; // la QL-570 imprime a 300 ppp
+// Lo que lleva el código de barras: la referencia SIN guiones ni signos (PEK-0897 -> PEK0897).
+// Así la pistola lo escribe igual con teclado español o americano (el "-" sale como "'" si no coinciden).
+// En FacturaScripts ese valor va en el campo "código de barras" de cada producto.
+export const barcodeValue = (sku: string) => sku.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
 const euros = (c: number) => (c / 100).toFixed(2).replace('.', ',') + ' €';
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 
@@ -104,12 +108,12 @@ function drawLabel(lab: Label, Wmm: number, Hmm: number, o: Opts): HTMLCanvasEle
   const bcH = Math.max(3, bcHmm());
   try {
     const probe = document.createElement('canvas');
-    JsBarcode(probe, lab.sku, { format: 'CODE128', displayValue: false, margin: 0, width: 1, height: 10 });
+    JsBarcode(probe, barcodeValue(lab.sku), { format: 'CODE128', displayValue: false, margin: 0, width: 1, height: 10 });
     const modules = probe.width;
     const maxW = mm(Math.min(availW, 64));
     const dots = clamp(Math.floor(maxW / modules), 1, 4);
     const bc = document.createElement('canvas');
-    JsBarcode(bc, lab.sku, { format: 'CODE128', displayValue: false, margin: 0, width: dots, height: Math.round(mm(bcH)) });
+    JsBarcode(bc, barcodeValue(lab.sku), { format: 'CODE128', displayValue: false, margin: 0, width: dots, height: Math.round(mm(bcH)) });
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(bc, Math.round((W - bc.width) / 2), Math.round(mm(y)));
   } catch { /* referencia no codificable */ }
