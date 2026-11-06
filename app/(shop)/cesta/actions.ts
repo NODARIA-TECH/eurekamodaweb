@@ -37,7 +37,8 @@ export async function checkout(payload: Payload): Promise<{ ok: boolean; url?: s
       const pc = list.data[0];
       if (!pc) return { ok: false, error: 'El código de descuento no es válido o ha caducado.' };
       discounts = [{ promotion_code: pc.id }];
-    } catch {
+    } catch (e) {
+      console.error('[stripe] promotionCodes.list falló:', (e as any)?.message || e);
       return { ok: false, error: 'No se pudo validar el código de descuento.' };
     }
   }
@@ -89,6 +90,7 @@ export async function checkout(payload: Payload): Promise<{ ok: boolean; url?: s
     await setOrderStripeSession(order.id, session.id);
     return { ok: true, url: session.url || undefined };
   } catch (e) {
+    console.error('[stripe] checkout.sessions.create falló:', (e as any)?.message || e);
     return { ok: false, error: 'No se pudo iniciar el pago. Inténtalo de nuevo.' };
   }
 }
