@@ -8,7 +8,7 @@ import { hasVariants, stockOf, colorAvailable, vlabel } from '@/lib/variants';
 
 const PLACEHOLDER = '26998033';
 
-export default function ProductDetail({ p, categoryName, initialColor }: { p: Product; categoryName: string; initialColor?: string }) {
+export default function ProductDetail({ p, categoryName, initialColor, compact }: { p: Product; categoryName: string; initialColor?: string; compact?: boolean }) {
   const { add } = useCart();
   const sizes = p.sizes || [];
   const colors = p.colors || [];
@@ -47,7 +47,7 @@ export default function ProductDetail({ p, categoryName, initialColor }: { p: Pr
   }
 
   return (
-    <div className="pdp">
+    <div className={compact ? 'pdp pdp-compact' : 'pdp'}>
       <div className="pdp-media">
         <div className="pdp-img"><img src={productImg(shown, 900, 1200)} alt={p.name + (color ? ` en ${color}` : '')} /></div>
         {gallery.length > 1 && (

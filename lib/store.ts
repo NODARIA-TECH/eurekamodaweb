@@ -6,6 +6,7 @@ import { randomUUID } from 'crypto';
 import type { DB, Product, Category, Customer, Order, OrderItem } from './types';
 import { hasVariants, findVariant, buildVariants, totalStock, vkey, vlabel } from './variants';
 import { parseVariantStock } from './catalog-normalize';
+import { withCatalogPhotos } from './catalog-photos';
 import { hashPassword, verifyPassword } from './auth';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -96,14 +97,16 @@ export async function deleteCategory(slug: string): Promise<void> {
 }
 
 /* -------- Productos -------- */
+// Lecturas para mostrar: completan las fotos que falten con las de lib/catalog-photos.
 export async function listProducts(): Promise<Product[]> {
-  return (await read()).products;
+  return (await read()).products.map(withCatalogPhotos);
 }
 export async function getProduct(id: string): Promise<Product | undefined> {
-  return (await read()).products.find((p) => p.id === id);
+  const p = (await read()).products.find((x) => x.id === id);
+  return p && withCatalogPhotos(p);
 }
 export async function productsByCategory(slug: string): Promise<Product[]> {
-  return (await read()).products.filter((p) => p.category === slug);
+  return (await read()).products.filter((p) => p.category === slug).map(withCatalogPhotos);
 }
 export async function createProduct(data: Omit<Product, 'id' | 'slug'> & { slug?: string }, opts?: { variantStockText?: string }): Promise<Product> {
   const db = await read();
