@@ -3,6 +3,13 @@
 // ni mayúsculas); si no existe (aún), se muestra como "En tienda".
 // Para añadir un look: sube la foto a public/img/look/<slug>.webp y añade una entrada aquí.
 import type { Product } from './types';
+// Posición del punto de cada prenda sobre la foto (% de ancho/alto) y su máscara
+// (public/img/look/mask/<slug>-<n>.png), generadas recortando la ropa de cada foto.
+import SPOTS from './lookbook-spots.json';
+
+export type Spot = { x: number; y: number } | null;
+export const spotsFor = (slug: string): Spot[] => ((SPOTS as Record<string, Spot[]>)[slug] || []);
+export const maskFor = (slug: string, i: number) => `/img/look/mask/${slug}-${i}.png`;
 
 export type LookPiece = { label: string; product?: string; color?: string; category?: string };
 export type Look = { slug: string; title: string; mood: string; photo: string; alt: string; pieces: LookPiece[] };
