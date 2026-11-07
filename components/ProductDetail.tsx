@@ -8,14 +8,14 @@ import { hasVariants, stockOf, colorAvailable, vlabel } from '@/lib/variants';
 
 const PLACEHOLDER = '26998033';
 
-export default function ProductDetail({ p, categoryName }: { p: Product; categoryName: string }) {
+export default function ProductDetail({ p, categoryName, initialColor }: { p: Product; categoryName: string; initialColor?: string }) {
   const { add } = useCart();
   const sizes = p.sizes || [];
   const colors = p.colors || [];
   const out = p.stock <= 0;
 
   const vmode = hasVariants(p);
-  const firstColor = colors.find((c) => colorAvailable(p, c)) ?? colors[0] ?? '';
+  const firstColor = (initialColor && colors.includes(initialColor) ? initialColor : undefined) ?? colors.find((c) => colorAvailable(p, c)) ?? colors[0] ?? '';
   const [color, setColor] = useState<string>(firstColor);
   const [size, setSize] = useState<string>(sizes.length === 1 ? sizes[0] : '');
   // Unidades de una talla en el color elegido (sin stock por variante: el total).

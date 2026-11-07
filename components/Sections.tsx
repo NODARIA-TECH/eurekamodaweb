@@ -120,9 +120,9 @@ export function EditFeature({ products = [] }: { products?: Product[] }) {
 
 export function Collage() {
   const looks: [string, string, string][] = [
-    [H('look-berenjena'), 'Urbano', 'Cazadora de cuadros con pantalón de pinzas'],
-    [H('look-soho'), 'More than a trend', 'Jersey Soho New York con leggings'],
-    [H('look-rayas'), 'Con actitud', 'Top de rayas oversize con pantalón harén'],
+    ['/img/look/urbano.webp', 'Urbano', 'Cazadora de cuadros con pantalón de pinzas'],
+    ['/img/look/soho-mood.webp', 'More than a trend', 'Jersey Soho New York con leggings'],
+    ['/img/look/boho.webp', 'Con actitud', 'Top de rayas oversize con pantalón harén'],
   ];
   return (
     <section className="collage" id="collage">
@@ -133,7 +133,7 @@ export function Collage() {
             <div className="cg" key={src}><img loading="lazy" src={src} alt={alt} style={{ objectPosition: '50% 25%' }} /><div className="t">{label}</div></div>
           ))}
         </div>
-        <div className="mid"><Link href="/tienda" className="btn btn-o">Ver el lookbook</Link></div>
+        <div className="mid"><Link href="/lookbook" className="btn btn-o">Ver el lookbook</Link></div>
       </div>
     </section>
   );

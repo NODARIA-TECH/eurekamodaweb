@@ -584,3 +584,34 @@ a.add{display:block;text-align:center}
 .hero:has(.hero-tri) .hwrap{text-shadow:0 2px 18px rgba(30,22,14,.45)}
 @media(max-width:760px){.hero-tri{grid-template-columns:1fr}.hero-tri img:not(:nth-child(2)){display:none}}
 .catc .im img{object-position:50% 28%}
+
+/* ===================== Lookbook ===================== */
+.lookbook .page-head{text-align:center}
+.lb-script{display:block;font-family:"Sacramento",cursive;color:var(--gold-deep);font-size:clamp(2.4rem,6vw,3.6rem);line-height:.8;margin-bottom:-2px}
+.lb-grid{columns:3 300px;column-gap:clamp(16px,2.4vw,30px)}
+.lb-card{break-inside:avoid;margin:0 0 clamp(18px,2.6vw,32px);background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 26px 50px -36px rgba(90,70,45,.55);border:1px solid var(--hair)}
+.lb-ph{position:relative;background:var(--cream)}
+.lb-ph img{display:block;width:100%;height:auto}
+.lb-num{position:absolute;top:14px;left:14px;background:rgba(251,246,236,.92);color:var(--ink);font-family:"Jost",sans-serif;font-weight:600;font-size:.72rem;letter-spacing:.14em;padding:6px 10px;border-radius:999px}
+.lb-body{padding:16px 18px 18px}
+.lb-mood{font-family:"Sacramento",cursive;color:var(--gold-deep);font-size:1.7rem;line-height:1}
+.lb-body h2{font-size:1.6rem;margin:2px 0 12px}
+.lb-pieces{list-style:none;margin:0;padding:0;border-top:1px solid var(--hair)}
+.lb-pieces li{border-bottom:1px solid var(--hair)}
+.lb-pieces li a,.lb-pieces li.lb-store{display:flex;justify-content:space-between;gap:12px;align-items:baseline;padding:10px 2px;font-family:"Jost",sans-serif;font-size:.88rem;color:var(--ink)}
+.lb-pieces li a:hover span{color:var(--gold-deep);text-decoration:underline}
+.lb-pieces em{font-style:normal;color:var(--muted)}
+.lb-pieces b{font-weight:600;color:var(--gold-deep);white-space:nowrap}
+.lb-pieces b.lb-see{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase}
+.lb-pieces li.lb-store b{color:var(--muted);font-weight:500;font-size:.78rem}
+.lb-foot{text-align:center;margin:clamp(30px,5vw,56px) auto 10px;max-width:520px}
+.lb-foot p{color:var(--text);margin-bottom:18px}
+
+/* Ficha: "Así lo combinamos" */
+.pdp-looks{margin-top:clamp(40px,6vw,72px)}
+.pdp-looks .sh{text-align:center}.pdp-looks .sh h2{margin-top:-6px}
+.pdp-looks-g{display:flex;gap:16px;overflow-x:auto;padding:4px 2px 10px;justify-content:center;flex-wrap:wrap}
+.pdp-look{flex:0 0 200px;display:flex;flex-direction:column;gap:8px;text-align:center}
+.pdp-look img{width:200px;aspect-ratio:3/4;object-fit:cover;object-position:50% 25%;border-radius:14px;box-shadow:0 20px 40px -30px rgba(90,70,45,.6);transition:transform .4s}
+.pdp-look:hover img{transform:translateY(-4px)}
+.pdp-look span{font-family:"Cormorant Garamond",serif;font-weight:600;font-size:1.15rem;color:var(--ink)}
