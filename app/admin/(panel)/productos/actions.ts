@@ -107,7 +107,16 @@ export async function saveProduct(fd: FormData) {
     if (variants) stock = totalStock(variants);
   }
 
+  // Fotos extra por color (zoom, detalle…): conservar menos las marcadas para quitar
+  const cquitar = new Set(fd.getAll('cquitar').map(String)); // "color|url"
+  const colorGallery: Record<string, string[]> = {};
+  for (const c of colors) {
+    if (!p!.colorGallery || !(c in p!.colorGallery)) continue;
+    colorGallery[c] = p!.colorGallery[c].filter((u) => !cquitar.has(`${c}|${u}`));
+  }
+
   await updateProduct(id, {
+    colorGallery: Object.keys(colorGallery).length ? colorGallery : undefined,
     name: String(fd.get('name') || p!.name).trim() || p!.name,
     category: String(fd.get('category') || p!.category),
     price: toCents(String(fd.get('price') || '0')) || p!.price,
@@ -326,4 +335,78 @@ export async function importPhotos(fd: FormData) {
   if (unmatched.length) q.set('fu', unmatched.slice(0, 10).join(' · '));
   if (notes.length) q.set('fx', notes.slice(0, 6).join(' · '));
   redirect('/admin/productos?' + q.toString());
+}
+
+
+/* ---------- Crear zoom: recorta una zona de una foto y la añade a la galería ---------- */
+// Lee los bytes de una foto ya publicada (/media → data/uploads, /img o /uploads → public)
+async function readPhoto(src: string): Promise<Buffer | null> {
+  const { promises: fsp } = await import('fs');
+  const path = await import('path');
+  const { UPLOAD_DIR } = await import('@/lib/uploads');
+  if (!/^\/(media|img|uploads)\/[A-Za-z0-9._\/-]+$/.test(src) || src.includes('..')) return null;
+  const file = src.startsWith('/media/')
+    ? path.join(UPLOAD_DIR, src.slice('/media/'.length))
+    : path.join(process.cwd(), 'public', src);
+  try { return await fsp.readFile(file); } catch { return null; }
+}
+
+export async function createZoom(fd: FormData) {
+  requireAdmin();
+  const id = String(fd.get('id') || '');
+  const src = String(fd.get('src') || '');
+  const p = await getProduct(id);
+  if (!p) redirect('/admin/productos');
+  const buf = await readPhoto(src);
+  if (!buf) redirect(`/admin/productos/${id}?zerr=1`);
+  const num = (k: string) => Math.min(1, Math.max(0, parseFloat(String(fd.get(k) || '0')) || 0));
+  const cx = num('cx'), cy = num('cy'), cw = num('cw'), ch = num('ch');
+  try {
+    const sharp = (await import('sharp')).default;
+    const img = sharp(buf!, { failOn: 'none' }).rotate();
+    const meta = await img.metadata();
+    const W = meta.width || 0, H = meta.height || 0;
+    const left = Math.round(cx * W), top = Math.round(cy * H);
+    const width = Math.max(40, Math.min(W - left, Math.round(cw * W)));
+    const height = Math.max(40, Math.min(H - top, Math.round(ch * H)));
+    // Ampliación con buena calidad (Lanczos + enfoque suave) hasta ~1100 px de ancho
+    const target = Math.max(width, Math.min(1100, width * 3));
+    const out = await sharp(buf!, { failOn: 'none' }).rotate()
+      .extract({ left, top, width, height })
+      .resize({ width: target, kernel: 'lanczos3' })
+      .sharpen({ sigma: 0.8 })
+      .webp({ quality: 86 })
+      .toBuffer();
+    const url = await saveUploadBuffer(out, 'zoom.webp');
+    if (!url) redirect(`/admin/productos/${id}?zerr=1`);
+    const color = String(fd.get('target') || '');
+    if (color && (p!.colors || []).includes(color)) {
+      const cg = { ...(p!.colorGallery || {}) };
+      cg[color] = [...(cg[color] || []), url!];
+      await updateProduct(id, { colorGallery: cg, colorImages: p!.colorImages, images: p!.images, image: p!.image });
+    } else {
+      await updateProduct(id, { images: [...(p!.images || []), url!], colorImages: p!.colorImages, colorGallery: p!.colorGallery, image: p!.image });
+    }
+  } catch {
+    redirect(`/admin/productos/${id}?zerr=1`);
+  }
+  refresh(id);
+  redirect(`/admin/productos/${id}?zok=1`);
+}
+
+// Quitar fotos extra de un color (no toca nada más de la ficha)
+export async function removeColorExtras(fd: FormData) {
+  requireAdmin();
+  const id = String(fd.get('id') || '');
+  const p = await getProduct(id);
+  if (!p) redirect('/admin/productos');
+  const cquitar = new Set(fd.getAll('cquitar').map(String));
+  const cg: Record<string, string[]> = {};
+  for (const [c, list] of Object.entries(p!.colorGallery || {})) {
+    const keep = list.filter((u) => !cquitar.has(`${c}|${u}`));
+    cg[c] = keep; // lista vacía = sin fotos extra (no vuelven las automáticas)
+  }
+  await updateProduct(id, { colorGallery: cg, colorImages: p!.colorImages, images: p!.images, image: p!.image });
+  refresh(id);
+  redirect(`/admin/productos/${id}?ok=1`);
 }

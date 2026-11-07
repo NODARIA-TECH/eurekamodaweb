@@ -5,6 +5,8 @@
 import type { Product } from './types';
 
 const I = (f: string) => `/img/productos/${f}.webp`;
+// Cada foto lleva dos recortes generados de la misma imagen: encuadre de la prenda y detalle del tejido.
+const crops = (url: string) => [url.replace(/\.webp$/, '-encuadre.webp'), url.replace(/\.webp$/, '-detalle.webp')];
 type Entry = { name: string; main?: string; colors?: Record<string, string>; gallery?: string[] };
 
 const ENTRIES: Entry[] = [
@@ -53,13 +55,25 @@ export function withCatalogPhotos(p: Product): Product {
   if (!e) return p;
   const colorImages: Record<string, string> = { ...(p.colorImages || {}) };
   const extra: string[] = [...(e.gallery || [])];
+  const colorGallery: Record<string, string[]> = { ...(p.colorGallery || {}) };
   for (const [c, url] of Object.entries(e.colors || {})) {
     const col = (p.colors || []).find((x) => norm(x) === norm(c));
-    if (col) { if (!colorImages[col]) colorImages[col] = url; }
-    else extra.push(url); // ese color no está en el producto: la foto va a la galería
+    if (col) {
+      if (!colorImages[col]) colorImages[col] = url;
+      // recortes solo si la foto del color es la nuestra (si subes una propia, no se mezclan)
+      if (colorImages[col] === url && colorGallery[col] === undefined) colorGallery[col] = crops(url);
+    } else extra.push(url, ...crops(url)); // ese color no está en el producto: a la galería
   }
+  // galería general: fotos extra de la entrada con sus recortes
+  const gal = (e.gallery || []).flatMap((g) => [g, ...crops(g)]);
   const hasMain = !!p.image && p.image !== PLACEHOLDER;
   const image = hasMain ? p.image : (e.main || Object.values(colorImages)[0] || p.image);
-  const images = Array.from(new Set([...(p.images || []), ...extra])).filter((x) => x !== image);
-  return { ...p, image, images, colorImages: Object.keys(colorImages).length ? colorImages : undefined };
+  // si la principal es nuestra y no es de ningún color, también lleva sus recortes
+  const mainCrops = !hasMain && e.main && !Object.values(e.colors || {}).includes(e.main) ? crops(e.main) : [];
+  const images = Array.from(new Set([...(p.images || []), ...mainCrops, ...gal, ...extra])).filter((x) => x !== image);
+  return {
+    ...p, image, images,
+    colorImages: Object.keys(colorImages).length ? colorImages : undefined,
+    colorGallery: Object.keys(colorGallery).length ? colorGallery : undefined,  // [] = sin extras
+  };
 }

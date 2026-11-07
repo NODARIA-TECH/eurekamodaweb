@@ -19,6 +19,7 @@ export type Product = {
   details?: string;                     // composición y cuidados
   images?: string[];                    // galería adicional (la principal es `image`)
   colorImages?: Record<string, string>; // foto por color: { "Rojo": "/media/xxx.webp" }
+  colorGallery?: Record<string, string[]>; // fotos extra por color (encuadre, detalle…)
   variants?: Variant[];                 // stock por talla × color (si hay, `stock` = suma)
 };
 

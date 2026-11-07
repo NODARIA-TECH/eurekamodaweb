@@ -4,13 +4,14 @@ import { getProduct, listCategories } from '@/lib/store';
 import { productImg } from '@/lib/data';
 import VariantEditor from '@/components/admin/VariantEditor';
 import ConfirmSubmit from '@/components/admin/ConfirmSubmit';
-import { saveProduct, removeProduct } from '../actions';
+import { saveProduct, removeProduct, createZoom, removeColorExtras } from '../actions';
+import ZoomCropper from '@/components/admin/ZoomCropper';
 
 export const dynamic = 'force-dynamic';
 
 const PLACEHOLDER = '26998033';
 
-export default async function EditProduct({ params, searchParams }: { params: { id: string }; searchParams: { ok?: string; nuevo?: string } }) {
+export default async function EditProduct({ params, searchParams }: { params: { id: string }; searchParams: { ok?: string; nuevo?: string; zok?: string; zerr?: string } }) {
   const [p, categories] = await Promise.all([getProduct(params.id), listCategories()]);
   if (!p) notFound();
   const gallery = [p.image, ...(p.images || [])].filter((x) => x && x !== PLACEHOLDER);
@@ -26,6 +27,8 @@ export default async function EditProduct({ params, searchParams }: { params: { 
       </div>
 
       {searchParams.ok && <div className="adm-ok">Cambios guardados. Ya se ven en la tienda.</div>}
+      {searchParams.zok && <div className="adm-ok">Foto ampliada creada y añadida. Ya se ve en la tienda.</div>}
+      {searchParams.zerr && <div className="adm-ok" style={{ background: '#fff4f2', borderColor: '#efc9c2', color: '#8a2a1a' }}>No se pudo crear la foto ampliada. Prueba con otra foto.</div>}
       {searchParams.nuevo && <div className="adm-ok">Producto creado. Completa fotos, tallas, colores y descripción y pulsa <b>Guardar</b>.</div>}
 
       <form action={saveProduct} className="pe" key={p.updatedAt /* se reinicia tras guardar: no re-sube fotos */}>
@@ -89,6 +92,42 @@ export default async function EditProduct({ params, searchParams }: { params: { 
           </aside>
         </div>
       </form>
+
+      <section className="adm-card">
+        <h2>Fotos ampliadas (zoom y detalles)</h2>
+        <p className="adm-help">Crea fotos de detalle a partir de la misma foto: pulsa <b>Crear zoom</b>, encuadra la zona y guarda.
+          Como en las tiendas de moda, cada color muestra sus propias fotos.</p>
+        <div className="zc-list">
+          {[...gallery.map((g) => ({ src: g, color: Object.entries(p.colorImages || {}).find(([, u]) => u === g)?.[0] || '' })),
+            ...Object.entries(p.colorImages || {}).filter(([, u]) => !gallery.includes(u)).map(([c, u]) => ({ src: u, color: c }))]
+            .map(({ src, color }) => (
+              <div className="zc-item" key={src}>
+                <img src={productImg(src, 220, 290)} alt="" />
+                <span className="adm-sku">{color ? `Color ${color}` : 'General'}</span>
+                <ZoomCropper productId={p.id} src={src} colors={p.colors || []} defaultTarget={color} action={createZoom} />
+              </div>
+            ))}
+        </div>
+        {Object.entries(p.colorGallery || {}).length > 0 && (
+          <form action={removeColorExtras} className="zc-extra">
+            <input type="hidden" name="id" value={p.id} />
+            {Object.entries(p.colorGallery || {}).map(([c, list]) => (
+              <div key={c}>
+                <b className="zc-c">Fotos extra del color {c}</b>
+                <div className="zc-list">
+                  {list.map((u) => (
+                    <label className="zc-item" key={u}>
+                      <img src={productImg(u, 220, 290)} alt="" />
+                      <span className="pe-del"><input type="checkbox" name="cquitar" value={`${c}|${u}`} /> Quitar</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <button className="btn-sm" type="submit">Guardar cambios de fotos extra</button>
+          </form>
+        )}
+      </section>
 
       <form action={removeProduct} className="pe-danger">
         <input type="hidden" name="id" value={p.id} />

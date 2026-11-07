@@ -1,10 +1,11 @@
 'use client';
 import { useMemo, useState } from 'react';
-import { productImg, imageForColor, swatch } from '@/lib/data';
+import { imageForColor, swatch } from '@/lib/data';
 import { money } from '@/lib/money';
 import type { Product } from '@/lib/types';
 import { useCart } from './Cart';
 import { hasVariants, stockOf, colorAvailable, vlabel } from '@/lib/variants';
+import ProductGallery from './ProductGallery';
 
 const PLACEHOLDER = '26998033';
 
@@ -26,17 +27,22 @@ export default function ProductDetail({ p, categoryName, initialColor, compact }
   const comboOut = vmode && units !== null && units <= 0;
   const [needSize, setNeedSize] = useState(false);
 
-  // Galería: principal + extra + fotos de colores, sin repetir.
-  const gallery = useMemo(() => {
-    const all = [p.image, ...(p.images || []), ...colors.map((c) => p.colorImages?.[c]).filter(Boolean) as string[]];
+  // Galería del color elegido: su foto + sus recortes (encuadre, detalle) + las fotos generales.
+  // Como en las tiendas de moda, al cambiar de color se ven solo las fotos de ese color.
+  const galleryFor = (c: string) => {
+    const colorPhotos = new Set(Object.values(p.colorImages || {}));
+    const own = c && p.colorImages?.[c] ? [p.colorImages[c], ...(p.colorGallery?.[c] || [])] : [];
+    const main = own.length && colorPhotos.has(p.image) ? [] : [p.image]; // la principal, si no es de otro color
+    const all = [...own, ...main, ...(p.images || [])];
     const uniq = Array.from(new Set(all.filter((x) => x && x !== PLACEHOLDER)));
     return uniq.length ? uniq : [p.image];
-  }, [p, colors]);
-  const [shown, setShown] = useState<string>(imageForColor(p, firstColor));
+  };
+  const gallery = useMemo(() => galleryFor(color), [p, color]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [shown, setShown] = useState<string>(galleryFor(firstColor)[0]);
 
   function pickColor(c: string) {
     setColor(c);
-    if (p.colorImages?.[c]) setShown(p.colorImages[c]);
+    setShown(galleryFor(c)[0]);
     if (vmode && size && unitsFor(size, c) <= 0) setSize(''); // esa talla no queda en este color
   }
 
@@ -48,18 +54,7 @@ export default function ProductDetail({ p, categoryName, initialColor, compact }
 
   return (
     <div className={compact ? 'pdp pdp-compact' : 'pdp'}>
-      <div className="pdp-media">
-        <div className="pdp-img"><img src={productImg(shown, 900, 1200)} alt={p.name + (color ? ` en ${color}` : '')} /></div>
-        {gallery.length > 1 && (
-          <div className="pdp-thumbs">
-            {gallery.map((g) => (
-              <button key={g} type="button" className={'pdp-thumb' + (g === shown ? ' on' : '')} onClick={() => setShown(g)} aria-label="Ver foto">
-                <img src={productImg(g, 160, 213)} alt="" loading="lazy" />
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+      <ProductGallery images={gallery} shown={gallery.includes(shown) ? shown : gallery[0]} onShow={setShown} alt={p.name + (color ? ` en ${color}` : '')} />
 
       <div className="pdp-info">
         <span className="lab">{categoryName}</span>
