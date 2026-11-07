@@ -23,9 +23,19 @@ export async function saveUpload(file: unknown): Promise<string | null> {
   if (!ext) return null;            // solo imágenes
   if (f.size > MAX_BYTES) return null;
 
+  return saveBuffer(Buffer.from(await f.arrayBuffer()), ext);
+}
+
+// Para fotos que llegan como bytes (p.ej. dentro de un ZIP). `filename` decide el formato.
+export async function saveUploadBuffer(input: Buffer, filename: string): Promise<string | null> {
+  const ext = /\.(jpe?g|png|webp|avif|gif|heic|heif)$/i.exec(filename || '')?.[1]?.toLowerCase().replace('jpeg', 'jpg').replace('heif', 'heic');
+  if (!ext || !input.length || input.length > MAX_BYTES) return null;
+  return saveBuffer(input, ext);
+}
+
+async function saveBuffer(input: Buffer, ext: string): Promise<string | null> {
   await fs.mkdir(UPLOAD_DIR, { recursive: true });
   const id = randomUUID().replace(/-/g, '').slice(0, 14);
-  const input = Buffer.from(await f.arrayBuffer());
 
   try {
     const sharp = (await import('sharp')).default;

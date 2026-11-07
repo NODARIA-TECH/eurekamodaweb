@@ -3,7 +3,7 @@ import { listProducts, listCategories } from '@/lib/store';
 import { productImg, swatch } from '@/lib/data';
 import { money } from '@/lib/money';
 import type { Product } from '@/lib/types';
-import { createProductQuick, importCsv } from './actions';
+import { createProductQuick, importCsv, importPhotos } from './actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +19,7 @@ function pending(p: Product): string[] {
   return out;
 }
 
-type SP = { q?: string; cat?: string; imp?: string; c?: string; u?: string; s?: string; sn?: string; borrado?: string; f?: string };
+type SP = { q?: string; cat?: string; imp?: string; c?: string; u?: string; s?: string; sn?: string; borrado?: string; f?: string; fotos?: string; fa?: string; fp?: string; fn?: string; fu?: string; fx?: string };
 
 export default async function ProductosAdmin({ searchParams }: { searchParams: SP }) {
   const [all, categories] = await Promise.all([listProducts(), listCategories()]);
@@ -53,6 +53,13 @@ export default async function ProductosAdmin({ searchParams }: { searchParams: S
         </div>
       )}
       {searchParams.borrado && <div className="adm-ok">Producto eliminado.</div>}
+      {searchParams.fotos && (
+        <div className="adm-ok">
+          Fotos colocadas: <b>{searchParams.fa}</b> en <b>{searchParams.fp}</b> productos.
+          {Number(searchParams.fn) > 0 && <> No se encontró el producto de <b>{searchParams.fn}</b>: {searchParams.fu}. Revisa que el nombre del archivo sea el del producto.</>}
+          {searchParams.fx && <div style={{ marginTop: 6 }}>Avisos: {searchParams.fx}</div>}
+        </div>
+      )}
 
       <div className="adm-card">
         <form className="adm-filter" method="get">
@@ -106,6 +113,22 @@ export default async function ProductosAdmin({ searchParams }: { searchParams: S
             </tbody>
           </table>
         </div>
+      </div>
+
+      <div className="adm-card" id="fotos">
+        <h2>Subir fotos en lote</h2>
+        <p className="adm-help">
+          Elige varias fotos o un <b>ZIP</b>. El <b>nombre del archivo</b> dice dónde va cada una:
+          <b> Jersey peluche.jpg</b> → foto principal · <b>Jersey peluche__Amarillo.jpg</b> → foto del color Amarillo ·
+          <b> Jersey peluche (2).jpg</b> → foto extra. También vale la referencia: <b>PEK-0951__Negro.jpg</b>.
+          Se optimizan solas. Si un nombre no coincide con ningún producto, te lo dice y no se pierde nada.
+        </p>
+        <form action={importPhotos} className="adm-form">
+          <label style={{ gridColumn: '1 / -1' }}>Fotos o ZIP
+            <input name="fotos" type="file" multiple accept="image/*,.zip,application/zip" required />
+          </label>
+          <button className="btn-sm gold" type="submit" style={{ height: 40 }}>Subir y colocar</button>
+        </form>
       </div>
 
       <div className="adm-two">

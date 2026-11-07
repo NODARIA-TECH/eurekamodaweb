@@ -13,7 +13,7 @@ export function pexels(id: string, w = 600, h = 800): string {
 export function productImg(image?: string, w = 600, h = 800): string {
   const v = (image || '').trim();
   if (!v) return pexels('26998033', w, h);
-  if (v.startsWith('/media/') || v.startsWith('/uploads/') || v.startsWith('http://') || v.startsWith('https://')) return v;
+  if (v.startsWith('/media/') || v.startsWith('/uploads/') || v.startsWith('/img/') || v.startsWith('http://') || v.startsWith('https://')) return v;
   return pexels(v, w, h);
 }
 

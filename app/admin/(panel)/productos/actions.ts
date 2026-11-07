@@ -4,12 +4,13 @@ import { redirect } from 'next/navigation';
 import * as XLSX from 'xlsx';
 import {
   createProduct, updateProduct, deleteProduct, getProduct,
-  upsertProductBySku, upsertProductByName, listCategories, createCategory,
+  upsertProductBySku, upsertProductByName, listCategories, createCategory, listProducts,
 } from '@/lib/store';
 import { requireAdmin } from '@/lib/admin-auth';
-import { saveUpload } from '@/lib/uploads';
+import { saveUpload, saveUploadBuffer } from '@/lib/uploads';
+import { unzipSync } from 'fflate';
 import { buildVariants, combos, totalStock, vkey } from '@/lib/variants';
-import type { Variant } from '@/lib/types';
+import type { Variant, Product } from '@/lib/types';
 import { toCents } from '@/lib/money';
 import {
   headerKey, pick, parseColors, parseSizes, parseEuroCents, parseStock, cleanCategory, slugify,
@@ -224,5 +225,105 @@ export async function importCsv(fd: FormData) {
   await pingCatalogSync();
   const q = new URLSearchParams({ imp: '1', c: String(created), u: String(updated), s: String(skipped.length) });
   if (skipped.length) q.set('sn', skipped.slice(0, 8).join(' · '));
+  redirect('/admin/productos?' + q.toString());
+}
+
+
+/* ---------- Fotos en lote (varias imágenes o un ZIP) ----------
+   El nombre de cada archivo dice dónde va:
+     "Jersey peluche.jpg"                 -> foto principal del producto
+     "Jersey peluche__Amarillo.jpg"       -> foto del color Amarillo
+     "Jersey peluche (2).jpg"             -> foto extra de la galería
+     "PEK-0951.jpg" / "PEK-0951__Negro.jpg" -> por referencia
+   El producto se busca por referencia, por nombre exacto (sin tildes ni mayúsculas)
+   o, si no, por el nombre que más se parezca (si no hay duda). */
+const IMG_RE = /\.(jpe?g|png|webp|avif|gif|heic|heif)$/i;
+const nrm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[_.]+/g, ' ').replace(/\s+/g, ' ').trim();
+const toks = (s: string) => nrm(s).replace(/[^a-z0-9 ]/g, ' ').split(' ').filter((w) => w.length >= 3);
+
+function findProduct(products: Product[], key: string): Product | undefined {
+  const ref = /^pek[\s-]?(\d{3,})$/i.exec(key.trim());
+  if (ref) return products.find((p) => (p.sku || '').toUpperCase() === `PEK-${ref[1]}`);
+  const k = nrm(key);
+  const exact = products.find((p) => nrm(p.name) === k);
+  if (exact) return exact;
+  const kt = toks(key);
+  if (!kt.length) return undefined;
+  const scored = products
+    .map((p) => { const pt = new Set(toks(p.name)); return { p, s: kt.filter((t) => pt.has(t)).length / kt.length }; })
+    .sort((a, b) => b.s - a.s);
+  if (scored[0] && scored[0].s >= 0.75 && (!scored[1] || scored[0].s - scored[1].s >= 0.15)) return scored[0].p;
+  return undefined;
+}
+
+export async function importPhotos(fd: FormData) {
+  requireAdmin();
+  // 1) Reunir imágenes (sueltas o dentro de ZIPs)
+  const files: { name: string; data: Buffer }[] = [];
+  for (const v of fd.getAll('fotos')) {
+    const f = v as unknown as File;
+    if (!f || typeof (f as any).arrayBuffer !== 'function' || !f.size) continue;
+    const buf = Buffer.from(await f.arrayBuffer());
+    if (/\.zip$/i.test(f.name || '')) {
+      try {
+        const entries = unzipSync(new Uint8Array(buf));
+        for (const [path, data] of Object.entries(entries)) {
+          const base = path.split('/').pop() || '';
+          if (!data.length || path.startsWith('__MACOSX') || base.startsWith('.') || !IMG_RE.test(base)) continue;
+          files.push({ name: base, data: Buffer.from(data) });
+        }
+      } catch { /* ZIP dañado: se ignora */ }
+    } else if (IMG_RE.test(f.name || '')) files.push({ name: f.name, data: buf });
+    if (files.length > 300) break;
+  }
+
+  // 2) Repartir por producto
+  const products = await listProducts();
+  type Change = { image?: string; images: string[]; colorImages: Record<string, string> };
+  const changes = new Map<string, Change>();
+  const unmatched: string[] = [];
+  const notes: string[] = [];
+  let assigned = 0;
+
+  for (const f of files) {
+    const base = f.name.replace(IMG_RE, '').trim();
+    const [rawName, rawColor] = base.split('__');
+    const gallery = /\s*\((\d+)\)\s*$/.test(rawName);
+    const name = rawName.replace(/\s*\((\d+)\)\s*$/, '').trim();
+    const p = findProduct(products, name);
+    if (!p) { unmatched.push(base); continue; }
+    const url = await saveUploadBuffer(f.data, f.name);
+    if (!url) { notes.push(`${base}: formato no válido`); continue; }
+    const ch = changes.get(p.id) || { images: [], colorImages: {} };
+    const noMain = !p.image || p.image === PLACEHOLDER;
+    if (rawColor) {
+      const color = (p.colors || []).find((c) => nrm(c) === nrm(rawColor));
+      if (color) {
+        ch.colorImages[color] = url;
+        if (noMain && !ch.image) ch.image = url; // sin foto principal: la del color hace de principal
+      } else {
+        if (noMain && !ch.image) ch.image = url; else ch.images.push(url);
+        notes.push(`${base}: "${rawColor.trim()}" no es un color de ${p.name} (añade el color y vuelve a subir la foto)`);
+      }
+    } else if (gallery) ch.images.push(url);
+    else ch.image = url;
+    changes.set(p.id, ch);
+    assigned++;
+  }
+
+  for (const [id, ch] of Array.from(changes.entries())) {
+    const p = products.find((x) => x.id === id)!;
+    const image = ch.image || p.image;
+    const images = Array.from(new Set([...(p.images || []), ...ch.images])).filter((x) => x !== image);
+    await updateProduct(id, {
+      image,
+      images,
+      colorImages: { ...(p.colorImages || {}), ...ch.colorImages },
+    });
+  }
+  refresh();
+  const q = new URLSearchParams({ fotos: '1', fa: String(assigned), fp: String(changes.size), fn: String(unmatched.length) });
+  if (unmatched.length) q.set('fu', unmatched.slice(0, 10).join(' · '));
+  if (notes.length) q.set('fx', notes.slice(0, 6).join(' · '));
   redirect('/admin/productos?' + q.toString());
 }
