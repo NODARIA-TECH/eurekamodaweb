@@ -1,20 +1,33 @@
 // Boletín: suscriptoras, estado del envío de emails y email de prueba.
 import { requireAdmin } from '@/lib/admin-auth';
 import { listSubscribers, welcomeCode } from '@/lib/newsletter';
-import { mailConfigured, mailFrom } from '@/lib/mailer';
-import { sendTest } from './actions';
+import { checkMail, providerName } from '@/lib/mailer';
+import { sendTest, sendPendingAction } from './actions';
+import Stripe from 'stripe';
+
+// ¿Existe el código de bienvenida en Stripe? (si no, la clienta lo recibe pero no le funciona al pagar)
+async function codeInStripe(code: string): Promise<'ok' | 'falta' | 'sin-stripe' | 'error'> {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) return 'sin-stripe';
+  try {
+    const list = await new Stripe(key).promotionCodes.list({ code, active: true, limit: 1 });
+    return list.data.length ? 'ok' : 'falta';
+  } catch { return 'error'; }
+}
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Boletín · EUREKA' };
 
-type SP = { prueba?: string; a?: string; e?: string };
+type SP = { prueba?: string; a?: string; e?: string; pend?: string; s?: string; f?: string };
 const fmt = (d?: string) => (d ? new Date(d).toLocaleString('es-ES', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—');
 
 export default async function BoletinAdmin({ searchParams }: { searchParams: SP }) {
   requireAdmin();
   const subs = await listSubscribers();
   const activas = subs.filter((s) => s.status === 'activa');
-  const ok = mailConfigured();
+  const estado = await checkMail();
+  const pendientes = activas.filter((s) => !s.sentAt).length;
+  const enStripe = await codeInStripe(welcomeCode());
   return (
     <>
       <div className="adm-h">
@@ -24,22 +37,40 @@ export default async function BoletinAdmin({ searchParams }: { searchParams: SP 
 
       {searchParams.prueba === 'ok' && <div className="adm-ok">Email de prueba enviado a <b>{searchParams.a}</b>. Revisa también la carpeta de spam.</div>}
       {searchParams.prueba === 'error' && <div className="adm-err">No se pudo enviar: {searchParams.e}</div>}
+      {searchParams.pend && <div className={searchParams.f !== '0' ? 'adm-err' : 'adm-ok'}>Código enviado a {searchParams.s} suscriptora(s){searchParams.f !== '0' ? ` · ${searchParams.f} sin enviar: ${searchParams.e || ''}` : '.'}</div>}
       {searchParams.prueba === 'mal' && <div className="adm-err">Escribe un correo válido para la prueba.</div>}
+
+      {enStripe === 'falta' && (
+        <div className="adm-err">
+          El código <b>{welcomeCode()}</b> no existe en Stripe: las clientas lo reciben, pero al pagar les dirá que no es válido.
+          Créalo en Stripe → Productos → Cupones → Nuevo (20 %, una vez) → «Añadir código de promoción» con el código <b>{welcomeCode()}</b>
+          (y marca «Solo primeros pedidos» si quieres).
+        </div>
+      )}
+      {enStripe === 'ok' && <div className="adm-ok">El código {welcomeCode()} está activo en Stripe ✓</div>}
 
       <div className="adm-card">
         <h3>Envío de emails</h3>
-        {ok ? (
-          <p>Configurado: los emails salen desde <b>{mailFrom()}</b>. Cada nueva suscriptora recibe al momento su código.</p>
-        ) : (
-          <p className="adm-tag warn" style={{ display: 'inline-block', padding: '8px 12px' }}>
-            Sin configurar: las suscripciones se guardan y el código se muestra en pantalla, pero no se envía el email.
-            Hay que poner los datos del correo (SMTP) en el archivo .env del servidor.
+        {estado.ok ? (
+          <p>✓ Funciona con <b>{providerName()}</b>: {estado.detail}. Cada nueva suscriptora recibe su código al momento.</p>
+        ) : estado.detail === 'Sin configurar' ? (
+          <p className="adm-tag warn" style={{ display: 'inline-block', padding: '8px 12px', lineHeight: 1.5 }}>
+            Sin configurar: las suscripciones se guardan y el código se ve en pantalla, pero no se envía el email.
+            Hay que poner la clave de Resend (RESEND_API_KEY) y el remitente (MAIL_FROM) en el .env del servidor.
           </p>
+        ) : (
+          <p className="adm-err" style={{ margin: 0 }}>No se puede enviar ({providerName()}): {estado.detail}</p>
         )}
         <form action={sendTest} className="adm-form" style={{ marginTop: 12, gridTemplateColumns: '1fr auto' }}>
           <label>Enviar un email de prueba a<input name="to" type="email" placeholder="tu@correo.com" required /></label>
           <button className="btn-sm gold" type="submit" style={{ height: 40, alignSelf: 'end' }}>Enviar prueba</button>
         </form>
+        {pendientes > 0 && (
+          <form action={sendPendingAction} style={{ marginTop: 14, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span className="adm-help" style={{ margin: 0 }}>{pendientes} suscriptora(s) todavía no han recibido su código.</span>
+            <button className="btn-sm" type="submit" disabled={!estado.ok}>Enviárselo ahora</button>
+          </form>
+        )}
       </div>
 
       <div className="adm-card">

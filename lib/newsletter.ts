@@ -107,17 +107,44 @@ export async function subscribe(rawEmail: string, base: string): Promise<Subscri
   let mail: MailResult = { ok: false, error: 'reciente' };
   if (sendNow) {
     const m = welcomeEmail(base, sub.token);
-    mail = await sendMail({ to: email, subject: m.subject, html: m.html, text: m.text, headers: { 'List-Unsubscribe': `<${m.baja}>` } });
+    const job = sendMail({ to: email, subject: m.subject, html: m.html, text: m.text, headers: { 'List-Unsubscribe': `<${m.baja}>` } })
+      .then(async (r) => {
+        await exclusive(async () => {
+          const list = await load();
+          const s = list.find((x) => x.email === email);
+          if (!s) return;
+          if (r.ok) { s.sentAt = new Date().toISOString(); s.sends = (s.sends || 0) + 1; delete s.lastError; }
+          else s.lastError = (r as { error: string }).error;
+          await save(list);
+        });
+        return r;
+      });
+    // La clienta no espera más de 5 s: si el correo va lento, se termina de enviar por detrás.
+    mail = await Promise.race([job, new Promise<MailResult>((ok) => setTimeout(() => ok({ ok: false, error: 'enviando' }), 5000))]);
+    if (!mail.ok && (mail as { error: string }).error === 'enviando') return { ok: true, code: welcomeCode(), sent: false, already };   // el código se ve en pantalla igualmente
+  }
+  return { ok: true, code: welcomeCode(), sent: mail.ok || (!sendNow && !!sub.sentAt), already, mailError: mail.ok ? undefined : (mail as { error: string }).error };
+}
+
+// Envía el código a las suscriptoras activas que todavía no lo recibieron (p. ej. las que se
+// apuntaron antes de configurar el email). De una en una, sin repetir a quien ya lo tiene.
+export async function sendPending(base: string): Promise<{ sent: number; failed: number; lastError?: string }> {
+  const pend = (await load()).filter((s) => s.status === 'activa' && !s.sentAt);
+  let sent = 0, failed = 0, lastError: string | undefined;
+  for (const p of pend.slice(0, 200)) {
+    const m = welcomeEmail(base, p.token);
+    const mail = await sendMail({ to: p.email, subject: m.subject, html: m.html, text: m.text, headers: { 'List-Unsubscribe': `<${m.baja}>` } });
     await exclusive(async () => {
       const list = await load();
-      const s = list.find((x) => x.email === email);
+      const s = list.find((x) => x.email === p.email);
       if (!s) return;
       if (mail.ok) { s.sentAt = new Date().toISOString(); s.sends = (s.sends || 0) + 1; delete s.lastError; }
       else s.lastError = (mail as { error: string }).error;
       await save(list);
     });
+    if (mail.ok) sent++; else { failed++; lastError = (mail as { error: string }).error; if (failed >= 3 && !sent) break; }   // si falla la configuración, no insistir
   }
-  return { ok: true, code: welcomeCode(), sent: mail.ok || (!sendNow && !!sub.sentAt), already, mailError: mail.ok ? undefined : (mail as { error: string }).error };
+  return { sent, failed, lastError };
 }
 
 export async function unsubscribe(token: string): Promise<Subscriber | null> {

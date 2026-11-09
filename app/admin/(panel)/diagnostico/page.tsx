@@ -5,7 +5,7 @@ import os from 'os';
 import path from 'path';
 import { requireAdmin } from '@/lib/admin-auth';
 import { UPLOAD_DIR, recentUploadErrors } from '@/lib/uploads';
-import { mailConfigured } from '@/lib/mailer';
+import { checkMail, providerName, mailProvider } from '@/lib/mailer';
 import PhotoTest from './PhotoTest';
 
 export const dynamic = 'force-dynamic';
@@ -69,7 +69,12 @@ async function checks(): Promise<Check[]> {
   // Email
   let mailer = true;
   try { await import('nodemailer'); } catch { mailer = false; }
-  out.push({ name: 'Email del boletín', ok: mailer && mailConfigured() ? true : 'warn', detail: !mailer ? 'Falta instalar nodemailer (npm install)' : mailConfigured() ? 'Configurado' : 'Sin datos SMTP en .env (las suscripciones se guardan, pero no sale el email)' });
+  const mail = mailer ? await checkMail() : { ok: false, detail: 'Falta instalar nodemailer (npm install)' };
+  out.push({
+    name: 'Email del boletín', ok: mail.ok ? true : mailProvider() ? false : 'warn',
+    detail: mail.detail === 'Sin configurar' ? 'Sin configurar (las suscripciones se guardan, pero no sale el email)' : (mailProvider() ? providerName() + ' · ' : '') + mail.detail,
+    fix: 'Configúralo con Resend: ver Panel → Boletín.',
+  });
 
   // Límite de subida (Nginx): la web sube por trozos de 768 KB, así que no le afecta
   out.push({ name: 'Límite de tamaño de Nginx', ok: true, detail: 'Las fotos y ZIP se suben por trozos de 768 KB: funcionan aunque Nginx tenga el límite por defecto (1 MB).' });
