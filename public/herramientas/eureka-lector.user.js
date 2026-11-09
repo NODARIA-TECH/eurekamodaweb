@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EUREKA · Lector de códigos (FacturaScripts / TPVneo)
 // @namespace    https://eurekamoda.com/
-// @version      1.2
+// @version      1.3
 // @description  La pistola escribe PEK'0897 (teclado en inglés): esto lo corrige a PEK-0897 al momento, y devuelve la lectura al buscador del TPV aunque se haya perdido el foco (p. ej. al borrar una línea).
 // @match        *://*/*
 // @run-at       document-start
@@ -47,17 +47,67 @@
     if (racha.el === el && ahora - racha.t < 80) racha.n++; else { racha.el = el; racha.n = 1; }
     racha.t = ahora;
   }
+  var huella = null;           // id/name del buscador, por si el TPV lo vuelve a crear
+  function recordar(el) {
+    if (ultimoCampo !== el) log('buscador del TPV detectado: ' + desc(el));
+    ultimoCampo = el; huella = { id: el.id, name: el.name, ph: el.placeholder };
+  }
   function campoDelTpv() {
     if (ultimoCampo && visible(ultimoCampo) && campo(ultimoCampo)) return ultimoCampo;
-    // Si el TPV ha redibujado la pantalla, buscar uno parecido
+    if (!huella) return null;
     var todos = document.querySelectorAll('input, textarea');
     for (var i = 0; i < todos.length; i++) {
       var c = todos[i];
       if (!campo(c) || !visible(c)) continue;
-      var pistas = [c.name, c.id, c.placeholder, c.className, c.getAttribute('aria-label')].join(' ');
-      if (PISTA.test(pistas)) return c;
+      if ((huella.id && c.id === huella.id) || (huella.name && c.name === huella.name) || (huella.ph && c.placeholder === huella.ph)) { ultimoCampo = c; return c; }
     }
     return null;
+  }
+
+  // ---- Modo diagnóstico (Ctrl + Alt + D): panel con lo que pasa al picar ----
+  var diag = false, panel = null, lineas = [];
+  try { diag = localStorage.getItem('eurekaLectorDiag') === '1'; } catch (x) {}
+  function desc(el) {
+    if (!el || !el.tagName) return String(el);
+    var d = el.tagName + (el.id ? '#' + el.id : '') + (el.name ? '[name=' + el.name + ']' : '');
+    if (el.placeholder) d += ' «' + el.placeholder + '»';
+    else if (!el.id && el.className && typeof el.className === 'string') d += '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.');
+    if (el.tagName === 'INPUT' && !visible(el)) d += ' (oculto)';
+    return d;
+  }
+  function log(msg) {
+    if (!diag) return;
+    var h = new Date(); lineas.push(('0' + h.getMinutes()).slice(-2) + ':' + ('0' + h.getSeconds()).slice(-2) + '  ' + msg);
+    lineas = lineas.slice(-14); pintar();
+  }
+  function pintar() {
+    if (!diag) { if (panel) panel.remove(); panel = null; return; }
+    if (!document.body) return;
+    if (!panel) {
+      panel = document.createElement('div');
+      panel.style.cssText = 'position:fixed;right:8px;bottom:8px;z-index:2147483647;width:min(560px,96vw);max-height:46vh;overflow:auto;background:rgba(20,16,12,.92);color:#fff;font:12px/1.45 monospace;padding:10px 12px;border-radius:10px;pointer-events:none;white-space:pre-wrap;box-shadow:0 6px 24px rgba(0,0,0,.35)';
+    }
+    if (!panel.isConnected) document.body.appendChild(panel);
+    panel.textContent = 'EUREKA lector 1.3 · diagnóstico (Ctrl+Alt+D para cerrar)\nfoco ahora: ' + desc(document.activeElement) + '\nbuscador: ' + (ultimoCampo ? desc(ultimoCampo) + (ultimoCampo.isConnected ? '' : ' (ya no existe)') : '—') + '\n────────\n' + lineas.join('\n');
+  }
+  document.addEventListener('focusin', function (e) { log('foco → ' + desc(e.target)); }, true);
+  document.addEventListener('mousedown', function (e) { log('clic en ' + desc(e.target)); }, true);
+  window.addEventListener('error', function (e) { log('ERROR JS: ' + (e.message || e.error)); }, true);
+  window.addEventListener('unhandledrejection', function (e) { log('ERROR JS (promesa): ' + (e.reason && e.reason.message || e.reason)); });
+
+  // Lectura en curso (para el diagnóstico y para reconocer la pistola)
+  var lect = { txt: '', el: null, t: 0, fuera: false };
+  function teclaVista(e) {
+    var ahora = Date.now();
+    if (ahora - lect.t > 120) lect = { txt: '', el: e.target, t: ahora, fuera: !campo(e.target) };
+    lect.t = ahora;
+    if (e.key === 'Enter') {
+      if (lect.txt.length >= 3) {
+        var v = campo(e.target) ? ' → en el campo queda «' + e.target.value + '»' : '';
+        log('lectura «' + lect.txt + '» ⏎ en ' + desc(e.target) + (lect.fuera ? ' (empezó sin campo)' : '') + v);
+      }
+      lect.txt = '';
+    } else if (e.key && e.key.length === 1) lect.txt += e.key;
   }
 
   // ---- Lecturas sin campo enfocado (p. ej. después de borrar una línea, el foco queda en el botón) ----
@@ -76,7 +126,13 @@
   }
 
   document.addEventListener('keydown', function (e) {
-    if (e.__eureka || e.ctrlKey || e.altKey || e.metaKey) return;
+    if (e.__eureka) return;
+    if (e.ctrlKey && e.altKey && e.code === 'KeyD') {
+      diag = !diag; try { localStorage.setItem('eurekaLectorDiag', diag ? '1' : '0'); } catch (x) {}
+      e.preventDefault(); lineas = []; log('diagnóstico activado'); pintar(); return;
+    }
+    teclaVista(e);
+    if (e.ctrlKey || e.altKey || e.metaKey) return;
     var el = e.target;
     var imprimible = e.key && e.key.length === 1;
 
@@ -88,6 +144,7 @@
       if (destino) {
         e.preventDefault();
         e.stopImmediatePropagation();
+        log('tecla sin campo (foco en ' + desc(el) + ') → la devuelvo al buscador');
         destino.focus();
         try { destino.select(); } catch (x) {}   // lo que hubiera quedado escrito se sustituye
         var c = e.key;
@@ -104,6 +161,7 @@
         e.preventDefault();
         e.stopImmediatePropagation();
         bufferSuelto += '-';
+        log('sin buscador conocido: cambio \' por - para el TPV (foco en ' + desc(el) + ')');
         teclaSintetica(el, '-', 'Minus', 189);
         return;
       }
@@ -114,8 +172,7 @@
     // Dentro de un campo:
     //    · PEK' → PEK-   (pistola con teclado inglés, etiquetas antiguas)
     //    · PEK0 → PEK-0  (etiquetas nuevas, sin guion)
-    if (imprimible) anotar(el);
-    if (e.key === 'Enter' && racha.el === el && racha.n >= 4 && Date.now() - racha.t < 300) ultimoCampo = el;
+    if (imprimible) { anotar(el); if (racha.n >= 4) recordar(el); }   // ráfaga de la pistola
     var antes = (el.value || '').slice(0, el.selectionStart == null ? el.value.length : el.selectionStart);
     if (e.key === "'" && PREFIX.test(antes)) {
       e.preventDefault();
@@ -138,4 +195,5 @@
     try { el.setSelectionRange(pos, pos); } catch (x) {}
     el.dispatchEvent(new Event('input', { bubbles: true }));
   }, true);
+  if (diag) document.addEventListener('DOMContentLoaded', function () { log('diagnóstico activo'); });
 })();
