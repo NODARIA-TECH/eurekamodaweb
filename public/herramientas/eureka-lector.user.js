@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EUREKA · Lector de códigos (FacturaScripts / TPVneo)
 // @namespace    https://eurekamoda.com/
-// @version      1.3
+// @version      1.4
 // @description  La pistola escribe PEK'0897 (teclado en inglés): esto lo corrige a PEK-0897 al momento, y devuelve la lectura al buscador del TPV aunque se haya perdido el foco (p. ej. al borrar una línea).
 // @match        *://*/*
 // @run-at       document-start
@@ -20,7 +20,8 @@
   var PISTA = /cod.?barra|barcode|ean|referencia|buscar|search|codigo|code|producto|articulo/i;
 
   function campo(el) {
-    return !!el && !el.disabled && !el.readOnly &&
+    // Ojo: el buscador del TPV puede ser de solo lectura (escribe su propio JS): también cuenta.
+    return !!el && !el.disabled &&
       (el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && /^(text|search|tel|)$/i.test(el.type || '')));
   }
   function visible(el) {
@@ -88,7 +89,7 @@
       panel.style.cssText = 'position:fixed;right:8px;bottom:8px;z-index:2147483647;width:min(560px,96vw);max-height:46vh;overflow:auto;background:rgba(20,16,12,.92);color:#fff;font:12px/1.45 monospace;padding:10px 12px;border-radius:10px;pointer-events:none;white-space:pre-wrap;box-shadow:0 6px 24px rgba(0,0,0,.35)';
     }
     if (!panel.isConnected) document.body.appendChild(panel);
-    panel.textContent = 'EUREKA lector 1.3 · diagnóstico (Ctrl+Alt+D para cerrar)\nfoco ahora: ' + desc(document.activeElement) + '\nbuscador: ' + (ultimoCampo ? desc(ultimoCampo) + (ultimoCampo.isConnected ? '' : ' (ya no existe)') : '—') + '\n────────\n' + lineas.join('\n');
+    panel.textContent = 'EUREKA lector 1.4 · diagnóstico (Ctrl+Alt+D para cerrar)\nfoco ahora: ' + desc(document.activeElement) + '\nbuscador: ' + (ultimoCampo ? desc(ultimoCampo) + (ultimoCampo.isConnected ? '' : ' (ya no existe)') : '—') + '\n────────\n' + lineas.join('\n');
   }
   document.addEventListener('focusin', function (e) { log('foco → ' + desc(e.target)); }, true);
   document.addEventListener('mousedown', function (e) { log('clic en ' + desc(e.target)); }, true);
@@ -125,7 +126,8 @@
     });
   }
 
-  document.addEventListener('keydown', function (e) {
+  // En window y en captura: así va antes que cualquier código del TPV.
+  window.addEventListener('keydown', function (e) {
     if (e.__eureka) return;
     if (e.ctrlKey && e.altKey && e.code === 'KeyD') {
       diag = !diag; try { localStorage.setItem('eurekaLectorDiag', diag ? '1' : '0'); } catch (x) {}
@@ -173,6 +175,16 @@
     //    · PEK' → PEK-   (pistola con teclado inglés, etiquetas antiguas)
     //    · PEK0 → PEK-0  (etiquetas nuevas, sin guion)
     if (imprimible) { anotar(el); if (racha.n >= 4) recordar(el); }   // ráfaga de la pistola
+    // Al pulsar Enter (la pistola lo manda al final), la referencia se deja bien SIEMPRE,
+    // entre lo que haya hecho el TPV: PEK'0897 / PEK0897 / pek0897 → PEK-0897. Va antes que el TPV.
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      var bien = normaliza(el.value || '');
+      if (bien !== el.value) {
+        log('al pulsar ' + e.key + ': «' + el.value + '» → «' + bien + '»');
+        poner(el, bien);
+      }
+      return;
+    }
     var antes = (el.value || '').slice(0, el.selectionStart == null ? el.value.length : el.selectionStart);
     if (e.key === "'" && PREFIX.test(antes)) {
       e.preventDefault();
@@ -182,6 +194,17 @@
       insertar(el, '-');            // el número entra después, normal
     }
   }, true);
+
+  function normaliza(v) {
+    return v.replace(/\b([A-Z]{2,5})'(\d{2,})/g, '$1-$2').replace(/\b(PEK|EUR)\s?[-'´`’]?\s?(\d{3,})\b/gi, function (_, p, n) { return p.toUpperCase() + '-' + n; });
+  }
+  function poner(el, v) {
+    var set = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el), 'value').set;
+    set.call(el, v);
+    try { el.setSelectionRange(v.length, v.length); } catch (x) {}
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  }
 
   // Red de seguridad (pegar, autocompletar…): si aun así entra PEK'0897, se corrige.
   document.addEventListener('input', function (e) {
