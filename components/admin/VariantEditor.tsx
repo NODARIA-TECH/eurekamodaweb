@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { productImg, swatch } from '@/lib/data';
 import { combos, vkey } from '@/lib/variants';
 import type { Variant } from '@/lib/types';
+import PhotoUploader from './PhotoUploader';
 
 const PRESETS: { label: string; sizes: string[] }[] = [
   { label: 'XS – XL', sizes: ['XS', 'S', 'M', 'L', 'XL'] },
@@ -111,10 +112,7 @@ export default function VariantEditor({ sizes: s0, colors: c0, colorImages, gall
                   </div>
                   <div className="ve-cbody">
                     <div className="ve-cname"><span className="adm-dot" style={{ background: swatch(c) }} />{c}{!shown && <span className="adm-tag warn">sin foto</span>}</div>
-                    <label className="ve-upload">
-                      Subir foto de este color
-                      <input type="file" name={`cfoto:${c}`} accept="image/*,.heic,.heif" />
-                    </label>
+                    <PhotoUploader name={`cfoto_url:${c}`} multiple={false} label="Subir foto de este color" />
                     {gallery.length > 0 && (
                       <div className="ve-pick">
                         <span>…o elige una de las fotos del producto:</span>

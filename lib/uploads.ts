@@ -30,42 +30,141 @@ export function sniffImage(b: Buffer): ImgKind | null {
   return null;
 }
 
+export type SaveResult =
+  | { ok: true; src: string; width?: number; height?: number; kind: ImgKind; ms: number }
+  | { ok: false; error: string; code: 'vacio' | 'grande' | 'formato' | 'heic' | 'proceso' | 'disco' };
+
+const MB = (n: number) => (n / 1024 / 1024).toFixed(1).replace('.', ',') + ' MB';
+
 // Devuelve '/media/xxxx.webp' o null si no es una imagen que se pueda leer.
 export async function saveUpload(file: unknown): Promise<string | null> {
   const f = file as File | null;
   if (!f || typeof (f as any).arrayBuffer !== 'function' || !f.size) return null;
   if (f.size > MAX_BYTES) return null;
-  return saveBuffer(Buffer.from(await f.arrayBuffer()));
+  const r = await saveBufferDetailed(Buffer.from(await f.arrayBuffer()));
+  return r.ok ? r.src : null;
+}
+
+// Igual, pero con el motivo si falla (null = no se envió ningún archivo).
+export async function saveUploadFile(file: unknown): Promise<SaveResult | null> {
+  const f = file as File | null;
+  if (!f || typeof (f as any).arrayBuffer !== 'function' || !f.size) return null;
+  if (f.size > MAX_BYTES) return { ok: false, code: 'grande', error: `La foto pesa ${MB(f.size)}; el máximo es ${MB(MAX_BYTES)}.` };
+  return saveBufferDetailed(Buffer.from(await f.arrayBuffer()));
+}
+
+// ¿Es una foto subida (/media/…) que de verdad está guardada en el servidor?
+export async function uploadedExists(src: string): Promise<boolean> {
+  const m = /^\/media\/([a-z0-9]+\.(webp|jpe?g|png|gif|avif))$/i.exec(src || '');
+  if (!m) return false;
+  try { await fs.access(path.join(UPLOAD_DIR, m[1])); return true; } catch { return false; }
 }
 
 // Para fotos que llegan como bytes (p.ej. dentro de un ZIP).
 export async function saveUploadBuffer(input: Buffer, _filename?: string): Promise<string | null> {
-  if (!input.length || input.length > MAX_BYTES) return null;
-  return saveBuffer(input);
+  const r = await saveBufferDetailed(input);
+  return r.ok ? r.src : null;
 }
 
 // HEIC/HEIF → JPEG de máxima calidad (sharp no trae el decodificador HEVC).
+// Se hace en un hilo aparte (scripts/heic-worker.cjs) que se cierra a los 30 s sin trabajo:
+// así los ~400 MB que reserva el decodificador vuelven al sistema. Si el hilo no arranca, se hace aquí.
+let worker: any = null;
+let workerTimer: ReturnType<typeof setTimeout> | null = null;
+let jobSeq = 0;
+const jobs = new Map<number, { ok: (b: Buffer) => void; ko: (e: Error) => void }>();
+function stopWorker() { try { worker?.terminate(); } catch { /* */ } worker = null; }
+async function getWorker() {
+  if (worker) return worker;
+  const { Worker } = await import('worker_threads');
+  const file = path.join(process.cwd(), 'scripts', 'heic-worker.cjs');
+  await fs.access(file);
+  const w = new Worker(file);
+  w.on('message', (m: any) => { const j = jobs.get(m.id); if (!j) return; jobs.delete(m.id); m.ok ? j.ok(Buffer.from(m.data)) : j.ko(new Error(m.error)); });
+  const failAll = (e: Error) => { for (const [, j] of Array.from(jobs)) j.ko(e); jobs.clear(); if (worker === w) worker = null; };
+  w.on('error', failAll);
+  w.on('exit', (code: number) => failAll(new Error('El conversor se cerró (' + code + ')')));
+  worker = w;
+  return w;
+}
+async function heicToJpegInWorker(input: Buffer): Promise<Buffer> {
+  const w = await getWorker();
+  if (workerTimer) clearTimeout(workerTimer);
+  const id = ++jobSeq;
+  const res = await new Promise<Buffer>((ok, ko) => {
+    jobs.set(id, { ok, ko });
+    const copy = new Uint8Array(input).slice().buffer;
+    w.postMessage({ id, buffer: copy }, [copy]);
+  });
+  workerTimer = setTimeout(stopWorker, 30000);
+  return res;
+}
 async function heicToJpeg(input: Buffer): Promise<Buffer> {
-  const convert = (await import('heic-convert')).default as (o: { buffer: Buffer; format: 'JPEG' | 'PNG'; quality?: number }) => Promise<ArrayBuffer>;
-  return Buffer.from(await convert({ buffer: input, format: 'JPEG', quality: 0.95 }));
+  try { return await heicToJpegInWorker(input); }
+  catch (e: any) {
+    if (/no es|invalid|unsupported|not a|HEIF/i.test(e?.message || '')) throw e;   // el archivo está mal: no sirve reintentar
+    console.error('[fotos] Conversor HEIC en hilo no disponible, se usa el normal:', e?.message);
+    const convert = (await import('heic-convert')).default as (o: { buffer: Buffer; format: 'JPEG' | 'PNG'; quality?: number }) => Promise<ArrayBuffer>;
+    return Buffer.from(await convert({ buffer: input, format: 'JPEG', quality: 0.95 }));
+  }
 }
 
-async function saveBuffer(raw: Buffer): Promise<string | null> {
+// Una foto cada vez: convertir HEIC y optimizar gasta mucha memoria y el VPS es pequeño.
+let turno: Promise<unknown> = Promise.resolve();
+function deUnaEnUna<T>(fn: () => Promise<T>): Promise<T> {
+  const run = turno.then(fn, fn);
+  turno = run.catch(() => undefined);
+  return run;
+}
+
+function errDisco(e: any): string {
+  const c = e?.code;
+  if (c === 'ENOSPC' || c === 'EDQUOT') return 'El servidor se ha quedado sin espacio en disco.';
+  if (c === 'EACCES' || c === 'EPERM' || c === 'EROFS') return 'El servidor no tiene permiso para guardar fotos en data/uploads (revisa el propietario de la carpeta).';
+  return 'No se pudo guardar la foto en el servidor (' + (e?.message || c || 'error de disco') + ').';
+}
+
+// Últimos fallos de subida (para Panel → Diagnóstico)
+export const recentUploadErrors: { at: string; error: string }[] = [];
+function noteError(error: string) {
+  recentUploadErrors.unshift({ at: new Date().toISOString(), error });
+  recentUploadErrors.length = Math.min(recentUploadErrors.length, 20);
+}
+
+export async function saveBufferDetailed(raw: Buffer): Promise<SaveResult> {
+  const r = await saveBufferDetailed0(raw);
+  if (!r.ok) noteError(r.error);
+  return r;
+}
+async function saveBufferDetailed0(raw: Buffer): Promise<SaveResult> {
+  if (!raw?.length) return { ok: false, code: 'vacio', error: 'El archivo está vacío.' };
+  if (raw.length > MAX_BYTES) return { ok: false, code: 'grande', error: `La foto pesa ${MB(raw.length)}; el máximo es ${MB(MAX_BYTES)}.` };
   const kind = sniffImage(raw);
-  if (!kind) return null;             // no es una imagen
-  await fs.mkdir(UPLOAD_DIR, { recursive: true });
+  if (!kind) return { ok: false, code: 'formato', error: 'No es una foto (formatos válidos: JPG, PNG, HEIC/HEIF, WebP, AVIF, GIF, TIFF, BMP).' };
+  return deUnaEnUna(() => procesar(raw, kind));
+}
+
+async function procesar(raw: Buffer, kind: ImgKind): Promise<SaveResult> {
+  const t0 = Date.now();
+  try { await fs.mkdir(UPLOAD_DIR, { recursive: true }); } catch (e) { return { ok: false, code: 'disco', error: errDisco(e) }; }
   const id = randomUUID().replace(/-/g, '').slice(0, 14);
 
   let input = raw;
+  let heicError = '';
   if (kind === 'heic') {
     try { input = await heicToJpeg(raw); }
     catch (e: any) {
       // Algunos HEIC "modernos" sí los lee sharp directamente; si tampoco, no es válida.
-      console.error('[fotos] No se pudo convertir un HEIC:', e?.message);
+      heicError = e?.message || String(e);
+      console.error('[fotos] No se pudo convertir un HEIC:', heicError);
     }
   }
+  let out: Buffer | null = null;
+  let width: number | undefined, height: number | undefined;
+  let procError = '';
   try {
     const sharp = (await import('sharp')).default;
+    sharp.cache(false); sharp.concurrency(1);   // poca memoria: el VPS es pequeño y comparte con FacturaScripts
     // Quita el marco blanco puro que añaden algunas apps (InShot, exportes del iPhone).
     // Solo blanco casi perfecto: mesas, paredes o fondos claros de la foto no se recortan.
     let base = await sharp(input, { failOn: 'none', animated: false }).rotate().toBuffer();
@@ -75,28 +174,41 @@ async function saveBuffer(raw: Buffer): Promise<string | null> {
       const keep = (info.width * info.height) / ((meta.width || 1) * (meta.height || 1));
       if (keep > 0.35 && keep < 0.995) base = await sharp(base).trim({ background: '#ffffff', threshold: 6 }).toBuffer();
     } catch { /* foto de un solo color: se deja como está */ }
-    const out = await sharp(base)
+    const r = await sharp(base)
       .resize({ width: 2000, height: 2000, fit: 'inside', withoutEnlargement: true, kernel: 'lanczos3' })
       .toColourspace('srgb')
       .webp({ quality: 88, smartSubsample: true })
-      .toBuffer();
-    const name = id + '.webp';
-    await fs.writeFile(path.join(UPLOAD_DIR, name), new Uint8Array(out));
-    return '/media/' + name;
+      .toBuffer({ resolveWithObject: true });
+    out = r.data; width = r.info.width; height = r.info.height;
   } catch (e: any) {
-    console.error('[fotos] No se pudo procesar la foto (' + kind + '):', e?.message);
-    // Sin sharp: se guarda tal cual si el navegador la puede mostrar.
-    if (!['jpg', 'png', 'webp', 'gif', 'avif'].includes(kind)) return null;
-    const name = id + '.' + kind;
-    await fs.writeFile(path.join(UPLOAD_DIR, name), new Uint8Array(input));
-    return '/media/' + name;
+    procError = e?.message || String(e);
+    console.error('[fotos] No se pudo procesar la foto (' + kind + '):', procError);
   }
+
+  try {
+    if (out) {
+      const name = id + '.webp';
+      await fs.writeFile(path.join(UPLOAD_DIR, name), new Uint8Array(out));
+      return { ok: true, src: '/media/' + name, width, height, kind, ms: Date.now() - t0 };
+    }
+    // Sin sharp: se guarda tal cual si el navegador la puede mostrar.
+    const usable = kind === 'heic' && !heicError ? 'jpg' : kind;
+    if (['jpg', 'png', 'webp', 'gif', 'avif'].includes(usable)) {
+      const name = id + '.' + usable;
+      await fs.writeFile(path.join(UPLOAD_DIR, name), new Uint8Array(input));
+      return { ok: true, src: '/media/' + name, kind, ms: Date.now() - t0 };
+    }
+  } catch (e) {
+    return { ok: false, code: 'disco', error: errDisco(e) };
+  }
+  if (kind === 'heic') return { ok: false, code: 'heic', error: 'No se pudo convertir la foto HEIC' + (heicError ? ` (${heicError})` : '') + '. Prueba a exportarla otra vez desde InShot o como JPG.' };
+  return { ok: false, code: 'proceso', error: `No se pudo procesar la foto (${kind.toUpperCase()}): ${procError || 'formato no compatible'}.` };
 }
 
 // Igual que saveUploadBuffer, pero si esa misma foto (mismos bytes) ya se subió antes,
 // devuelve la que ya existe en vez de crear otra copia. Así subir dos veces el mismo ZIP no duplica.
 const INDEX = path.join(UPLOAD_DIR, 'index.json');
-export async function saveUploadBufferOnce(input: Buffer, filename: string): Promise<{ url: string | null; existed: boolean }> {
+export async function saveUploadBufferOnce(input: Buffer, filename: string): Promise<{ url: string | null; existed: boolean; error?: string }> {
   const { createHash } = await import('crypto');
   const hash = createHash('sha1').update(new Uint8Array(input)).digest('hex');
   let index: Record<string, string> = {};
@@ -105,12 +217,13 @@ export async function saveUploadBufferOnce(input: Buffer, filename: string): Pro
   if (prev) {
     try { await fs.access(path.join(UPLOAD_DIR, prev.replace('/media/', ''))); return { url: prev, existed: true }; } catch { /* se borró: se vuelve a guardar */ }
   }
-  const url = await saveUploadBuffer(input, filename);
+  const r = await saveBufferDetailed(input);
+  const url = r.ok ? r.src : null;
   if (url) {
     index[hash] = url;
     const tmp = INDEX + '.' + process.pid + '.tmp';
     await fs.writeFile(tmp, JSON.stringify(index));
     await fs.rename(tmp, INDEX);
   }
-  return { url, existed: false };
+  return { url, existed: false, error: r.ok ? undefined : r.error };
 }

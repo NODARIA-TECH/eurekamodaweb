@@ -19,6 +19,7 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
           <Link href="/admin/pedidos">Pedidos</Link>
           <Link href="/admin/clientes">Clientes</Link>
           <Link href="/admin/boletin">Boletín</Link>
+          <Link href="/admin/diagnostico">Diagnóstico</Link>
         </nav>
         <div className="bottom">
           <Link href="/" target="_blank">Ver tienda ↗</Link>

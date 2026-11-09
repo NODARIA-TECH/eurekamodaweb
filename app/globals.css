@@ -900,3 +900,45 @@ a.cg{display:block}
 .nl-legal a{text-decoration:underline}
 .nlf{position:relative}
 .adm-err{background:#fdf2f2;border:1px solid #ebc5c5;color:#8a2a22;border-radius:10px;padding:12px 16px;margin-bottom:18px;font-family:"Jost",sans-serif;font-size:.86rem}
+
+/* ---- Subida de fotos con estado (PhotoUploader / BatchPhotoUpload) ---- */
+.pu{display:grid;gap:10px;border-radius:12px;transition:background .15s,outline-color .15s;outline:2px dashed transparent;outline-offset:4px}
+.pu.drag,.bpu.drag{outline-color:var(--gold);background:#fbf3e2}
+.pu-btn{display:flex;flex-direction:column;align-items:center;gap:2px;width:100%;border:1.5px dashed var(--hair-2);background:#fffdf8;color:var(--ink);border-radius:10px;padding:12px 14px;font-size:.88rem;font-weight:500;cursor:pointer;text-align:center}
+.pu-btn:hover:not(:disabled){border-color:var(--gold);background:#fbf6ec}
+.pu-btn:disabled{opacity:.55;cursor:default}
+.pu-btn small{font-size:.72rem;font-weight:400;color:var(--muted)}
+.pu-list{list-style:none;display:grid;gap:8px;margin:0;padding:0}
+.pu-item{display:flex;align-items:center;gap:10px;border:1px solid var(--hair);background:#fff;border-radius:10px;padding:7px 8px}
+.pu-item.error{border-color:#efc9c2;background:#fff7f5}
+.pu-item.ok{border-color:#cfe3c8}
+.pu-thumb{width:46px;height:60px;flex:none;border-radius:6px;overflow:hidden;background:var(--cream);display:grid;place-items:center}
+.pu-thumb img{width:100%;height:100%;object-fit:cover}
+.pu-thumb span{font-size:.62rem;font-weight:600;letter-spacing:.06em;color:var(--wood)}
+.pu-body{flex:1;min-width:0;display:grid;gap:2px;font-size:.8rem;line-height:1.35}
+.pu-body b{font-weight:500;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pu-ok{color:#3c7a35}
+.pu-err{color:#8a2a1a;font-size:.8rem;line-height:1.4}
+.pu-aviso{font-size:.8rem;color:#8a5a1a;background:#fff6e5;border:1px solid #f0dcb4;border-radius:8px;padding:6px 10px;margin:0}
+.pu-bar{display:block;height:4px;border-radius:9px;background:var(--cream);overflow:hidden;margin-top:3px}
+.pu-bar>i{display:block;height:100%;background:var(--gold);transition:width .2s}
+.pu-acts{display:flex;align-items:center;gap:6px}
+.pu-x{width:26px;height:26px;border-radius:99px;border:1px solid var(--hair-2);background:#fff;color:var(--wood);font-size:1rem;line-height:1}
+.pu-x:hover{border-color:#c98a7c;color:#8a2a1a}
+.pu.single .pu-btn{padding:8px 10px;font-size:.8rem}
+.bpu{border-radius:12px;outline:2px dashed transparent;outline-offset:6px}
+.bpu-list{margin-top:10px;max-height:340px;overflow:auto}
+
+/* ---- Diagnóstico ---- */
+.dg-list{list-style:none;display:grid;gap:2px;margin:0;padding:0}
+.dg-list li{display:flex;gap:12px;align-items:flex-start;padding:11px 4px;border-bottom:1px solid var(--hair)}
+.dg-list li:last-child{border-bottom:0}
+.dg-list li>div{display:grid;gap:2px;font-size:.86rem;line-height:1.45;min-width:0}
+.dg-list b{color:var(--ink);font-weight:500}
+.dg-list span{color:var(--text);overflow-wrap:anywhere}
+.dg-list em{font-style:normal;color:#8a5a1a;font-size:.8rem}
+.dg-dot{width:10px;height:10px;border-radius:99px;margin-top:6px;flex:none;background:#5f9e55}
+.dg-list .warn .dg-dot{background:#d9a23a}
+.dg-list .bad .dg-dot{background:#c2493a}
+.dg-err{list-style:none;margin:0;padding:0;display:grid;gap:6px;font-size:.82rem;color:#8a2a1a}
+.dg-err b{color:var(--ink);font-weight:500;margin-right:6px}

@@ -3,7 +3,8 @@ import { listProducts, listCategories, hasRealPhoto, shownInShop } from '@/lib/s
 import { productImg, swatch } from '@/lib/data';
 import { money } from '@/lib/money';
 import type { Product } from '@/lib/types';
-import { createProductQuick, importCsv, importPhotos, toggleHidden } from './actions';
+import { createProductQuick, importCsv, importStagedPhotos, toggleHidden } from './actions';
+import BatchPhotoUpload from '@/components/admin/BatchPhotoUpload';
 
 export const dynamic = 'force-dynamic';
 
@@ -143,12 +144,7 @@ export default async function ProductosAdmin({ searchParams }: { searchParams: S
           <b> Jersey peluche (2).jpg</b> → foto extra. También vale la referencia: <b>PEK-0951__Negro.jpg</b>.
           Se optimizan solas. Si un nombre no coincide con ningún producto, te lo dice y no se pierde nada.
         </p>
-        <form action={importPhotos} className="adm-form">
-          <label style={{ gridColumn: '1 / -1' }}>Fotos o ZIP
-            <input name="fotos" type="file" multiple accept="image/*,.heic,.heif,.zip,application/zip" required />
-          </label>
-          <button className="btn-sm gold" type="submit" style={{ height: 40 }}>Subir y colocar</button>
-        </form>
+        <BatchPhotoUpload action={importStagedPhotos} />
       </div>
 
       <div className="adm-two">

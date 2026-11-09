@@ -8,8 +8,10 @@ import {
   setProductHidden,
 } from '@/lib/store';
 import { requireAdmin } from '@/lib/admin-auth';
-import { saveUpload, saveUploadBuffer, saveUploadBufferOnce, sniffImage } from '@/lib/uploads';
+import { saveUploadBuffer, saveUploadBufferOnce, sniffImage, saveUploadFile, uploadedExists } from '@/lib/uploads';
+import { readStaged, dropStaged } from '@/lib/chunked';
 import { unzipSync } from 'fflate';
+const realSrc = (src?: string) => !!src && /^(\/media\/|\/uploads\/|\/img\/|https?:)/.test(src);
 import { buildVariants, combos, totalStock, vkey } from '@/lib/variants';
 import type { Variant, Product } from '@/lib/types';
 import { toCents } from '@/lib/money';
@@ -72,12 +74,20 @@ export async function saveProduct(fd: FormData) {
   let imgs = [p!.image, ...(p!.images || [])].filter((x) => x && x !== PLACEHOLDER);
   const quitar = new Set(fd.getAll('quitar').map(String));
   imgs = imgs.filter((x) => !quitar.has(x));
+  const fotoErr: string[] = [];
+  // Fotos ya subidas por trozos desde la ficha (PhotoUploader)
+  for (const u of fd.getAll('galeria_url').map(String)) {
+    if (await uploadedExists(u)) imgs.push(u); else fotoErr.push('una foto nueva se perdió en el servidor (vuelve a subirla)');
+  }
+  // Compatibilidad: fotos enviadas con el formulario (sistema anterior)
   for (const f of fd.getAll('galeria')) {
-    const url = await saveUpload(f);
-    if (url) imgs.push(url);
+    const r = await saveUploadFile(f);
+    if (r && r.ok) imgs.push(r.src); else if (r) fotoErr.push(`${(f as File).name}: ${r.error}`);
   }
   const principal = String(fd.get('principal') || '');
   if (principal && imgs.includes(principal)) imgs = [principal, ...imgs.filter((x) => x !== principal)];
+  // Si solo tenía la foto de prueba, la primera foto real nueva pasa a ser la principal.
+  if (!realSrc(imgs[0])) { const firstReal = imgs.find((x) => realSrc(x)); if (firstReal) imgs = [firstReal, ...imgs.filter((x) => x !== firstReal)]; }
   imgs = Array.from(new Set(imgs));
 
   // Variantes
@@ -87,7 +97,12 @@ export async function saveProduct(fd: FormData) {
   // Foto por color: subir nueva, elegir una de la galería, mantener o quitar.
   const colorImages: Record<string, string> = {};
   for (const c of colors) {
-    const uploaded = await saveUpload(fd.get(`cfoto:${c}`));
+    const sent = String(fd.get(`cfoto_url:${c}`) || '');
+    let uploaded = sent && (await uploadedExists(sent)) ? sent : null;
+    if (!uploaded) {
+      const r = await saveUploadFile(fd.get(`cfoto:${c}`));
+      if (r && r.ok) uploaded = r.src; else if (r) fotoErr.push(`foto del color ${c}: ${r.error}`);
+    }
     const choice = String(fd.get(`cpick:${c}`) || '__keep');
     if (uploaded) colorImages[c] = uploaded;
     else if (choice === '__none') continue;
@@ -134,7 +149,7 @@ export async function saveProduct(fd: FormData) {
   });
   refresh(id);
   await pingCatalogSync();
-  redirect(`/admin/productos/${id}?ok=1`);
+  redirect(`/admin/productos/${id}?ok=1` + (fotoErr.length ? '&ferr=' + encodeURIComponent(fotoErr.slice(0, 4).join(' · ')) : ''));
 }
 
 // Botón Ocultar / Mostrar en la tienda
@@ -280,28 +295,55 @@ function findProduct(products: Product[], key: string): Product | undefined {
   return undefined;
 }
 
+type InFile = { name: string; data: Buffer };
+// Añade a la lista las imágenes de un archivo (foto suelta o ZIP con fotos dentro).
+function collect(files: InFile[], name: string, buf: Buffer, notes: string[]) {
+  const isZip = /\.zip$/i.test(name) || (buf[0] === 0x50 && buf[1] === 0x4b && buf[2] === 0x03 && buf[3] === 0x04);
+  if (isZip) {
+    try {
+      const entries = unzipSync(new Uint8Array(buf));
+      for (const [path, data] of Object.entries(entries)) {
+        const base = path.split('/').pop() || '';
+        if (!data.length || path.startsWith('__MACOSX') || base.startsWith('.')) continue;
+        if (!IMG_RE.test(base) && !sniffImage(Buffer.from(data))) continue;   // también fotos sin extensión
+        files.push({ name: base, data: Buffer.from(data) });
+      }
+    } catch { notes.push(`${name}: el ZIP está dañado o incompleto`); }
+  } else if (sniffImage(buf)) files.push({ name, data: buf });
+  else notes.push(`${name}: no es una foto ni un ZIP (o está dañada)`);
+}
+
+// Lote subido por trozos desde el panel (BatchPhotoUpload): coloca las fotos y devuelve la dirección del resultado.
+export async function importStagedPhotos(ids: string[]): Promise<string> {
+  requireAdmin();
+  const files: InFile[] = [];
+  const notes: string[] = [];
+  for (const id of (Array.isArray(ids) ? ids : []).slice(0, 400)) {
+    const st = await readStaged(String(id));
+    if (!st) { notes.push('un archivo no llegó completo al servidor (vuelve a subirlo)'); continue; }
+    collect(files, st.name, st.data, notes);
+  }
+  const q = await placePhotos(files.slice(0, 400), notes);
+  for (const id of ids) await dropStaged(String(id)).catch(() => undefined);
+  return '/admin/productos?' + q;
+}
+
 export async function importPhotos(fd: FormData) {
   requireAdmin();
   // 1) Reunir imágenes (sueltas o dentro de ZIPs)
-  const files: { name: string; data: Buffer }[] = [];
+  const files: InFile[] = [];
+  const notes0: string[] = [];
   for (const v of fd.getAll('fotos')) {
     const f = v as unknown as File;
     if (!f || typeof (f as any).arrayBuffer !== 'function' || !f.size) continue;
     const buf = Buffer.from(await f.arrayBuffer());
-    if (/\.zip$/i.test(f.name || '')) {
-      try {
-        const entries = unzipSync(new Uint8Array(buf));
-        for (const [path, data] of Object.entries(entries)) {
-          const base = path.split('/').pop() || '';
-          if (!data.length || path.startsWith('__MACOSX') || base.startsWith('.')) continue;
-          if (!IMG_RE.test(base) && !sniffImage(Buffer.from(data))) continue;   // también fotos sin extensión
-          files.push({ name: base, data: Buffer.from(data) });
-        }
-      } catch { /* ZIP dañado: se ignora */ }
-    } else if (IMG_RE.test(f.name || '') || sniffImage(buf)) files.push({ name: f.name, data: buf });
+    collect(files, f.name || 'foto', buf, notes0);
     if (files.length > 300) break;
   }
+  redirect('/admin/productos?' + (await placePhotos(files, notes0)));
+}
 
+async function placePhotos(files: InFile[], notes: string[]): Promise<string> {
   // 2) Repartir por producto. Nunca sustituye una foto que ya está puesta: solo rellena huecos.
   //    · Sin foto principal real (vacía o de prueba): la primera que llegue hace de principal.
   //    · "Producto__Color": foto de ese color si aún no tiene; si ya tiene, va a la galería de ese color.
@@ -311,7 +353,6 @@ export async function importPhotos(fd: FormData) {
   type Change = { image?: string; images: string[]; colorImages: Record<string, string>; colorGallery: Record<string, string[]> };
   const changes = new Map<string, Change>();
   const unmatched: string[] = [];
-  const notes: string[] = [];
   let assigned = 0, already = 0;
   const real = (src?: string) => !!src && /^(\/media\/|\/uploads\/|\/img\/|https?:)/.test(src);
   const NUM = /\s*\((\d+)\)\s*$/;
@@ -327,8 +368,8 @@ export async function importPhotos(fd: FormData) {
     const gallery = NUM.test(rawColor0 ?? rawName0);
     const p = findProduct(products, rawName);
     if (!p) { unmatched.push(base); continue; }
-    const { url, existed } = await saveUploadBufferOnce(f.data, f.name);
-    if (!url) { notes.push(`${base}: formato no válido`); continue; }
+    const { url, existed, error } = await saveUploadBufferOnce(f.data, f.name);
+    if (!url) { notes.push(`${base}: ${error || 'formato no válido'}`); continue; }
     const ch = changes.get(p.id) || { images: [], colorImages: {}, colorGallery: {} };
     // ¿Ya tiene esta misma foto (de una subida anterior o repetida en el ZIP)? Entonces no se toca.
     const all = [p.image, ...(p.images || []), ...Object.values(p.colorImages || {}), ...Object.values(p.colorGallery || {}).flat(),
@@ -366,7 +407,7 @@ export async function importPhotos(fd: FormData) {
   const q = new URLSearchParams({ fotos: '1', fa: String(assigned), fp: String(changes.size), fn: String(unmatched.length), fy: String(already) });
   if (unmatched.length) q.set('fu', unmatched.slice(0, 10).join(' · '));
   if (notes.length) q.set('fx', notes.slice(0, 6).join(' · '));
-  redirect('/admin/productos?' + q.toString());
+  return q.toString();
 }
 
 

@@ -7,12 +7,13 @@ import ConfirmSubmit from '@/components/admin/ConfirmSubmit';
 import { saveProduct, removeProduct, createZoom, removeColorExtras, toggleHidden } from '../actions';
 import { hasRealPhoto, shownInShop } from '@/lib/store';
 import ZoomCropper from '@/components/admin/ZoomCropper';
+import PhotoUploader from '@/components/admin/PhotoUploader';
 
 export const dynamic = 'force-dynamic';
 
 const PLACEHOLDER = '26998033';
 
-export default async function EditProduct({ params, searchParams }: { params: { id: string }; searchParams: { ok?: string; nuevo?: string; zok?: string; zerr?: string } }) {
+export default async function EditProduct({ params, searchParams }: { params: { id: string }; searchParams: { ok?: string; nuevo?: string; zok?: string; zerr?: string; ferr?: string } }) {
   const [p, categories] = await Promise.all([getProduct(params.id), listCategories()]);
   if (!p) notFound();
   const gallery = [p.image, ...(p.images || [])].filter((x) => x && x !== PLACEHOLDER);
@@ -36,6 +37,7 @@ export default async function EditProduct({ params, searchParams }: { params: { 
       </div>
 
       {searchParams.ok && <div className="adm-ok">Cambios guardados. Ya se ven en la tienda.</div>}
+      {searchParams.ferr && <div className="adm-ok adm-err">Algunas fotos no se pudieron guardar: {searchParams.ferr}</div>}
       {searchParams.zok && <div className="adm-ok">Foto ampliada creada y añadida. Ya se ve en la tienda.</div>}
       {searchParams.zerr && <div className="adm-ok" style={{ background: '#fff4f2', borderColor: '#efc9c2', color: '#8a2a1a' }}>No se pudo crear la foto ampliada. Prueba con otra foto.</div>}
       {searchParams.nuevo && <div className="adm-ok">Producto creado. Completa fotos, tallas, colores y descripción y pulsa <b>Guardar</b>.</div>}
@@ -90,11 +92,8 @@ export default async function EditProduct({ params, searchParams }: { params: { 
                   ))}
                 </div>
               ) : <p className="adm-help">Todavía no tiene fotos.</p>}
-              <label className="ve-upload pe-up">
-                Añadir fotos (puedes elegir varias)
-                <input type="file" name="galeria" accept="image/*,.heic,.heif" multiple />
-              </label>
-              <p className="adm-help">Se optimizan solas. La marcada como <b>Principal</b> es la que sale en el catálogo.</p>
+              <PhotoUploader name="galeria_url" label="Añadir fotos" hint="JPG, PNG o HEIC · puedes elegir varias o arrastrarlas aquí" />
+              <p className="adm-help">Se suben y se optimizan al momento. La marcada como <b>Principal</b> es la que sale en el catálogo (si el producto no tenía fotos, la primera nueva hace de principal).</p>
             </section>
 
             <button className="btn btn-gold pe-save" type="submit">Guardar cambios</button>

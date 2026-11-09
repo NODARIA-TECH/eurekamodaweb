@@ -1,5 +1,6 @@
 'use client';
 // Campos del editor de la portada: textos, enlaces, interruptores, fotos (con punto de foco) y productos.
+import { uploadFile as uploadChunked, isImageFile } from '@/lib/upload-client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { productImg } from '@/lib/data';
@@ -169,23 +170,11 @@ async function loadMedia(force = false): Promise<MediaItem[]> {
   return mediaCache;
 }
 
-function uploadFile(file: File, onProgress: (p: number) => void): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/admin/api/pagina/media');
-    xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded / e.total);
-    xhr.onload = () => {
-      let j: any = {};
-      try { j = JSON.parse(xhr.responseText); } catch { /* */ }
-      if (xhr.status === 401 || xhr.responseURL.includes('/admin/login')) reject(new Error('La sesión ha caducado: vuelve a entrar en el panel.'));
-      else if (xhr.status >= 200 && xhr.status < 300 && j.src) resolve(j.src);
-      else reject(new Error(j.error || 'No se pudo subir la foto.'));
-    };
-    xhr.onerror = () => reject(new Error('Sin conexión. Prueba de nuevo.'));
-    const fd = new FormData();
-    fd.append('file', file);
-    xhr.send(fd);
-  });
+// Por trozos (lib/upload-client): sirve para fotos grandes y HEIC aunque Nginx limite el tamaño.
+async function uploadFile(file: File, onProgress: (p: number) => void): Promise<string> {
+  const r = await uploadChunked(file, { onProgress: (p) => onProgress(p) });
+  if (!r.src) throw new Error('El servidor no devolvió la foto.');
+  return r.src;
 }
 
 const GROUPS: [MediaItem['group'] | 'all', string][] = [['all', 'Todas'], ['web', 'Fotos de la web'], ['productos', 'Productos'], ['subidas', 'Subidas']];
@@ -214,7 +203,7 @@ export function MediaPicker({ onClose, onPick }: { onClose: () => void; onPick: 
   }, [items, tab, q]);
 
   async function upload(files: FileList | File[] | null) {
-    const f = files && Array.from(files).find((x) => x.type.startsWith('image/') || /\.(heic|heif|jpe?g|png|webp)$/i.test(x.name) || !x.type);
+    const f = files && Array.from(files).find(isImageFile);
     if (!f) { setErr('Elige un archivo de imagen.'); return; }
     setErr(''); setUp(0);
     try {
