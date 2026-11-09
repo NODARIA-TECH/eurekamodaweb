@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { listProducts, listCategories, hasRealPhoto } from '@/lib/store';
+import { listProducts, listCategories, hasRealPhoto, shownInShop } from '@/lib/store';
 import { productImg, swatch } from '@/lib/data';
 import { money } from '@/lib/money';
 import type { Product } from '@/lib/types';
@@ -29,12 +29,12 @@ export default async function ProductosAdmin({ searchParams }: { searchParams: S
     .filter((p) => !q || p.name.toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q))
     .filter((p) => !searchParams.cat || p.category === searchParams.cat)
     .filter((p) => searchParams.f !== 'pend' || pending(p).length > 0)
-    .filter((p) => searchParams.f !== 'ocultos' || p.hidden || !hasRealPhoto(p))
-    .filter((p) => searchParams.f !== 'visibles' || (!p.hidden && hasRealPhoto(p)))
+    .filter((p) => searchParams.f !== 'ocultos' || !shownInShop(p))
+    .filter((p) => searchParams.f !== 'visibles' || shownInShop(p))
     .slice()
     .sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
   const nPend = all.filter((p) => pending(p).length).length;
-  const nHidden = all.filter((p) => p.hidden || !hasRealPhoto(p)).length;
+  const nHidden = all.filter((p) => !shownInShop(p)).length;
   const backUrl = '/admin/productos?' + new URLSearchParams(Object.entries({ q: searchParams.q || '', cat: searchParams.cat || '', f: searchParams.f || '' }).filter(([, v]) => v)).toString();
 
   return (
@@ -114,7 +114,7 @@ export default async function ProductosAdmin({ searchParams }: { searchParams: S
                       </div>
                     </td>
                     <td>
-                      {p.hidden ? <span className="adm-tag off">Oculto</span> : !hasRealPhoto(p) ? <span className="adm-tag off" title="Aparecerá en la tienda en cuanto tenga una foto">Oculto · sin foto</span> : null}
+                      {p.hidden ? <span className="adm-tag off">Oculto</span> : !hasRealPhoto(p) ? <span className="adm-tag off" title="Aparecerá en la tienda en cuanto tenga una foto">Oculto · sin foto</span> : !p.price ? <span className="adm-tag off" title="Aparecerá en la tienda en cuanto tenga precio">Oculto · sin precio</span> : null}
                       {pend.length ? pend.map((x) => <span key={x} className="adm-tag warn">{x}</span>) : <span className="adm-tag ok">Completo</span>}
                     </td>
                     <td><div className="adm-acts">

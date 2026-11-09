@@ -1,6 +1,17 @@
 {
- "version": 2,
- "note": "Catálogo EUREKA cargado en el reinicio (lib/catalog-migrate.ts). Fotos en public/img/productos/nuevas.",
+ "version": 3,
+ "note": "Catálogo EUREKA (lib/store.ts → migrateCatalog). Fotos en public/img/productos/nuevas.",
+ "removePhotos": [
+  "/img/productos/nuevas/camiseta-brillo-cuello-holgado-negro.webp",
+  "/img/productos/nuevas/jersey-de-punto-con-cuello-de-pico-marino.webp",
+  "/img/productos/nuevas/pantalon-bomber-satinado-chocolate.webp",
+  "/img/productos/nuevas/pantalon-bomber-satinado-chocolate-2.webp",
+  "/img/productos/nuevas/pantalon-bomber-satinado-chocolate-3.webp",
+  "/img/productos/nuevas/camiseta-basica-licra-manga-larga-cuello-cuadrado-chocolate-2.webp",
+  "/img/productos/nuevas/vaquero-con-lateral-y-cinturon-antelina-2.webp",
+  "/img/productos/nuevas/vaquero-con-lateral-y-cinturon-antelina-3.webp",
+  "/img/productos/nuevas/panoletas-caldera.webp"
+ ],
  "products": [
   {
    "name": "Camiseta brillo cuello holgado",
@@ -13,11 +24,7 @@
     "Negro"
    ],
    "description": "Camiseta de cuello holgado en tejido con brillo. Ideal para dar un toque especial a cualquier look.",
-   "stock": 6,
-   "image": "/img/productos/nuevas/camiseta-brillo-cuello-holgado-negro.webp",
-   "colorImages": {
-    "Negro": "/img/productos/nuevas/camiseta-brillo-cuello-holgado-negro.webp"
-   }
+   "stock": 6
   },
   {
    "name": "Falda larga polipiel y encaje",
@@ -70,7 +77,11 @@
     "Verde agua"
    ],
    "description": "Jersey básico de punto con puño y cuello semicisne. Suave y confortable, en una amplia gama de colores.",
-   "stock": 16
+   "stock": 16,
+   "colorImages": {
+    "Rosa chicle": "/img/productos/nuevas/jersey-basico-de-punto-con-puno-rosa-chicle.webp"
+   },
+   "image": "/img/productos/nuevas/jersey-basico-de-punto-con-puno-rosa-chicle.webp"
   },
   {
    "name": "Vaquero bomber con brillos",
@@ -93,10 +104,10 @@
    "description": "Rebeca de punto con licra y falso lencero de encaje debajo: efecto dos piezas en una sola prenda.",
    "badge": "Últimas unidades",
    "stock": 2,
-   "image": "/img/productos/nuevas/rebeca-con-falso-lencero-camel.webp",
    "colorImages": {
     "Camel": "/img/productos/nuevas/rebeca-con-falso-lencero-camel.webp"
-   }
+   },
+   "image": "/img/productos/nuevas/rebeca-con-falso-lencero-camel.webp"
   },
   {
    "name": "Jersey básico volante",
@@ -129,11 +140,7 @@
     "Marrón chocolate"
    ],
    "description": "Jersey básico con escote de pico en pecho y espalda, ceñido a la cintura.",
-   "stock": 6,
-   "image": "/img/productos/nuevas/jersey-de-punto-con-cuello-de-pico-marino.webp",
-   "colorImages": {
-    "Marino": "/img/productos/nuevas/jersey-de-punto-con-cuello-de-pico-marino.webp"
-   }
+   "stock": 6
   },
   {
    "name": "Jersey básico con pañuelo y camiseta",
@@ -228,17 +235,7 @@
     "Marino"
    ],
    "description": "Pantalón bomber satinado, cogido al tobillo.",
-   "stock": 1,
-   "image": "/img/productos/nuevas/pantalon-bomber-satinado-chocolate.webp",
-   "colorImages": {
-    "Chocolate": "/img/productos/nuevas/pantalon-bomber-satinado-chocolate.webp"
-   },
-   "colorGallery": {
-    "Chocolate": [
-     "/img/productos/nuevas/pantalon-bomber-satinado-chocolate-2.webp",
-     "/img/productos/nuevas/pantalon-bomber-satinado-chocolate-3.webp"
-    ]
-   }
+   "stock": 1
   },
   {
    "name": "Blusa satinada manga murciélago",
@@ -259,10 +256,10 @@
    ],
    "description": "Blusa satinada sin botones con manga murciélago.",
    "stock": 1,
-   "image": "/img/productos/nuevas/blusa-satinada-manga-murcielago-beige.webp",
    "colorImages": {
     "Beige": "/img/productos/nuevas/blusa-satinada-manga-murcielago-beige.webp"
-   }
+   },
+   "image": "/img/productos/nuevas/blusa-satinada-manga-murcielago-beige.webp"
   },
   {
    "name": "Pantalón chándal básico",
@@ -304,15 +301,10 @@
    ],
    "description": "Camiseta básica de licra de manga larga con cuello cuadrado.",
    "stock": 1,
-   "image": "/img/productos/nuevas/camiseta-basica-licra-manga-larga-cuello-cuadrado-chocolate.webp",
    "colorImages": {
     "Chocolate": "/img/productos/nuevas/camiseta-basica-licra-manga-larga-cuello-cuadrado-chocolate.webp"
    },
-   "colorGallery": {
-    "Chocolate": [
-     "/img/productos/nuevas/camiseta-basica-licra-manga-larga-cuello-cuadrado-chocolate-2.webp"
-    ]
-   }
+   "image": "/img/productos/nuevas/camiseta-basica-licra-manga-larga-cuello-cuadrado-chocolate.webp"
   },
   {
    "name": "Jersey punto cuello barco",
@@ -366,10 +358,10 @@
    "badge": "Últimas unidades",
    "stock": 5,
    "variantStockText": "Beige: M/L 1, XL/XXL 1; Camel: M/L 1, XL/XXL 0; Negro: M/L 1, XL/XXL 1",
-   "image": "/img/productos/nuevas/conjunto-de-punto-beige.webp",
    "colorImages": {
     "Beige": "/img/productos/nuevas/conjunto-de-punto-beige.webp"
-   }
+   },
+   "image": "/img/productos/nuevas/conjunto-de-punto-beige.webp"
   },
   {
    "name": "Leggings antilejía",
@@ -388,7 +380,11 @@
    ],
    "description": "Mallas de licra antilejía.",
    "stock": 10,
-   "variantStockText": "M/L 8, XL/XXL 2"
+   "variantStockText": "M/L 8, XL/XXL 2",
+   "colorImages": {
+    "Negro": "/img/productos/nuevas/leggings-antilejia-negro.webp"
+   },
+   "image": "/img/productos/nuevas/leggings-antilejia-negro.webp"
   },
   {
    "name": "Pantalón pinza capa de aire",
@@ -450,7 +446,8 @@
     "Gris"
    ],
    "stock": 7,
-   "variantStockText": "Marrón: S 2, M 0, L 4, XL 1"
+   "variantStockText": "Marrón: S 2, M 0, L 4, XL 1",
+   "image": "/img/productos/nuevas/leggings-barbie.webp"
   },
   {
    "name": "Vaquero faja pitillo",
@@ -477,11 +474,156 @@
    ],
    "description": "Vaquero de pierna ancha en azul medio con franja lateral en contraste color camel y cinturón de antelina a juego.",
    "stock": 1,
-   "image": "/img/productos/nuevas/vaquero-con-lateral-y-cinturon-antelina.webp",
-   "images": [
-    "/img/productos/nuevas/vaquero-con-lateral-y-cinturon-antelina-2.webp",
-    "/img/productos/nuevas/vaquero-con-lateral-y-cinturon-antelina-3.webp"
-   ]
+   "image": "/img/productos/nuevas/vaquero-con-lateral-y-cinturon-antelina.webp"
+  },
+  {
+   "name": "Pañoletas",
+   "category": "accesorios",
+   "categoryName": "Accesorios",
+   "price": 0,
+   "sizes": [
+    "Talla única"
+   ],
+   "colors": [
+    "Topos gris",
+    "Topos verde",
+    "Topos camel",
+    "Cenefa camel",
+    "Cenefa verde",
+    "Cenefa malva",
+    "Cenefa gris azul",
+    "Cenefa coral",
+    "Búhos turquesa",
+    "Búhos marino",
+    "Mariposas azul",
+    "Mariposas coral",
+    "Mariposas verde",
+    "Mosaico rosa",
+    "Mosaico azul",
+    "Mosaico multicolor"
+   ],
+   "description": "Pañoletas de tacto suave y tamaño amplio, para llevar al cuello o sobre los hombros. Cinco modelos: topos, cenefa geométrica, búhos, mariposas y mosaico, cada uno en varios colores.",
+   "stock": 16,
+   "colorImages": {
+    "Topos gris": "/img/productos/nuevas/panoletas-topos.webp",
+    "Topos verde": "/img/productos/nuevas/panoletas-topos.webp",
+    "Topos camel": "/img/productos/nuevas/panoletas-topos.webp",
+    "Cenefa camel": "/img/productos/nuevas/panoletas-cenefa.webp",
+    "Cenefa verde": "/img/productos/nuevas/panoletas-cenefa.webp",
+    "Cenefa malva": "/img/productos/nuevas/panoletas-cenefa.webp",
+    "Cenefa gris azul": "/img/productos/nuevas/panoletas-cenefa.webp",
+    "Cenefa coral": "/img/productos/nuevas/panoletas-cenefa.webp",
+    "Búhos turquesa": "/img/productos/nuevas/panoletas-buhos.webp",
+    "Búhos marino": "/img/productos/nuevas/panoletas-buhos.webp",
+    "Mariposas azul": "/img/productos/nuevas/panoletas-mariposas.webp",
+    "Mariposas coral": "/img/productos/nuevas/panoletas-mariposas.webp",
+    "Mariposas verde": "/img/productos/nuevas/panoletas-mariposas.webp",
+    "Mosaico rosa": "/img/productos/nuevas/panoletas-mosaico.webp",
+    "Mosaico azul": "/img/productos/nuevas/panoletas-mosaico.webp",
+    "Mosaico multicolor": "/img/productos/nuevas/panoletas-mosaico.webp"
+   },
+   "image": "/img/productos/nuevas/panoletas-topos.webp"
+  },
+  {
+   "name": "Poncho de flecos",
+   "category": "punto",
+   "categoryName": "Punto",
+   "price": 0,
+   "sizes": [
+    "Talla única"
+   ],
+   "colors": [
+    "Caldera"
+   ],
+   "description": "Poncho de punto calado con flecos en color caldera. Abriga sin pesar y da un toque boho a vaqueros y básicos.",
+   "stock": 1,
+   "colorImages": {
+    "Caldera": "/img/productos/nuevas/poncho-de-flecos-caldera.webp"
+   },
+   "image": "/img/productos/nuevas/poncho-de-flecos-caldera.webp"
+  },
+  {
+   "name": "Pantalón pirata de cuadros",
+   "previousNames": [
+    "Pantalón pirata",
+    "Pantalon pirata",
+    "Pantalón pirata cuadros"
+   ],
+   "category": "pantalones",
+   "categoryName": "Pantalones",
+   "price": 0,
+   "sizes": [
+    "Talla única"
+   ],
+   "colors": [
+    "Gris",
+    "Marino"
+   ],
+   "description": "Pantalón pirata de cuadros con pinzas, largo a media pierna. Combina con botines y jerséis lisos.",
+   "stock": 1,
+   "colorImages": {
+    "Gris": "/img/productos/nuevas/pantalon-pirata-de-cuadros-gris.webp",
+    "Marino": "/img/productos/nuevas/pantalon-pirata-de-cuadros-marino.webp"
+   },
+   "image": "/img/productos/nuevas/pantalon-pirata-de-cuadros-gris.webp"
+  },
+  {
+   "name": "Cinturón joya de espejos",
+   "category": "accesorios",
+   "categoryName": "Accesorios",
+   "price": 0,
+   "sizes": [
+    "Talla única"
+   ],
+   "colors": [
+    "Plateado"
+   ],
+   "description": "Cinturón joya plateado bordado con pequeños espejos en ondas y cadena. Perfecto para vestidos y looks de fiesta.",
+   "stock": 1,
+   "colorImages": {
+    "Plateado": "/img/productos/nuevas/cinturon-joya-de-espejos-plateado.webp"
+   },
+   "image": "/img/productos/nuevas/cinturon-joya-de-espejos-plateado.webp"
+  },
+  {
+   "name": "Cinturón corazones con hebilla",
+   "category": "accesorios",
+   "categoryName": "Accesorios",
+   "price": 0,
+   "sizes": [
+    "Talla única"
+   ],
+   "colors": [
+    "Marrón",
+    "Negro"
+   ],
+   "description": "Cinturón de polipiel con corazones calados, anillas doradas y hebilla vaquera labrada.",
+   "stock": 2,
+   "variantStockText": "Marrón 1, Negro 1",
+   "image": "/img/productos/nuevas/cinturon-corazones-con-hebilla.webp"
+  },
+  {
+   "name": "Cinturón ancho con bolsillo y tachas",
+   "category": "accesorios",
+   "categoryName": "Accesorios",
+   "price": 0,
+   "sizes": [
+    "Talla única"
+   ],
+   "colors": [
+    "Negro",
+    "Beige",
+    "Burdeos"
+   ],
+   "description": "Cinturón ancho de antelina con tachuelas doradas, hebilla dorada y bolsillo con broche: cinturón y mini riñonera en uno.",
+   "stock": 3,
+   "variantStockText": "Negro 1, Beige 1, Burdeos 1",
+   "colorImages": {
+    "Negro": "/img/productos/nuevas/cinturon-ancho-con-bolsillo-y-tachas-negro.webp",
+    "Beige": "/img/productos/nuevas/cinturon-ancho-con-bolsillo-y-tachas-beige-burdeos.webp",
+    "Burdeos": "/img/productos/nuevas/cinturon-ancho-con-bolsillo-y-tachas-beige-burdeos.webp"
+   },
+   "image": "/img/productos/nuevas/cinturon-ancho-con-bolsillo-y-tachas-negro.webp"
   },
   {
    "name": "Poncho básico",
@@ -498,31 +640,37 @@
    ],
    "description": "Poncho básico de punto fino con corte en pico. Ligero y muy fácil de combinar sobre jerséis y camisetas.",
    "stock": 1,
-   "image": "/img/productos/nuevas/poncho-basico-mostaza.webp",
    "colorImages": {
     "Mostaza": "/img/productos/nuevas/poncho-basico-mostaza.webp"
-   }
+   },
+   "image": "/img/productos/nuevas/poncho-basico-mostaza.webp"
   },
   {
    "name": "Bolso rojo",
    "category": "bolsos",
    "categoryName": "Bolsos",
    "price": 1990,
-   "stock": 1
+   "description": "Bolso de mano rígido en polipiel roja, con asas cortas y solapa con hebilla dorada.",
+   "stock": 1,
+   "image": "/img/productos/nuevas/bolso-rojo.webp"
   },
   {
    "name": "Bolso verde",
    "category": "bolsos",
    "categoryName": "Bolsos",
    "price": 1990,
-   "stock": 1
+   "description": "Bolso de mano en polipiel verde botella con cierre de giro dorado, bolsillos delanteros y asas cortas.",
+   "stock": 1,
+   "image": "/img/productos/nuevas/bolso-verde.webp"
   },
   {
    "name": "Bolso pelito gris",
    "category": "bolsos",
    "categoryName": "Bolsos",
    "price": 1890,
-   "stock": 1
+   "description": "Bolso bowling de pelito sintético gris marengo, con asas de polipiel y herrajes dorados.",
+   "stock": 1,
+   "image": "/img/productos/nuevas/bolso-pelito-gris.webp"
   },
   {
    "name": "Bolso pelito negro",
@@ -532,7 +680,18 @@
    "category": "bolsos",
    "categoryName": "Bolsos",
    "price": 1890,
-   "stock": 1
+   "description": "Bolso bowling de pelito sintético negro, con asas de polipiel y herrajes dorados.",
+   "stock": 1,
+   "image": "/img/productos/nuevas/bolso-pelito-negro.webp"
+  },
+  {
+   "name": "Bolso bowling gris",
+   "category": "bolsos",
+   "categoryName": "Bolsos",
+   "price": 0,
+   "description": "Bolso bowling en polipiel gris perla, con asas cortas, cremallera y herrajes dorados.",
+   "stock": 1,
+   "image": "/img/productos/nuevas/bolso-bowling-gris.webp"
   },
   {
    "name": "Ambientador Prady Jardín de gardenias",

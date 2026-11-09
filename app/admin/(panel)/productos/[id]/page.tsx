@@ -5,7 +5,7 @@ import { productImg } from '@/lib/data';
 import VariantEditor from '@/components/admin/VariantEditor';
 import ConfirmSubmit from '@/components/admin/ConfirmSubmit';
 import { saveProduct, removeProduct, createZoom, removeColorExtras, toggleHidden } from '../actions';
-import { hasRealPhoto } from '@/lib/store';
+import { hasRealPhoto, shownInShop } from '@/lib/store';
 import ZoomCropper from '@/components/admin/ZoomCropper';
 
 export const dynamic = 'force-dynamic';
@@ -23,9 +23,9 @@ export default async function EditProduct({ params, searchParams }: { params: { 
         <div>
           <Link href="/admin/productos" className="adm-back">← Productos</Link>
           <h1>{p.name}</h1>
-          <p>Ref. <b>{p.sku || '—'}</b> · {!p.hidden && hasRealPhoto(p)
+          <p>Ref. <b>{p.sku || '—'}</b> · {shownInShop(p)
             ? <Link className="adm-link" href={`/producto/${p.id}`} target="_blank">Ver en la tienda ↗</Link>
-            : <span className="adm-tag off">{p.hidden ? 'Oculto en la tienda' : 'No se ve en la tienda: le falta la foto'}</span>}</p>
+            : <span className="adm-tag off">{p.hidden ? 'Oculto en la tienda' : !hasRealPhoto(p) ? 'No se ve en la tienda: le falta la foto' : 'No se ve en la tienda: le falta el precio'}</span>}</p>
         </div>
         <form action={toggleHidden} className="adm-actions">
           <input type="hidden" name="id" value={p.id} />

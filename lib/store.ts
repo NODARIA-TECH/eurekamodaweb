@@ -46,7 +46,7 @@ async function write(db: DB): Promise<void> {
    · Antes guarda una copia completa en data/copias/ y deja un informe con lo que ha hecho.
    No duplica: empareja por nombre (sin tildes ni mayúsculas) o por el nombre anterior del Excel. */
 const CATALOG = path.join(DATA_DIR, 'catalogo.json');
-const CATALOG_VERSION = 2;
+const CATALOG_VERSION = 3;
 let migration: Promise<void> | null = null;
 
 type CatalogEntry = {
@@ -63,7 +63,7 @@ async function migrateCatalog(): Promise<void> {
   const raw = await fs.readFile(FILE, 'utf8');
   const db = JSON.parse(raw) as DB;
   if ((db.catalogVersion ?? 0) >= CATALOG_VERSION) return;
-  let catalog: { version: number; products: CatalogEntry[] };
+  let catalog: { version: number; products: CatalogEntry[]; removePhotos?: string[] };
   try { catalog = JSON.parse(await fs.readFile(CATALOG, 'utf8')); } catch { return; }
   if (!catalog || catalog.version < CATALOG_VERSION) return;
 
@@ -78,7 +78,19 @@ async function migrateCatalog(): Promise<void> {
     Object.values(p.colorImages || {}).some(realImg) || Object.values(p.colorGallery || {}).flat().some(realImg) ||
     hasCatalogPhoto(p.name);
   const empty = (v: unknown) => v === undefined || v === null || (Array.isArray(v) ? v.length === 0 : !String(v).trim());
-  const report = { creados: [] as string[], fotosYDatosAnadidos: [] as string[], sinTocarYaListos: [] as string[] };
+  const report = { creados: [] as string[], fotosYDatosAnadidos: [] as string[], sinTocarYaListos: [] as string[], fotosQuitadas: [] as string[] };
+
+  // Fotos que una carga anterior puso en el producto equivocado (una foto = un producto).
+  // Solo se quitan esas rutas exactas; nada más de ese producto cambia.
+  const wrong = new Set(catalog.removePhotos || []);
+  if (wrong.size) for (const p of db.products) {
+    const before = JSON.stringify(p);
+    if (p.images) p.images = p.images.filter((u) => !wrong.has(u));
+    if (p.colorImages) for (const [c, u] of Object.entries(p.colorImages)) if (wrong.has(u)) delete p.colorImages[c];
+    if (p.colorGallery) for (const c of Object.keys(p.colorGallery)) p.colorGallery[c] = p.colorGallery[c].filter((u) => !wrong.has(u));
+    if (wrong.has(p.image)) p.image = Object.values(p.colorImages || {}).find(realImg) || p.images?.find(realImg) || '26998033';
+    if (JSON.stringify(p) !== before) report.fotosQuitadas.push(p.name);
+  }
 
   // Categorías nuevas (las que ya existen no se tocan)
   const newCats = new Set<string>();
@@ -141,7 +153,7 @@ async function migrateCatalog(): Promise<void> {
   db.catalogVersion = CATALOG_VERSION;
   await write(db);
   await fs.writeFile(path.join(dir, `informe-carga-${stamp}.json`), JSON.stringify(report, null, 2), 'utf8');
-  console.log(`[catálogo] Productos cargados: ${report.creados.length} nuevos · ${report.fotosYDatosAnadidos.length} con fotos añadidas · ${report.sinTocarYaListos.length} ya listos sin tocar · informe en data/copias/informe-carga-${stamp}.json`);
+  console.log(`[catálogo] Productos cargados: ${report.creados.length} nuevos · ${report.fotosYDatosAnadidos.length} con fotos añadidas · ${report.sinTocarYaListos.length} ya listos sin tocar · ${report.fotosQuitadas.length} con fotos mal puestas quitadas · informe en data/copias/informe-carga-${stamp}.json`);
 }
 
 // Recalcula las variantes (talla × color) tras cambiar tallas/colores: conserva referencias y stock.
@@ -228,7 +240,7 @@ export function hasRealPhoto(p: Product): boolean {
   return realImg(p.image) || Object.values(p.colorImages || {}).some(realImg);
 }
 export function shownInShop(p: Product): boolean {
-  return !p.hidden && hasRealPhoto(p);
+  return !p.hidden && p.price > 0 && hasRealPhoto(p);   // sin precio tampoco se publica
 }
 // Lo que ve la clienta en la tienda (las lecturas del panel siguen viendo todo).
 export async function listShopProducts(): Promise<Product[]> {
