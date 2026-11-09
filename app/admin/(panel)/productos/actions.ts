@@ -269,7 +269,7 @@ function findProduct(products: Product[], key: string): Product | undefined {
   const ref = /^pek[\s-]?(\d{3,})$/i.exec(key.trim());
   if (ref) return products.find((p) => (p.sku || '').toUpperCase() === `PEK-${ref[1]}`);
   const k = nrm(key);
-  const exact = products.find((p) => nrm(p.name) === k);
+  const exact = products.find((p) => nrm(p.name) === k) || products.find((p) => (p.aliases || []).some((a) => nrm(a) === k));
   if (exact) return exact;
   const kt = toks(key);
   if (!kt.length) return undefined;

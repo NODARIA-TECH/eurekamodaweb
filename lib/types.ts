@@ -5,6 +5,7 @@ export type Category = { slug: string; name: string; image: string };
 export type Product = {
   id: string;
   hidden?: boolean;   // oculto a mano en la tienda (botón Ocultar del panel)
+  aliases?: string[]; // otros nombres con los que aparece en el Excel de la clienta (para no duplicar)
   slug: string;
   name: string;
   price: number;      // céntimos

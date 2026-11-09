@@ -104,8 +104,17 @@ async function migrateCatalog(): Promise<void> {
   const now = new Date().toISOString();
   for (const e of catalog.products) {
     const keys = [e.name, ...(e.previousNames || [])].map(nname);
-    const p = db.products.find((x) => nname(x.name) === nname(e.name)) || db.products.find((x) => keys.includes(nname(x.name)));
-    if (p && ready(p)) { report.sinTocarYaListos.push(p.name); continue; }   // ya está bien: ni se mira
+    const p = db.products.find((x) => nname(x.name) === nname(e.name)) ||
+      db.products.find((x) => keys.includes(nname(x.name)) || (x.aliases || []).some((a) => keys.includes(nname(a))));
+    const aliases = Array.from(new Set((e.previousNames || []).map((a) => a.trim()).filter((a) => a && nname(a) !== nname(e.name))));
+    if (p && ready(p)) {
+      // Ya está bien: no se cambia nada de lo que se ve. Solo se apunta (dato interno) el nombre con el
+      // que la clienta lo tiene en su Excel, para que al subirlo no se cree un duplicado.
+      const known = new Set([nname(p.name), ...(p.aliases || []).map(nname)]);
+      const add = [e.name, ...aliases].filter((x) => !known.has(nname(x)) && known.add(nname(x)));
+      if (add.length) p.aliases = [...(p.aliases || []), ...add];
+      report.sinTocarYaListos.push(p.name); continue;
+    }
     if (p) {
       // Existe con foto de prueba: fotos + solo campos vacíos
       const hadSizes = !empty(p.sizes), hadColors = !empty(p.colors);
@@ -124,6 +133,9 @@ async function migrateCatalog(): Promise<void> {
       if (Object.keys(cg).length) p.colorGallery = cg;
       if (!hadSizes || !hadColors) refreshVariants(p, hasVariants(p) ? undefined : e.variantStockText);
       p.updatedAt = now;
+      const known = new Set((p.aliases || []).map(nname));
+      const add = aliases.filter((a) => !known.has(nname(a)) && nname(a) !== nname(p.name));
+      if (add.length) p.aliases = [...(p.aliases || []), ...add];
       report.fotosYDatosAnadidos.push(p.name);
     } else {
       const prefix = process.env.EUREKA_SKU_PREFIX || 'PEK';
@@ -136,6 +148,7 @@ async function migrateCatalog(): Promise<void> {
         badge: e.badge, sku: `${prefix}-${String(n).padStart(4, '0')}`, sizes: e.sizes, colors: e.colors,
         description: e.description, details: e.details, images: e.images, colorImages: e.colorImages, colorGallery: e.colorGallery,
         updatedAt: now,
+        ...(aliases.length ? { aliases } : {}),
       };
       refreshVariants(prod, e.variantStockText);
       db.products.push(prod);
@@ -356,9 +369,13 @@ export async function upsertProductByName(data: ImportRow & { previousName?: str
   // Busca por el nombre actual; si no está y viene "nombre anterior", por ese (y lo renombra).
   const prev = data.previousName ? norm(data.previousName) : '';
   const byName = db.products.find((x) => norm(x.name) === target);
-  const p = byName || (prev ? db.products.find((x) => norm(x.name) === prev) : undefined);
+  // El Excel de la clienta puede llamar al producto como ella lo tiene (p. ej. "BOLSAO PELITO NEGRO"):
+  // se reconoce por sus otros nombres y se respeta el nombre de la web.
+  const byAlias = byName ? undefined : db.products.find((x) => (x.aliases || []).some((a) => norm(a) === target || (prev && norm(a) === prev)));
+  const p = byName || byAlias || (prev ? db.products.find((x) => norm(x.name) === prev) : undefined);
   if (p) {
-    const changed = applyRow(p, data, !byName);
+    if (byAlias) data = { ...data, name: p.name };
+    const changed = applyRow(p, data, !byName && !byAlias);
     if (changed) await write(db);
     return { created: false, changed, product: p };
   } // el alta la hace createProduct (genera SKU y slug)
