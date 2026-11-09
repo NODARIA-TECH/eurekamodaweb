@@ -7,7 +7,7 @@ import {
   upsertProductBySku, upsertProductByName, listCategories, createCategory, listProducts,
 } from '@/lib/store';
 import { requireAdmin } from '@/lib/admin-auth';
-import { saveUpload, saveUploadBuffer } from '@/lib/uploads';
+import { saveUpload, saveUploadBuffer, saveUploadBufferOnce } from '@/lib/uploads';
 import { unzipSync } from 'fflate';
 import { buildVariants, combos, totalStock, vkey } from '@/lib/variants';
 import type { Variant, Product } from '@/lib/types';
@@ -197,8 +197,10 @@ export async function importCsv(fd: FormData) {
 
   const cats = await listCategories();
   const slugs = new Set(cats.map((c) => c.slug));
-  let created = 0, updated = 0;
+  let created = 0, updated = 0, untouched = 0;
   const skipped: string[] = [];
+  // Por defecto, "solo completar lo que falta": lo que ya está bien en la web no se toca.
+  const fillOnly = fd.get('modo') !== 'todo';
 
   for (const r of rows) {
     const name = pick(r, ['nombre', 'name', 'producto']).replace(/\s+/g, ' ').trim();
@@ -224,15 +226,16 @@ export async function importCsv(fd: FormData) {
       keepStock: true, // al actualizar, el stock lo manda FacturaScripts
       previousName: pick(r, ['nombre_anterior', 'antes_se_llamaba']) || undefined,
       variantStockText: pick(r, ['stock_por_talla_y_color', 'stock_por_variante', 'stock_por_talla', 'stock_por_color']) || undefined,
+      fillOnly,
     };
     const sku = pick(r, ['referencia', 'sku', 'ref']);
     const { previousName, ...bySku } = data;
     const res = sku ? await upsertProductBySku({ sku, ...bySku }) : await upsertProductByName(data);
-    if (res.created) created++; else updated++;
+    if (res.created) created++; else if (res.changed) updated++; else untouched++;
   }
   refresh();
   await pingCatalogSync();
-  const q = new URLSearchParams({ imp: '1', c: String(created), u: String(updated), s: String(skipped.length) });
+  const q = new URLSearchParams({ imp: '1', c: String(created), u: String(updated), t: String(untouched), s: String(skipped.length), m: fillOnly ? 'f' : 'a' });
   if (skipped.length) q.set('sn', skipped.slice(0, 8).join(' · '));
   redirect('/admin/productos?' + q.toString());
 }
@@ -286,36 +289,49 @@ export async function importPhotos(fd: FormData) {
     if (files.length > 300) break;
   }
 
-  // 2) Repartir por producto
+  // 2) Repartir por producto. Nunca sustituye una foto que ya está puesta: solo rellena huecos.
+  //    · Sin foto principal real (vacía o de prueba): la primera que llegue hace de principal.
+  //    · "Producto__Color": foto de ese color si aún no tiene; si ya tiene, va a la galería de ese color.
+  //    · "Producto__Color (2)": galería de ese color.   · "Producto (2)": galería del producto.
+  //    · "Producto": principal si no tiene; si ya tiene, se añade a la galería.
   const products = await listProducts();
-  type Change = { image?: string; images: string[]; colorImages: Record<string, string> };
+  type Change = { image?: string; images: string[]; colorImages: Record<string, string>; colorGallery: Record<string, string[]> };
   const changes = new Map<string, Change>();
   const unmatched: string[] = [];
   const notes: string[] = [];
-  let assigned = 0;
+  let assigned = 0, already = 0;
+  const real = (src?: string) => !!src && /^(\/media\/|\/uploads\/|\/img\/|https?:)/.test(src);
+  const NUM = /\s*\((\d+)\)\s*$/;
 
+  // Orden: primero las fotos principales y de color, luego las de galería.
+  files.sort((x, y) => Number(NUM.test(x.name.replace(IMG_RE, ''))) - Number(NUM.test(y.name.replace(IMG_RE, ''))) || x.name.localeCompare(y.name, 'es'));
+  const known = new Set<string>(); // para no subir dos veces la misma foto
   for (const f of files) {
     const base = f.name.replace(IMG_RE, '').trim();
-    const [rawName, rawColor] = base.split('__');
-    const gallery = /\s*\((\d+)\)\s*$/.test(rawName);
-    const name = rawName.replace(/\s*\((\d+)\)\s*$/, '').trim();
-    const p = findProduct(products, name);
+    const [rawName0, rawColor0] = base.split('__');
+    const rawName = rawName0.replace(NUM, '').trim();
+    const rawColor = rawColor0 ? rawColor0.replace(NUM, '').trim() : '';
+    const gallery = NUM.test(rawColor0 ?? rawName0);
+    const p = findProduct(products, rawName);
     if (!p) { unmatched.push(base); continue; }
-    const url = await saveUploadBuffer(f.data, f.name);
+    const { url, existed } = await saveUploadBufferOnce(f.data, f.name);
     if (!url) { notes.push(`${base}: formato no válido`); continue; }
-    const ch = changes.get(p.id) || { images: [], colorImages: {} };
-    const noMain = !p.image || p.image === PLACEHOLDER;
-    if (rawColor) {
-      const color = (p.colors || []).find((c) => nrm(c) === nrm(rawColor));
-      if (color) {
-        ch.colorImages[color] = url;
-        if (noMain && !ch.image) ch.image = url; // sin foto principal: la del color hace de principal
-      } else {
-        if (noMain && !ch.image) ch.image = url; else ch.images.push(url);
-        notes.push(`${base}: "${rawColor.trim()}" no es un color de ${p.name} (añade el color y vuelve a subir la foto)`);
-      }
-    } else if (gallery) ch.images.push(url);
-    else ch.image = url;
+    const ch = changes.get(p.id) || { images: [], colorImages: {}, colorGallery: {} };
+    // ¿Ya tiene esta misma foto (de una subida anterior o repetida en el ZIP)? Entonces no se toca.
+    const all = [p.image, ...(p.images || []), ...Object.values(p.colorImages || {}), ...Object.values(p.colorGallery || {}).flat(),
+      ch.image, ...ch.images, ...Object.values(ch.colorImages), ...Object.values(ch.colorGallery).flat()];
+    if (known.has(p.id + url) || (existed && all.includes(url))) { already++; continue; }
+    known.add(p.id + url);
+    const hasMain = () => !!ch.image || real(p.image);
+    let color = rawColor ? (p.colors || []).find((c) => nrm(c) === nrm(rawColor)) : undefined;
+    if (rawColor && !color) notes.push(`${base}: "${rawColor}" no es un color de ${p.name} (añade el color en su ficha y vuelve a subirla)`);
+    if (color) {
+      const ownColor = ch.colorImages[color] || (p.colorImages || {})[color];
+      if (!gallery && !ownColor) ch.colorImages[color] = url;
+      else (ch.colorGallery[color] ||= []).push(url);
+      if (!hasMain()) ch.image = url; // sin foto principal: la del color hace de principal
+    } else if (!hasMain()) ch.image = url;
+    else ch.images.push(url);
     changes.set(p.id, ch);
     assigned++;
   }
@@ -324,14 +340,17 @@ export async function importPhotos(fd: FormData) {
     const p = products.find((x) => x.id === id)!;
     const image = ch.image || p.image;
     const images = Array.from(new Set([...(p.images || []), ...ch.images])).filter((x) => x !== image);
+    const colorGallery = { ...(p.colorGallery || {}) };
+    for (const [c, list] of Object.entries(ch.colorGallery)) colorGallery[c] = Array.from(new Set([...(colorGallery[c] || []), ...list]));
     await updateProduct(id, {
       image,
       images,
       colorImages: { ...(p.colorImages || {}), ...ch.colorImages },
+      colorGallery,
     });
   }
   refresh();
-  const q = new URLSearchParams({ fotos: '1', fa: String(assigned), fp: String(changes.size), fn: String(unmatched.length) });
+  const q = new URLSearchParams({ fotos: '1', fa: String(assigned), fp: String(changes.size), fn: String(unmatched.length), fy: String(already) });
   if (unmatched.length) q.set('fu', unmatched.slice(0, 10).join(' · '));
   if (notes.length) q.set('fx', notes.slice(0, 6).join(' · '));
   redirect('/admin/productos?' + q.toString());

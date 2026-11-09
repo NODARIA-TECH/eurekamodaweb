@@ -19,7 +19,7 @@ function pending(p: Product): string[] {
   return out;
 }
 
-type SP = { q?: string; cat?: string; imp?: string; c?: string; u?: string; s?: string; sn?: string; borrado?: string; f?: string; fotos?: string; fa?: string; fp?: string; fn?: string; fu?: string; fx?: string };
+type SP = { fy?: string; m?: string; t?: string; q?: string; cat?: string; imp?: string; c?: string; u?: string; s?: string; sn?: string; borrado?: string; f?: string; fotos?: string; fa?: string; fp?: string; fn?: string; fu?: string; fx?: string };
 
 export default async function ProductosAdmin({ searchParams }: { searchParams: SP }) {
   const [all, categories] = await Promise.all([listProducts(), listCategories()]);
@@ -48,7 +48,8 @@ export default async function ProductosAdmin({ searchParams }: { searchParams: S
 
       {searchParams.imp && (
         <div className="adm-ok">
-          Importación terminada: <b>{searchParams.c}</b> nuevos · <b>{searchParams.u}</b> actualizados
+          Importación terminada: <b>{searchParams.c}</b> nuevos · <b>{searchParams.u}</b> {searchParams.m === 'f' ? 'completados' : 'actualizados'}
+          {Number(searchParams.t) > 0 && <> · <b>{searchParams.t}</b> sin cambios (ya estaban bien)</>}
           {Number(searchParams.s) > 0 && <> · <b>{searchParams.s}</b> omitidos por no tener precio ({searchParams.sn})</>}.
         </div>
       )}
@@ -56,6 +57,7 @@ export default async function ProductosAdmin({ searchParams }: { searchParams: S
       {searchParams.fotos && (
         <div className="adm-ok">
           Fotos colocadas: <b>{searchParams.fa}</b> en <b>{searchParams.fp}</b> productos.
+          {Number(searchParams.fy) > 0 && <> <b>{searchParams.fy}</b> ya estaban puestas (no se repiten).</>}
           {Number(searchParams.fn) > 0 && <> No se encontró el producto de <b>{searchParams.fn}</b>: {searchParams.fu}. Revisa que el nombre del archivo sea el del producto.</>}
           {searchParams.fx && <div style={{ marginTop: 6 }}>Avisos: {searchParams.fx}</div>}
         </div>
@@ -158,6 +160,12 @@ export default async function ProductosAdmin({ searchParams }: { searchParams: S
           <form action={importCsv} className="adm-form">
             <label style={{ gridColumn: '1 / -1' }}>Archivo (.xlsx o .csv)
               <input name="file" type="file" accept=".csv,text/csv,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required />
+            </label>
+            <label style={{ gridColumn: '1 / -1' }}>Si el producto ya está en la web
+              <select name="modo" defaultValue="completar">
+                <option value="completar">Solo completar lo que le falta (no toca precio, fotos, stock ni textos ya puestos)</option>
+                <option value="todo">Actualizar todo con lo que diga el Excel</option>
+              </select>
             </label>
             <button className="btn-sm gold" type="submit" style={{ height: 40 }}>Importar</button>
           </form>

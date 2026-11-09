@@ -55,3 +55,25 @@ async function saveBuffer(input: Buffer, ext: string): Promise<string | null> {
     return '/media/' + name;
   }
 }
+
+// Igual que saveUploadBuffer, pero si esa misma foto (mismos bytes) ya se subió antes,
+// devuelve la que ya existe en vez de crear otra copia. Así subir dos veces el mismo ZIP no duplica.
+const INDEX = path.join(UPLOAD_DIR, 'index.json');
+export async function saveUploadBufferOnce(input: Buffer, filename: string): Promise<{ url: string | null; existed: boolean }> {
+  const { createHash } = await import('crypto');
+  const hash = createHash('sha1').update(new Uint8Array(input)).digest('hex');
+  let index: Record<string, string> = {};
+  try { index = JSON.parse(await fs.readFile(INDEX, 'utf8')); } catch { /* aún no hay índice */ }
+  const prev = index[hash];
+  if (prev) {
+    try { await fs.access(path.join(UPLOAD_DIR, prev.replace('/media/', ''))); return { url: prev, existed: true }; } catch { /* se borró: se vuelve a guardar */ }
+  }
+  const url = await saveUploadBuffer(input, filename);
+  if (url) {
+    index[hash] = url;
+    const tmp = INDEX + '.' + process.pid + '.tmp';
+    await fs.writeFile(tmp, JSON.stringify(index));
+    await fs.rename(tmp, INDEX);
+  }
+  return { url, existed: false };
+}

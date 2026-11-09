@@ -16,7 +16,12 @@ export default function ProductDetail({ p, categoryName, initialColor, compact }
   const out = p.stock <= 0;
 
   const vmode = hasVariants(p);
-  const firstColor = (initialColor && colors.includes(initialColor) ? initialColor : undefined) ?? colors.find((c) => colorAvailable(p, c)) ?? colors[0] ?? '';
+  // Color inicial: el pedido en la URL; si no, el de la foto principal; si no, uno con foto; si no, el primero con stock.
+  const ci = p.colorImages || {};
+  const firstColor = (initialColor && colors.includes(initialColor) ? initialColor : undefined)
+    ?? colors.find((c) => ci[c] === p.image && colorAvailable(p, c))
+    ?? colors.find((c) => ci[c] && colorAvailable(p, c))
+    ?? colors.find((c) => colorAvailable(p, c)) ?? colors[0] ?? '';
   const [color, setColor] = useState<string>(firstColor);
   const [size, setSize] = useState<string>(sizes.length === 1 ? sizes[0] : '');
   // Unidades de una talla en el color elegido (sin stock por variante: el total).

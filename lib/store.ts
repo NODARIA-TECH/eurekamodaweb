@@ -144,13 +144,26 @@ export async function deleteProduct(id: string): Promise<void> {
   await write(db);
 }
 
-/* -------- Sincronización con FacturaScripts -------- */
-// Alta/actualización de producto por SKU (referencia). FS->web para artículos creados en FacturaScripts.
-export async function upsertProductBySku(data: { sku: string; name: string; price: number; stock?: number; category?: string; image?: string; badge?: string; sizes?: string[]; colors?: string[]; description?: string; details?: string; keepStock?: boolean; variantStockText?: string }): Promise<{ created: boolean; product: Product }> {
-  const db = await read();
-  const sku = data.sku.trim();
-  let p = db.products.find((x) => x.sku && x.sku.toLowerCase() === sku.toLowerCase());
-  if (p) {
+// Datos de una fila del Excel.
+type ImportRow = { name: string; price: number; stock?: number; category?: string; image?: string; badge?: string; sizes?: string[]; colors?: string[]; description?: string; details?: string; keepStock?: boolean; variantStockText?: string; fillOnly?: boolean };
+export type ImportResult = { created: boolean; changed: boolean; product: Product };
+
+// Aplica una fila del Excel a un producto que ya existe.
+// fillOnly ("solo completar lo que falta"): no cambia nada que ya tenga valor (nombre, precio,
+// fotos, stock, textos). Solo rellena campos vacíos. Así los productos ya listos no se tocan.
+function applyRow(p: Product, data: ImportRow, renamed: boolean): boolean {
+  const before = JSON.stringify(p);
+  const empty = (v: unknown) => v === undefined || v === null || (Array.isArray(v) ? v.length === 0 : !String(v).trim());
+  if (data.fillOnly) {
+    // Renombrar solo si se pide con "Nombre anterior", o si el nombre actual está todo en MAYÚSCULAS.
+    if (renamed || (p.name === p.name.toUpperCase() && /[A-Z]/.test(p.name))) p.name = data.name;
+    if (!p.price && data.price) p.price = data.price;
+    if (empty(p.badge) && data.badge) p.badge = data.badge;
+    if (empty(p.sizes) && data.sizes?.length) p.sizes = data.sizes;
+    if (empty(p.colors) && data.colors?.length) p.colors = data.colors;
+    if (empty(p.description) && data.description) p.description = data.description;
+    if (empty(p.details) && data.details) p.details = data.details;
+  } else {
     p.name = data.name;
     p.price = data.price;
     if (data.category) p.category = data.category;
@@ -161,47 +174,51 @@ export async function upsertProductBySku(data: { sku: string; name: string; pric
     if (data.colors !== undefined) p.colors = data.colors;
     if (data.description !== undefined) p.description = data.description;
     if (data.details !== undefined) p.details = data.details;
-    refreshVariants(p, data.variantStockText);
-    p.updatedAt = new Date().toISOString();
-    await write(db);
-    return { created: false, product: p };
   }
-  const slug = (data.name).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || sku.toLowerCase();
+  refreshVariants(p, data.variantStockText);
+  const changed = JSON.stringify(p) !== before;
+  if (changed) p.updatedAt = new Date().toISOString();
+  return changed;
+}
+
+
+/* -------- Sincronización con FacturaScripts -------- */
+// Alta/actualización de producto por SKU (referencia). FS->web para artículos creados en FacturaScripts.
+export async function upsertProductBySku(data: ImportRow & { sku: string }): Promise<ImportResult> {
+  const db = await read();
+  const sku = data.sku.trim();
+  let p = db.products.find((x) => x.sku && x.sku.toLowerCase() === sku.toLowerCase());
+  if (p) {
+    const changed = applyRow(p, data, false);
+    if (changed) await write(db);
+    return { created: false, changed, product: p };
+  }
+  const slug = (data.name).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || sku.toLowerCase();
   p = { id: randomUUID().slice(0, 8), slug, name: data.name, price: data.price, image: data.image || '26998033', stock: data.stock ?? 0, category: data.category || 'tops', badge: data.badge, sku, sizes: data.sizes, colors: data.colors, description: data.description, details: data.details, updatedAt: new Date().toISOString() };
   refreshVariants(p, data.variantStockText);
   db.products.push(p);
   await write(db);
-  return { created: true, product: p };
+  return { created: true, changed: true, product: p };
 }
 
 // Alta/actualización por NOMBRE (para importaciones de Excel SIN referencia).
 // Empareja por nombre normalizado (ignora mayúsculas/acentos/espacios) para no duplicar.
 // Si el existente no tiene SKU aún, NO lo inventa aquí (se respeta el que ya tenga).
-export async function upsertProductByName(data: { name: string; price: number; stock?: number; category?: string; image?: string; badge?: string; sizes?: string[]; colors?: string[]; description?: string; details?: string; keepStock?: boolean; previousName?: string; variantStockText?: string }): Promise<{ created: boolean; product: Product }> {
+export async function upsertProductByName(data: ImportRow & { previousName?: string }): Promise<ImportResult> {
   const db = await read();
-  const norm = (s: string) => s.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ');
+  const norm = (s: string) => s.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ');
   const target = norm(data.name);
   // Busca por el nombre actual; si no está y viene "nombre anterior", por ese (y lo renombra).
   const prev = data.previousName ? norm(data.previousName) : '';
-  const p = db.products.find((x) => norm(x.name) === target) || (prev ? db.products.find((x) => norm(x.name) === prev) : undefined);
+  const byName = db.products.find((x) => norm(x.name) === target);
+  const p = byName || (prev ? db.products.find((x) => norm(x.name) === prev) : undefined);
   if (p) {
-    p.name = data.name;
-    p.price = data.price;
-    if (data.category) p.category = data.category;
-    if (data.image) p.image = data.image;
-    if (data.badge !== undefined) p.badge = data.badge;
-    if (data.stock !== undefined && !data.keepStock) p.stock = data.stock; // keepStock: el stock lo manda FS
-    if (data.sizes !== undefined) p.sizes = data.sizes;
-    if (data.colors !== undefined) p.colors = data.colors;
-    if (data.description !== undefined) p.description = data.description;
-    if (data.details !== undefined) p.details = data.details;
-    refreshVariants(p, data.variantStockText);
-    p.updatedAt = new Date().toISOString();
-    await write(db);
-    return { created: false, product: p };
-  } // sin cambios; el alta la hace createProduct (genera SKU y slug)
+    const changed = applyRow(p, data, !byName);
+    if (changed) await write(db);
+    return { created: false, changed, product: p };
+  } // el alta la hace createProduct (genera SKU y slug)
   const created = await createProduct({ name: data.name, price: data.price, stock: data.stock ?? 0, category: data.category || 'tops', image: data.image || '26998033', badge: data.badge, sizes: data.sizes, colors: data.colors, description: data.description, details: data.details }, { variantStockText: data.variantStockText });
-  return { created: true, product: created };
+  return { created: true, changed: true, product: created };
 }
 
 // Ajuste de stock por SKU (FS manda sobre el stock). No toca campos de catálogo.
