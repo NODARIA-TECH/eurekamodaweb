@@ -145,7 +145,7 @@ export default async function ProductosAdmin({ searchParams }: { searchParams: S
         </p>
         <form action={importPhotos} className="adm-form">
           <label style={{ gridColumn: '1 / -1' }}>Fotos o ZIP
-            <input name="fotos" type="file" multiple accept="image/*,.zip,application/zip" required />
+            <input name="fotos" type="file" multiple accept="image/*,.heic,.heif,.zip,application/zip" required />
           </label>
           <button className="btn-sm gold" type="submit" style={{ height: 40 }}>Subir y colocar</button>
         </form>

@@ -8,7 +8,7 @@ import {
   setProductHidden,
 } from '@/lib/store';
 import { requireAdmin } from '@/lib/admin-auth';
-import { saveUpload, saveUploadBuffer, saveUploadBufferOnce } from '@/lib/uploads';
+import { saveUpload, saveUploadBuffer, saveUploadBufferOnce, sniffImage } from '@/lib/uploads';
 import { unzipSync } from 'fflate';
 import { buildVariants, combos, totalStock, vkey } from '@/lib/variants';
 import type { Variant, Product } from '@/lib/types';
@@ -261,7 +261,7 @@ export async function importCsv(fd: FormData) {
      "PEK-0951.jpg" / "PEK-0951__Negro.jpg" -> por referencia
    El producto se busca por referencia, por nombre exacto (sin tildes ni mayúsculas)
    o, si no, por el nombre que más se parezca (si no hay duda). */
-const IMG_RE = /\.(jpe?g|png|webp|avif|gif|heic|heif)$/i;
+const IMG_RE = /\.(jpe?g|jfif|png|webp|avif|gif|heic|heif|tiff?|bmp)$/i;
 const nrm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[_.]+/g, ' ').replace(/\s+/g, ' ').trim();
 const toks = (s: string) => nrm(s).replace(/[^a-z0-9 ]/g, ' ').split(' ').filter((w) => w.length >= 3);
 
@@ -293,11 +293,12 @@ export async function importPhotos(fd: FormData) {
         const entries = unzipSync(new Uint8Array(buf));
         for (const [path, data] of Object.entries(entries)) {
           const base = path.split('/').pop() || '';
-          if (!data.length || path.startsWith('__MACOSX') || base.startsWith('.') || !IMG_RE.test(base)) continue;
+          if (!data.length || path.startsWith('__MACOSX') || base.startsWith('.')) continue;
+          if (!IMG_RE.test(base) && !sniffImage(Buffer.from(data))) continue;   // también fotos sin extensión
           files.push({ name: base, data: Buffer.from(data) });
         }
       } catch { /* ZIP dañado: se ignora */ }
-    } else if (IMG_RE.test(f.name || '')) files.push({ name: f.name, data: buf });
+    } else if (IMG_RE.test(f.name || '') || sniffImage(buf)) files.push({ name: f.name, data: buf });
     if (files.length > 300) break;
   }
 

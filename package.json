@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "fflate": "^0.8.2",
+    "heic-convert": "^2.1.0",
     "jsbarcode": "^3.11.6",
     "jspdf": "^2.5.2",
     "next": "14.2.35",

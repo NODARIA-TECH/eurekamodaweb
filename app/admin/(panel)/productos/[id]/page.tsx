@@ -92,7 +92,7 @@ export default async function EditProduct({ params, searchParams }: { params: { 
               ) : <p className="adm-help">Todavía no tiene fotos.</p>}
               <label className="ve-upload pe-up">
                 Añadir fotos (puedes elegir varias)
-                <input type="file" name="galeria" accept="image/*" multiple />
+                <input type="file" name="galeria" accept="image/*,.heic,.heif" multiple />
               </label>
               <p className="adm-help">Se optimizan solas. La marcada como <b>Principal</b> es la que sale en el catálogo.</p>
             </section>

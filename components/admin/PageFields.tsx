@@ -214,7 +214,7 @@ export function MediaPicker({ onClose, onPick }: { onClose: () => void; onPick: 
   }, [items, tab, q]);
 
   async function upload(files: FileList | File[] | null) {
-    const f = files && Array.from(files).find((x) => x.type.startsWith('image/') || /\.(heic|heif)$/i.test(x.name));
+    const f = files && Array.from(files).find((x) => x.type.startsWith('image/') || /\.(heic|heif|jpe?g|png|webp)$/i.test(x.name) || !x.type);
     if (!f) { setErr('Elige un archivo de imagen.'); return; }
     setErr(''); setUp(0);
     try {

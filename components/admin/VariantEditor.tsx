@@ -113,7 +113,7 @@ export default function VariantEditor({ sizes: s0, colors: c0, colorImages, gall
                     <div className="ve-cname"><span className="adm-dot" style={{ background: swatch(c) }} />{c}{!shown && <span className="adm-tag warn">sin foto</span>}</div>
                     <label className="ve-upload">
                       Subir foto de este color
-                      <input type="file" name={`cfoto:${c}`} accept="image/*" />
+                      <input type="file" name={`cfoto:${c}`} accept="image/*,.heic,.heif" />
                     </label>
                     {gallery.length > 0 && (
                       <div className="ve-pick">
