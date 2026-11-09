@@ -1,6 +1,6 @@
 // Subida de fotos del panel. Se guardan en data/uploads (persistente, fuera de public/,
 // que Next solo sirve si existía al compilar) y se sirven por la ruta /media/[archivo].
-// Si sharp está disponible, se redimensionan a 1600px y se convierten a WebP (pesan ~10 veces menos).
+// Si sharp está disponible, se dejan en 2000 px como máximo (calidad alta para el zoom) y en WebP.
 import { promises as fs } from 'fs';
 import path from 'path';
 import { randomUUID } from 'crypto';
@@ -41,8 +41,8 @@ async function saveBuffer(input: Buffer, ext: string): Promise<string | null> {
     const sharp = (await import('sharp')).default;
     const out = await sharp(input, { failOn: 'none' })
       .rotate() // respeta la orientación de las fotos del móvil
-      .resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true })
-      .webp({ quality: 82 })
+      .resize({ width: 2000, height: 2000, fit: 'inside', withoutEnlargement: true, kernel: 'lanczos3' })
+      .webp({ quality: 88, smartSubsample: true })
       .toBuffer();
     const name = id + '.webp';
     await fs.writeFile(path.join(UPLOAD_DIR, name), new Uint8Array(out));

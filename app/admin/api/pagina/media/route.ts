@@ -43,8 +43,8 @@ export async function GET(req: Request) {
   // Fotos de la web (portada y lookbook)
   for (const f of await dir('img/home')) add({ src: `/img/home/${f}`, name: pretty(f), group: 'web' });
   for (const f of await dir('img/look')) add({ src: `/img/look/${f}`, name: 'Look · ' + pretty(f), group: 'web' });
-  for (const [src, name] of Array.from(named)) if (!src.startsWith('/media/')) add({ src, name, group: 'productos' });
-  for (const f of await dir('img/productos', (f) => !/-(encuadre|detalle)\./.test(f))) add({ src: `/img/productos/${f}`, name: pretty(f), group: 'productos' });
+  for (const [src, name] of Array.from(named)) if (!src.startsWith('/media/') && !/-m\.webp$/.test(src)) add({ src, name, group: 'productos' });
+  for (const f of await dir('img/productos', (f) => !/-(encuadre|detalle|m)\./.test(f))) add({ src: `/img/productos/${f}`, name: pretty(f), group: 'productos' });
 
   return NextResponse.json({ items }, { headers: noCache });
 }

@@ -110,9 +110,9 @@ section{padding-block:clamp(50px,6vw,92px)}
 .rail{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(220px,1fr);gap:clamp(14px,2vw,22px);overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:8px;scrollbar-width:thin}
 .rail::-webkit-scrollbar{height:6px}.rail::-webkit-scrollbar-thumb{background:var(--hair-2);border-radius:999px}
 .pc{scroll-snap-align:start}
-.pc .img{position:relative;border-radius:12px;overflow:hidden;aspect-ratio:3/4;transition:.25s}
+.pc .img{position:relative;border-radius:12px;overflow:hidden;aspect-ratio:2/3;transition:.25s;background:var(--cream)}
 .pc:hover .img{transform:translateY(-5px);box-shadow:0 26px 46px -32px rgba(100,80,50,.55)}
-.pc .img img{width:100%;height:100%;object-fit:cover;transition:transform .5s ease}
+.pc .img img{width:100%;height:100%;object-fit:cover;object-position:50% 30%;transition:transform .5s ease}
 .pc:hover .img img{transform:scale(1.05)}
 .pc .bd{position:absolute;top:11px;left:11px;background:var(--bg);color:var(--gold-deep);font-family:"Jost",sans-serif;font-weight:600;font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;padding:5px 10px;border-radius:999px}
 .pc .fav{position:absolute;top:9px;right:9px;width:32px;height:32px;border-radius:999px;border:none;background:rgba(255,255,255,.9);color:var(--wood);display:grid;place-items:center;opacity:0;transform:translateY(-4px);transition:.2s}
@@ -193,8 +193,8 @@ section{padding-block:clamp(50px,6vw,92px)}
 .crumbs{font-family:"Jost",sans-serif;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:20px}
 .crumbs a:hover{color:var(--wood-deep)}
 .pdp{display:grid;grid-template-columns:1fr 1fr;gap:clamp(24px,4vw,56px);align-items:start}
-.pdp-img{border-radius:16px;overflow:hidden;aspect-ratio:3/4;background:var(--cream)}
-.pdp-img img{width:100%;height:100%;object-fit:cover}
+.pdp-img{border-radius:16px;overflow:hidden;aspect-ratio:2/3;background:var(--cream)}
+.pdp-img img{width:100%;height:100%;object-fit:cover;object-position:50% 30%}
 .pdp-info{padding-top:8px}
 .pdp-info h1{font-family:"Cormorant Garamond",serif;font-size:clamp(2rem,4vw,3rem);color:var(--ink);margin:6px 0 10px}
 .pdp-price{font-family:"Jost",sans-serif;font-weight:700;font-size:1.3rem;color:var(--gold-deep);margin-bottom:18px}
@@ -444,7 +444,7 @@ section{padding-block:clamp(50px,6vw,92px)}
 /* ===================== Ficha de producto (galería, colores, acordeones) ===================== */
 .pdp-media{position:sticky;top:96px;display:flex;flex-direction:column;gap:12px}
 .pdp-thumbs{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px}
-.pdp-thumb{flex:0 0 auto;width:72px;aspect-ratio:3/4;border-radius:10px;overflow:hidden;border:2px solid transparent;padding:0;background:var(--cream);cursor:pointer;transition:.15s}
+.pdp-thumb{flex:0 0 auto;width:72px;aspect-ratio:2/3;border-radius:10px;overflow:hidden;border:2px solid transparent;padding:0;background:var(--cream);cursor:pointer;transition:.15s}
 .pdp-thumb img{width:100%;height:100%;object-fit:cover}
 .pdp-thumb.on{border-color:var(--ink)}.pdp-thumb:hover{border-color:var(--gold)}
 .pdp-opt{margin-bottom:20px}
@@ -675,7 +675,7 @@ a.lb-tag:hover .lb-tag-go{color:var(--gold-deep)}
 .lbx-nav{position:absolute;top:50%;transform:translateY(-50%);width:48px;height:48px;border-radius:999px;border:1px solid var(--hair-2);background:rgba(255,255,255,.9);color:var(--ink);display:grid;place-items:center;cursor:pointer;z-index:2}
 .lbx-nav.prev{left:16px}.lbx-nav.next{right:16px}
 .lbx-thumbs{display:flex;gap:8px;justify-content:center;padding:10px 12px 6px;overflow-x:auto}
-.lbx-thumbs button{flex:0 0 auto;width:52px;aspect-ratio:3/4;padding:0;border:2px solid transparent;border-radius:8px;overflow:hidden;background:var(--cream);cursor:pointer;opacity:.7}
+.lbx-thumbs button{flex:0 0 auto;width:52px;aspect-ratio:2/3;padding:0;border:2px solid transparent;border-radius:8px;overflow:hidden;background:var(--cream);cursor:pointer;opacity:.7}
 .lbx-thumbs button.on{border-color:var(--ink);opacity:1}
 .lbx-thumbs img{width:100%;height:100%;object-fit:cover}
 .lbx-hint{text-align:center;font-family:"Jost",sans-serif;font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding:2px 0 12px}

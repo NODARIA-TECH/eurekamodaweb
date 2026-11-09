@@ -13,6 +13,9 @@ export function pexels(id: string, w = 600, h = 800): string {
 export const SIN_FOTO = '/img/sin-foto.svg';
 export function productImg(image?: string, w = 600, h = 800): string {
   const v = (image || '').trim();
+  // Fotos de producto incluidas en la web: en tarjetas y miniaturas, la versión ligera (-m, 700 px);
+  // en la ficha y la pantalla completa, la original a máxima calidad.
+  if (v.startsWith('/img/productos/') && w <= 700 && v.endsWith('.webp') && !v.endsWith('-m.webp')) return v.slice(0, -5) + '-m.webp';
   if (v.startsWith('/media/') || v.startsWith('/uploads/') || v.startsWith('/img/') || v.startsWith('http://') || v.startsWith('https://')) return v;
   // Sin foto real (vacía o la de prueba de la demo): imagen neutra de EUREKA, nunca una foto que no es la prenda.
   return SIN_FOTO;
