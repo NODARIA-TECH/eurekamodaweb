@@ -6,7 +6,7 @@ import { randomUUID } from 'crypto';
 import type { DB, Product, Category, Customer, Order, OrderItem } from './types';
 import { hasVariants, findVariant, buildVariants, totalStock, vkey, vlabel } from './variants';
 import { parseVariantStock } from './catalog-normalize';
-import { withCatalogPhotos } from './catalog-photos';
+import { withCatalogPhotos, hasCatalogPhoto } from './catalog-photos';
 import { hashPassword, verifyPassword } from './auth';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -24,6 +24,7 @@ async function ensureFile(): Promise<void> {
 
 async function read(): Promise<DB> {
   await ensureFile();
+  await (migration ||= migrateCatalog().catch((e) => { console.error('[catálogo] No se pudo cargar el catálogo nuevo:', e); migration = null; }));
   const raw = await fs.readFile(FILE, 'utf8');
   return JSON.parse(raw) as DB;
 }
@@ -32,6 +33,136 @@ async function write(db: DB): Promise<void> {
   const tmp = `${FILE}.${process.pid}.${randomUUID().slice(0, 8)}.tmp`;
   await fs.writeFile(tmp, JSON.stringify(db, null, 2) + '\n', 'utf8');
   await fs.rename(tmp, FILE);
+}
+
+/* ---------- Reinicio del catálogo (se ejecuta solo, una vez, al arrancar tras el despliegue) ----------
+   Carga data/catalogo.json (productos de la plantilla EUREKA con sus fotos, que van en
+   public/img/productos/nuevas) dentro de los datos reales:
+   · Antes guarda una copia completa en data/copias/.
+   · Quita los 10 productos de prueba de la demo (si nadie les ha puesto foto real).
+   · Productos que ya están LISTOS (con foto real): no se tocan; solo se rellenan huecos
+     (tallas, colores, descripción… vacíos y fotos de colores que no tengan).
+   · Productos que existían sin foto real: se actualizan con lo del catálogo.
+   · Productos nuevos: se crean con su referencia PEK correlativa.
+   · Nunca toca pedidos, clientas, referencias PEK ni el stock que ya lleva FacturaScripts.
+   No duplica: empareja por nombre (sin tildes ni mayúsculas) o por el nombre anterior. */
+const CATALOG = path.join(DATA_DIR, 'catalogo.json');
+const CATALOG_VERSION = 2;
+const DEMO_IDS = new Set(['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9', 'p10']);
+let migration: Promise<void> | null = null;
+
+type CatalogEntry = {
+  name: string; previousNames?: string[]; category: string; categoryName: string; price: number;
+  sizes?: string[]; colors?: string[]; description?: string; details?: string; badge?: string;
+  stock?: number; variantStockText?: string; image?: string; images?: string[];
+  colorImages?: Record<string, string>; colorGallery?: Record<string, string[]>;
+};
+
+const realImg = (src?: string) => !!src && /^(\/media\/|\/uploads\/|\/img\/|https?:)/.test(src);
+const nname = (s: string) => s.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ');
+
+async function migrateCatalog(): Promise<void> {
+  const raw = await fs.readFile(FILE, 'utf8');
+  const db = JSON.parse(raw) as DB;
+  if ((db.catalogVersion ?? 0) >= CATALOG_VERSION) return;
+  let catalog: { version: number; products: CatalogEntry[] };
+  try { catalog = JSON.parse(await fs.readFile(CATALOG, 'utf8')); } catch { return; }
+  if (!catalog || catalog.version < CATALOG_VERSION) return;
+
+  // Copia de seguridad de todo tal cual estaba
+  const dir = path.join(DATA_DIR, 'copias');
+  await fs.mkdir(dir, { recursive: true });
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  await fs.writeFile(path.join(dir, `antes-del-reinicio-${stamp}.json`), raw, 'utf8');
+
+  const ready = (p: Product) => realImg(p.image) || !!p.images?.some(realImg) ||
+    Object.values(p.colorImages || {}).some(realImg) || hasCatalogPhoto(p.name);
+  const empty = (v: unknown) => v === undefined || v === null || (Array.isArray(v) ? v.length === 0 : !String(v).trim());
+  const report = { demoRemoved: 0, created: 0, updated: 0, completed: 0 };
+
+  // 1) Fuera los productos de prueba de la demo
+  const before = db.products.length;
+  db.products = db.products.filter((p) => !(DEMO_IDS.has(p.id) && !ready(p)));
+  report.demoRemoved = before - db.products.length;
+
+  // 2) Categorías que falten
+  for (const e of catalog.products) {
+    if (!db.categories.some((c) => c.slug === e.category)) db.categories.push({ slug: e.category, name: e.categoryName, image: '26998033' });
+  }
+
+  // 3) Productos
+  const addPhotos = (p: Product, e: CatalogEntry, setMain: boolean) => {
+    if (setMain && e.image && !realImg(p.image)) p.image = e.image;
+    const colorImages = { ...(p.colorImages || {}) };
+    for (const [c, url] of Object.entries(e.colorImages || {})) {
+      const col = (p.colors || []).find((x) => nname(x) === nname(c));
+      if (col && !colorImages[col]) colorImages[col] = url;
+    }
+    if (Object.keys(colorImages).length) p.colorImages = colorImages;
+    const colorGallery = { ...(p.colorGallery || {}) };
+    for (const [c, list] of Object.entries(e.colorGallery || {})) {
+      const col = (p.colors || []).find((x) => nname(x) === nname(c));
+      if (col) colorGallery[col] = Array.from(new Set([...(colorGallery[col] || []), ...list]));
+    }
+    if (Object.keys(colorGallery).length) p.colorGallery = colorGallery;
+    const images = Array.from(new Set([...(p.images || []), ...(e.images || [])])).filter((x) => x !== p.image);
+    if (images.length) p.images = images;
+  };
+
+  for (const e of catalog.products) {
+    const keys = [e.name, ...(e.previousNames || [])].map(nname);
+    const p = db.products.find((x) => nname(x.name) === nname(e.name)) || db.products.find((x) => keys.includes(nname(x.name)));
+    const now = new Date().toISOString();
+    if (p) {
+      if (ready(p)) {
+        // Listo: solo huecos
+        if (nname(p.name) !== nname(e.name) || (p.name === p.name.toUpperCase() && /[A-Z]/.test(p.name))) p.name = e.name;
+        if (!p.price) p.price = e.price;
+        if (empty(p.badge) && e.badge) p.badge = e.badge;
+        if (empty(p.sizes) && e.sizes) p.sizes = e.sizes;
+        if (empty(p.colors) && e.colors) p.colors = e.colors;
+        if (empty(p.description) && e.description) p.description = e.description;
+        if (empty(p.details) && e.details) p.details = e.details;
+        addPhotos(p, e, !hasCatalogPhoto(p.name));
+        report.completed++;
+      } else {
+        // Sin foto real: manda el catálogo (se conservan id, referencia PEK y stock de FS)
+        p.name = e.name; p.price = e.price; p.category = e.category;
+        p.sizes = e.sizes ?? p.sizes; p.colors = e.colors ?? p.colors; p.description = e.description ?? p.description; p.details = e.details ?? p.details; p.badge = e.badge ?? p.badge;
+        if (!p.stock && !hasVariants(p) && e.stock) p.stock = e.stock;
+        addPhotos(p, e, true);
+        report.updated++;
+      }
+      refreshVariants(p, e.variantStockText);
+      p.updatedAt = now;
+    } else {
+      const prefix = process.env.EUREKA_SKU_PREFIX || 'PEK';
+      const n = (db.lastSkuNumber ?? 0) + 1;
+      db.lastSkuNumber = n;
+      const prod: Product = {
+        id: randomUUID().slice(0, 8),
+        slug: nname(e.name).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
+        name: e.name, price: e.price, image: e.image || '26998033', stock: e.stock ?? 0, category: e.category,
+        badge: e.badge, sku: `${prefix}-${String(n).padStart(4, '0')}`, sizes: e.sizes, colors: e.colors,
+        description: e.description, details: e.details, images: e.images, colorImages: e.colorImages, colorGallery: e.colorGallery,
+        updatedAt: now,
+      };
+      refreshVariants(prod, e.variantStockText);
+      db.products.push(prod);
+      report.created++;
+    }
+  }
+
+  // 4) Categorías sin foto: la de su primer producto con foto
+  for (const c of db.categories) {
+    if (realImg(c.image)) continue;
+    const p = db.products.map(withCatalogPhotos).find((x) => x.category === c.slug && realImg(x.image));
+    if (p) c.image = p.image;
+  }
+
+  db.catalogVersion = CATALOG_VERSION;
+  await write(db);
+  console.log('[catálogo] Reinicio aplicado:', JSON.stringify(report), `· copia en data/copias/antes-del-reinicio-${stamp}.json`);
 }
 
 // Recalcula las variantes (talla × color) tras cambiar tallas/colores: conserva referencias y stock.

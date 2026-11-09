@@ -66,4 +66,5 @@ export type DB = {
   orders: Order[];
   lastOrderNumber: number;
   lastSkuNumber?: number;  // contador para SKU automáticos (EUR-0001…)
+  catalogVersion?: number; // versión del catálogo cargado (lib/store.ts → migrateCatalog)
 };

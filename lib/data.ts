@@ -10,11 +10,12 @@ export function pexels(id: string, w = 600, h = 800): string {
 // - foto subida (/uploads/...) o URL completa -> se usa tal cual
 // - id de Pexels (valor antiguo) -> se construye la URL de Pexels
 // - vacío -> placeholder
+export const SIN_FOTO = '/img/sin-foto.svg';
 export function productImg(image?: string, w = 600, h = 800): string {
   const v = (image || '').trim();
-  if (!v) return pexels('26998033', w, h);
   if (v.startsWith('/media/') || v.startsWith('/uploads/') || v.startsWith('/img/') || v.startsWith('http://') || v.startsWith('https://')) return v;
-  return pexels(v, w, h);
+  // Sin foto real (vacía o la de prueba de la demo): imagen neutra de EUREKA, nunca una foto que no es la prenda.
+  return SIN_FOTO;
 }
 
 // Foto a mostrar para un color concreto (si tiene foto propia), si no la principal.

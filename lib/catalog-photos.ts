@@ -77,3 +77,8 @@ export function withCatalogPhotos(p: Product): Product {
     colorGallery: Object.keys(colorGallery).length ? colorGallery : undefined,  // [] = sin extras
   };
 }
+
+// ¿Este producto tiene fotos reales incluidas en la web (no de prueba)?
+export function hasCatalogPhoto(name: string): boolean {
+  return !!entryFor(name);
+}

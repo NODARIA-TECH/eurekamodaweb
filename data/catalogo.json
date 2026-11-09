@@ -1,0 +1,653 @@
+{
+ "version": 2,
+ "note": "Catálogo EUREKA cargado en el reinicio (lib/catalog-migrate.ts). Fotos en public/img/productos/nuevas.",
+ "products": [
+  {
+   "name": "Camiseta brillo cuello holgado",
+   "category": "camisetas",
+   "categoryName": "Camisetas",
+   "price": 1400,
+   "colors": [
+    "Dorado",
+    "Plateado",
+    "Negro"
+   ],
+   "description": "Camiseta de cuello holgado en tejido con brillo. Ideal para dar un toque especial a cualquier look.",
+   "stock": 6,
+   "image": "/img/productos/nuevas/camiseta-brillo-cuello-holgado-negro.webp",
+   "colorImages": {
+    "Negro": "/img/productos/nuevas/camiseta-brillo-cuello-holgado-negro.webp"
+   }
+  },
+  {
+   "name": "Falda larga polipiel y encaje",
+   "category": "faldas",
+   "categoryName": "Faldas",
+   "price": 2400,
+   "colors": [
+    "Negro"
+   ],
+   "description": "Falda larga de polipiel con corte asimétrico y terminada en encaje.",
+   "stock": 3
+  },
+  {
+   "name": "Jersey básico de punto sin puño",
+   "category": "punto",
+   "categoryName": "Punto",
+   "price": 1400,
+   "colors": [
+    "Marino",
+    "Azulón",
+    "Rosa bebé",
+    "Coral",
+    "Gris",
+    "Beige",
+    "Verde oliva",
+    "Verde grisáceo",
+    "Verde turquesa"
+   ],
+   "description": "Jersey básico de punto sin puño y con cuello semicisne. Suave y muy confortable: un fondo de armario que combina con todo.",
+   "stock": 15
+  },
+  {
+   "name": "Jersey básico de punto con puño",
+   "category": "punto",
+   "categoryName": "Punto",
+   "price": 1400,
+   "colors": [
+    "Rosa fucsia",
+    "Rosa chicle",
+    "Rojo",
+    "Lila",
+    "Marino",
+    "Beige",
+    "Verde botella",
+    "Caldera",
+    "Gris",
+    "Azulón",
+    "Negro",
+    "Verde pistacho",
+    "Verde agua"
+   ],
+   "description": "Jersey básico de punto con puño y cuello semicisne. Suave y confortable, en una amplia gama de colores.",
+   "stock": 16
+  },
+  {
+   "name": "Vaquero bomber con brillos",
+   "category": "jeans",
+   "categoryName": "Jeans",
+   "price": 2600,
+   "description": "Vaquero de corte bomber, cogido al tobillo, con detalles de brillo.",
+   "stock": 5
+  },
+  {
+   "name": "Rebeca con falso lencero",
+   "category": "punto",
+   "categoryName": "Punto",
+   "price": 1990,
+   "colors": [
+    "Negro",
+    "Burdeos",
+    "Camel"
+   ],
+   "description": "Rebeca de punto con licra y falso lencero de encaje debajo: efecto dos piezas en una sola prenda.",
+   "badge": "Últimas unidades",
+   "stock": 2,
+   "image": "/img/productos/nuevas/rebeca-con-falso-lencero-camel.webp",
+   "colorImages": {
+    "Camel": "/img/productos/nuevas/rebeca-con-falso-lencero-camel.webp"
+   }
+  },
+  {
+   "name": "Jersey básico volante",
+   "category": "punto",
+   "categoryName": "Punto",
+   "price": 1690,
+   "colors": [
+    "Burdeos",
+    "Marrón chocolate",
+    "Marino",
+    "Rojo",
+    "Beige",
+    "Rosa bebé",
+    "Gris",
+    "Negro"
+   ],
+   "description": "Jersey básico de licra con volante en cuello y puños.",
+   "stock": 8
+  },
+  {
+   "name": "Jersey de punto con cuello de pico",
+   "category": "punto",
+   "categoryName": "Punto",
+   "price": 1990,
+   "colors": [
+    "Blanco",
+    "Marino",
+    "Gris",
+    "Verde botella",
+    "Marrón chocolate"
+   ],
+   "description": "Jersey básico con escote de pico en pecho y espalda, ceñido a la cintura.",
+   "stock": 6,
+   "image": "/img/productos/nuevas/jersey-de-punto-con-cuello-de-pico-marino.webp",
+   "colorImages": {
+    "Marino": "/img/productos/nuevas/jersey-de-punto-con-cuello-de-pico-marino.webp"
+   }
+  },
+  {
+   "name": "Jersey básico con pañuelo y camiseta",
+   "category": "punto",
+   "categoryName": "Punto",
+   "price": 1690,
+   "colors": [
+    "Beige",
+    "Marino",
+    "Gris",
+    "Burdeos"
+   ],
+   "description": "Conjunto de 3 piezas: jersey básico, camiseta y pañuelo a juego.",
+   "stock": 4
+  },
+  {
+   "name": "Vestido polipiel manga abullonada",
+   "previousNames": [
+    "vestido cuero manga abullonada"
+   ],
+   "category": "vestidos",
+   "categoryName": "Vestidos",
+   "price": 2600,
+   "colors": [
+    "Marrón",
+    "Negro"
+   ],
+   "description": "Vestido de polipiel con manga abullonada.",
+   "badge": "Últimas unidades",
+   "stock": 2
+  },
+  {
+   "name": "Sudadera de rayas",
+   "previousNames": [
+    "Sudadera rayas"
+   ],
+   "category": "sudaderas",
+   "categoryName": "Sudaderas",
+   "price": 1690,
+   "colors": [
+    "Caqui/Militar",
+    "Chocolate/Beige",
+    "Burdeos/Fucsia",
+    "Fucsia/Naranja"
+   ],
+   "description": "Sudadera de rayas de colores con motivos caninos.",
+   "stock": 5
+  },
+  {
+   "name": "Jersey de hilo media manga",
+   "category": "punto",
+   "categoryName": "Punto",
+   "price": 1290,
+   "colors": [
+    "Lila",
+    "Marrón chocolate",
+    "Gris marengo",
+    "Coral",
+    "Blanco roto",
+    "Verde militar",
+    "Azul marino"
+   ],
+   "description": "Jersey de hilo de media manga con cuello de pico. Ligero, perfecto para el entretiempo.",
+   "stock": 8
+  },
+  {
+   "name": "Camiseta hombreras y encaje",
+   "category": "camisetas",
+   "categoryName": "Camisetas",
+   "price": 1690,
+   "colors": [
+    "Blanco",
+    "Burdeos",
+    "Negro",
+    "Camel"
+   ],
+   "description": "Camiseta de licra con hombreras y detalle de encaje.",
+   "stock": 7
+  },
+  {
+   "name": "Pantalón bomber satinado",
+   "category": "pantalones",
+   "categoryName": "Pantalones",
+   "price": 1600,
+   "colors": [
+    "Negro",
+    "Beige",
+    "Taupe",
+    "Chocolate",
+    "Verde militar",
+    "Burdeos",
+    "Marino"
+   ],
+   "description": "Pantalón bomber satinado, cogido al tobillo.",
+   "stock": 1,
+   "image": "/img/productos/nuevas/pantalon-bomber-satinado-chocolate.webp",
+   "colorImages": {
+    "Chocolate": "/img/productos/nuevas/pantalon-bomber-satinado-chocolate.webp"
+   },
+   "colorGallery": {
+    "Chocolate": [
+     "/img/productos/nuevas/pantalon-bomber-satinado-chocolate-2.webp",
+     "/img/productos/nuevas/pantalon-bomber-satinado-chocolate-3.webp"
+    ]
+   }
+  },
+  {
+   "name": "Blusa satinada manga murciélago",
+   "previousNames": [
+    "Blusa satinada sin botones manga murcielago"
+   ],
+   "category": "camisas",
+   "categoryName": "Camisas",
+   "price": 1800,
+   "colors": [
+    "Verde militar",
+    "Beige",
+    "Chocolate",
+    "Taupe",
+    "Negro",
+    "Marino",
+    "Caldera"
+   ],
+   "description": "Blusa satinada sin botones con manga murciélago.",
+   "stock": 1,
+   "image": "/img/productos/nuevas/blusa-satinada-manga-murcielago-beige.webp",
+   "colorImages": {
+    "Beige": "/img/productos/nuevas/blusa-satinada-manga-murcielago-beige.webp"
+   }
+  },
+  {
+   "name": "Pantalón chándal básico",
+   "previousNames": [
+    "PANTALON CHANDAL BASICO (ZARA)"
+   ],
+   "category": "pantalones",
+   "categoryName": "Pantalones",
+   "price": 1690,
+   "colors": [
+    "Verde militar",
+    "Beige",
+    "Chocolate",
+    "Taupe",
+    "Negro",
+    "Marino",
+    "Caldera"
+   ],
+   "description": "Pantalón de chándal básico.",
+   "stock": 1
+  },
+  {
+   "name": "Camiseta básica licra manga larga cuello cuadrado",
+   "previousNames": [
+    "CAMISETA BASICA DE LICRA MANGA LARGA CUELLO CUADRADO"
+   ],
+   "category": "camisetas",
+   "categoryName": "Camisetas",
+   "price": 1290,
+   "colors": [
+    "Verde militar",
+    "Beige",
+    "Chocolate",
+    "Taupe",
+    "Negro",
+    "Marino",
+    "Caldera",
+    "Burdeos"
+   ],
+   "description": "Camiseta básica de licra de manga larga con cuello cuadrado.",
+   "stock": 1,
+   "image": "/img/productos/nuevas/camiseta-basica-licra-manga-larga-cuello-cuadrado-chocolate.webp",
+   "colorImages": {
+    "Chocolate": "/img/productos/nuevas/camiseta-basica-licra-manga-larga-cuello-cuadrado-chocolate.webp"
+   },
+   "colorGallery": {
+    "Chocolate": [
+     "/img/productos/nuevas/camiseta-basica-licra-manga-larga-cuello-cuadrado-chocolate-2.webp"
+    ]
+   }
+  },
+  {
+   "name": "Jersey punto cuello barco",
+   "category": "punto",
+   "categoryName": "Punto",
+   "price": 1690,
+   "colors": [
+    "Beige",
+    "Blanco roto",
+    "Gris",
+    "Marino"
+   ],
+   "description": "Jersey de punto canalé con cuello barco y corte entallado.",
+   "stock": 1
+  },
+  {
+   "name": "Jersey peluche",
+   "category": "punto",
+   "categoryName": "Punto",
+   "price": 2290,
+   "colors": [
+    "Verde agua",
+    "Verde lima",
+    "Verde flúor",
+    "Naranja",
+    "Rojo",
+    "Amarillo",
+    "Lila"
+   ],
+   "description": "Jersey de lana con tacto peluche.",
+   "stock": 1
+  },
+  {
+   "name": "Conjunto de punto",
+   "previousNames": [
+    "CONJUJNTOS DE PUNTO"
+   ],
+   "category": "punto",
+   "categoryName": "Punto",
+   "price": 2600,
+   "sizes": [
+    "M/L",
+    "XL/XXL"
+   ],
+   "colors": [
+    "Beige",
+    "Camel",
+    "Negro"
+   ],
+   "description": "Conjunto de punto de calidad superior: jersey de cuello vuelto y pantalón ancho a juego.",
+   "badge": "Últimas unidades",
+   "stock": 5,
+   "variantStockText": "Beige: M/L 1, XL/XXL 1; Camel: M/L 1, XL/XXL 0; Negro: M/L 1, XL/XXL 1",
+   "image": "/img/productos/nuevas/conjunto-de-punto-beige.webp",
+   "colorImages": {
+    "Beige": "/img/productos/nuevas/conjunto-de-punto-beige.webp"
+   }
+  },
+  {
+   "name": "Leggings antilejía",
+   "previousNames": [
+    "LEGGINS ANTILEJIA"
+   ],
+   "category": "leggings",
+   "categoryName": "Leggings",
+   "price": 990,
+   "sizes": [
+    "M/L",
+    "XL/XXL"
+   ],
+   "colors": [
+    "Negro"
+   ],
+   "description": "Mallas de licra antilejía.",
+   "stock": 10,
+   "variantStockText": "M/L 8, XL/XXL 2"
+  },
+  {
+   "name": "Pantalón pinza capa de aire",
+   "category": "pantalones",
+   "categoryName": "Pantalones",
+   "price": 1690,
+   "sizes": [
+    "Talla única"
+   ],
+   "colors": [
+    "Blanco",
+    "Gris",
+    "Marino",
+    "Verde botella",
+    "Chocolate"
+   ],
+   "description": "Pantalón de pinza en tejido capa de aire, con cintura elástica.",
+   "stock": 1
+  },
+  {
+   "name": "Zapatillas deportivas inspiración",
+   "previousNames": [
+    "ZAPATILLLAS DE DEPORTE INSPIRACION"
+   ],
+   "category": "deportivas",
+   "categoryName": "Deportivas",
+   "price": 2490,
+   "sizes": [
+    "36",
+    "37",
+    "38",
+    "39",
+    "40",
+    "41"
+   ],
+   "description": "Zapatillas deportivas de estilo retro con suela gruesa en naranja y empeine combinado en negro, morado y fucsia, con cordones morados. Cómodas y muy llamativas.",
+   "stock": 1,
+   "image": "/img/productos/nuevas/zapatillas-deportivas-inspiracion.webp"
+  },
+  {
+   "name": "Leggings Barbie",
+   "previousNames": [
+    "LEGGINS BARBIE"
+   ],
+   "category": "leggings",
+   "categoryName": "Leggings",
+   "price": 990,
+   "sizes": [
+    "S",
+    "M",
+    "L",
+    "XL"
+   ],
+   "colors": [
+    "Rojo",
+    "Marrón",
+    "Negro",
+    "Marino",
+    "Gris"
+   ],
+   "stock": 7,
+   "variantStockText": "Marrón: S 2, M 0, L 4, XL 1"
+  },
+  {
+   "name": "Vaquero faja pitillo",
+   "category": "jeans",
+   "categoryName": "Jeans",
+   "price": 2290,
+   "sizes": [
+    "36",
+    "38",
+    "40"
+   ],
+   "stock": 1
+  },
+  {
+   "name": "Vaquero con lateral y cinturón antelina",
+   "category": "jeans",
+   "categoryName": "Jeans",
+   "price": 2490,
+   "sizes": [
+    "S",
+    "M",
+    "L",
+    "XL"
+   ],
+   "description": "Vaquero de pierna ancha en azul medio con franja lateral en contraste color camel y cinturón de antelina a juego.",
+   "stock": 1,
+   "image": "/img/productos/nuevas/vaquero-con-lateral-y-cinturon-antelina.webp",
+   "images": [
+    "/img/productos/nuevas/vaquero-con-lateral-y-cinturon-antelina-2.webp",
+    "/img/productos/nuevas/vaquero-con-lateral-y-cinturon-antelina-3.webp"
+   ]
+  },
+  {
+   "name": "Poncho básico",
+   "category": "punto",
+   "categoryName": "Punto",
+   "price": 1690,
+   "sizes": [
+    "Talla única"
+   ],
+   "colors": [
+    "Camel",
+    "Chocolate",
+    "Mostaza"
+   ],
+   "description": "Poncho básico de punto fino con corte en pico. Ligero y muy fácil de combinar sobre jerséis y camisetas.",
+   "stock": 1,
+   "image": "/img/productos/nuevas/poncho-basico-mostaza.webp",
+   "colorImages": {
+    "Mostaza": "/img/productos/nuevas/poncho-basico-mostaza.webp"
+   }
+  },
+  {
+   "name": "Bolso rojo",
+   "category": "bolsos",
+   "categoryName": "Bolsos",
+   "price": 1990,
+   "stock": 1
+  },
+  {
+   "name": "Bolso verde",
+   "category": "bolsos",
+   "categoryName": "Bolsos",
+   "price": 1990,
+   "stock": 1
+  },
+  {
+   "name": "Bolso pelito gris",
+   "category": "bolsos",
+   "categoryName": "Bolsos",
+   "price": 1890,
+   "stock": 1
+  },
+  {
+   "name": "Bolso pelito negro",
+   "previousNames": [
+    "BOLSAO PELITO NEGRO"
+   ],
+   "category": "bolsos",
+   "categoryName": "Bolsos",
+   "price": 1890,
+   "stock": 1
+  },
+  {
+   "name": "Ambientador Prady Jardín de gardenias",
+   "previousNames": [
+    "AMBIENTADORES PRADY JARDIN DE GARDENIAS"
+   ],
+   "category": "ambientadores",
+   "categoryName": "Ambientadores",
+   "price": 390,
+   "description": "Ambientador de hogar en spray Prady Home Spray, 220 ml. Aroma jardín de gardenias. Unas pulverizaciones bastan para perfumar cualquier estancia de casa.",
+   "stock": 1,
+   "image": "/img/productos/nuevas/ambientador-prady-jardin-de-gardenias.webp",
+   "images": [
+    "/img/productos/nuevas/ambientador-prady-jardin-de-gardenias-2.webp"
+   ]
+  },
+  {
+   "name": "Ambientador Prady Fashion Shop",
+   "previousNames": [
+    "AMBIENTADORES PRADY FASHION SHOP"
+   ],
+   "category": "ambientadores",
+   "categoryName": "Ambientadores",
+   "price": 390,
+   "description": "Ambientador de hogar en spray Prady Home Spray, 220 ml. Aroma Fashion Shop. Unas pulverizaciones bastan para perfumar cualquier estancia de casa.",
+   "stock": 1,
+   "image": "/img/productos/nuevas/ambientador-prady-fashion-shop.webp",
+   "images": [
+    "/img/productos/nuevas/ambientador-prady-fashion-shop-2.webp",
+    "/img/productos/nuevas/ambientador-prady-fashion-shop-3.webp"
+   ]
+  },
+  {
+   "name": "Ambientador Prady Yani",
+   "previousNames": [
+    "AMBIENTADORES PRADY YANY",
+    "Ambientador Prady Yany"
+   ],
+   "category": "ambientadores",
+   "categoryName": "Ambientadores",
+   "price": 390,
+   "description": "Ambientador de hogar en spray Prady Home Spray, 220 ml. Aroma Yani. Unas pulverizaciones bastan para perfumar cualquier estancia de casa.",
+   "stock": 1,
+   "image": "/img/productos/nuevas/ambientador-prady-yani.webp",
+   "images": [
+    "/img/productos/nuevas/ambientador-prady-yani-2.webp"
+   ]
+  },
+  {
+   "name": "Ambientador Prady Citronela",
+   "previousNames": [
+    "AMBIENTADORES PRADY CITRONELA"
+   ],
+   "category": "ambientadores",
+   "categoryName": "Ambientadores",
+   "price": 390,
+   "description": "Ambientador de hogar en spray Prady Home Spray, 220 ml. Aroma citronela. Unas pulverizaciones bastan para perfumar cualquier estancia de casa.",
+   "stock": 1,
+   "image": "/img/productos/nuevas/ambientador-prady-citronela.webp",
+   "images": [
+    "/img/productos/nuevas/ambientador-prady-citronela-2.webp"
+   ]
+  },
+  {
+   "name": "Ambientador Prady Océano",
+   "previousNames": [
+    "AMBIENTADORES PRADY OCÉANO"
+   ],
+   "category": "ambientadores",
+   "categoryName": "Ambientadores",
+   "price": 390,
+   "description": "Ambientador de hogar en spray Prady Home Spray, 220 ml. Aroma océano. Unas pulverizaciones bastan para perfumar cualquier estancia de casa.",
+   "stock": 1,
+   "image": "/img/productos/nuevas/ambientador-prady-oceano.webp",
+   "images": [
+    "/img/productos/nuevas/ambientador-prady-oceano-2.webp"
+   ]
+  },
+  {
+   "name": "Ambientador Prady Pirate",
+   "previousNames": [
+    "AMBIENTADORES PRADY PIRATE"
+   ],
+   "category": "ambientadores",
+   "categoryName": "Ambientadores",
+   "price": 390,
+   "description": "Ambientador de hogar en spray Prady Home Spray, 220 ml. Aroma Pirate. Unas pulverizaciones bastan para perfumar cualquier estancia de casa.",
+   "stock": 1,
+   "image": "/img/productos/nuevas/ambientador-prady-pirate.webp",
+   "images": [
+    "/img/productos/nuevas/ambientador-prady-pirate-2.webp"
+   ]
+  },
+  {
+   "name": "Ambientador Prady Canela y naranja",
+   "previousNames": [
+    "AMBIENTADORES PRADY CANELA Y NARANJA"
+   ],
+   "category": "ambientadores",
+   "categoryName": "Ambientadores",
+   "price": 390,
+   "description": "Ambientador de hogar en spray Prady Home Spray, 220 ml. Aroma canela y naranja. Unas pulverizaciones bastan para perfumar cualquier estancia de casa.",
+   "stock": 1
+  },
+  {
+   "name": "Ambientador Prady Fresa y nata",
+   "category": "ambientadores",
+   "categoryName": "Ambientadores",
+   "price": 390,
+   "description": "Ambientador de hogar en spray Prady Home Spray, 220 ml. Aroma fresa y nata. Unas pulverizaciones bastan para perfumar cualquier estancia de casa.",
+   "stock": 1,
+   "image": "/img/productos/nuevas/ambientador-prady-fresa-y-nata.webp",
+   "images": [
+    "/img/productos/nuevas/ambientador-prady-fresa-y-nata-2.webp"
+   ]
+  }
+ ]
+}
