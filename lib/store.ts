@@ -221,6 +221,29 @@ export async function getProduct(id: string): Promise<Product | undefined> {
 export async function productsByCategory(slug: string): Promise<Product[]> {
   return (await read()).products.filter((p) => p.category === slug).map(withCatalogPhotos);
 }
+
+// ¿Se ve en la tienda? No, si está oculto a mano o si no tiene ninguna foto real
+// (vacía o la de prueba). En cuanto se le pone una foto, aparece sola.
+export function hasRealPhoto(p: Product): boolean {
+  return realImg(p.image) || Object.values(p.colorImages || {}).some(realImg);
+}
+export function shownInShop(p: Product): boolean {
+  return !p.hidden && hasRealPhoto(p);
+}
+// Lo que ve la clienta en la tienda (las lecturas del panel siguen viendo todo).
+export async function listShopProducts(): Promise<Product[]> {
+  return (await listProducts()).filter(shownInShop);
+}
+export async function shopProductsByCategory(slug: string): Promise<Product[]> {
+  return (await productsByCategory(slug)).filter(shownInShop);
+}
+export async function setProductHidden(id: string, hidden: boolean): Promise<void> {
+  const db = await read();
+  const p = db.products.find((x) => x.id === id);
+  if (!p) return;
+  if (hidden) p.hidden = true; else delete p.hidden;   // no cambia la fecha: no salta en el orden
+  await write(db);
+}
 export async function createProduct(data: Omit<Product, 'id' | 'slug'> & { slug?: string }, opts?: { variantStockText?: string }): Promise<Product> {
   const db = await read();
   const slug = (data.slug || data.name).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');

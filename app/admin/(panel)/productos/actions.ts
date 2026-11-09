@@ -5,6 +5,7 @@ import * as XLSX from 'xlsx';
 import {
   createProduct, updateProduct, deleteProduct, getProduct,
   upsertProductBySku, upsertProductByName, listCategories, createCategory, listProducts,
+  setProductHidden,
 } from '@/lib/store';
 import { requireAdmin } from '@/lib/admin-auth';
 import { saveUpload, saveUploadBuffer, saveUploadBufferOnce } from '@/lib/uploads';
@@ -134,6 +135,17 @@ export async function saveProduct(fd: FormData) {
   refresh(id);
   await pingCatalogSync();
   redirect(`/admin/productos/${id}?ok=1`);
+}
+
+// Botón Ocultar / Mostrar en la tienda
+export async function toggleHidden(fd: FormData) {
+  requireAdmin();
+  const id = String(fd.get('id') || '');
+  const hide = fd.get('hide') === '1';
+  await setProductHidden(id, hide);
+  refresh(id);
+  const back = String(fd.get('back') || '');
+  redirect(back.startsWith('/admin/') ? back : '/admin/productos');
 }
 
 export async function removeProduct(fd: FormData) {

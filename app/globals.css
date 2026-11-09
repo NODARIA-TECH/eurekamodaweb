@@ -891,3 +891,6 @@ a.cg{display:block}
 .pv-embed .pv-sec:hover::after{outline-color:rgba(194,160,83,.9);color:#fff;text-shadow:0 1px 0 #8a6b25,0 0 8px rgba(0,0,0,.4)}
 .pv-embed .pv-sec.pv-on::after{outline:3px solid var(--gold);outline-offset:-3px;color:#fff;text-shadow:0 1px 0 #8a6b25,0 0 8px rgba(0,0,0,.4)}
 .pv-hidden{background:repeating-linear-gradient(45deg,#f4efe4 0 10px,#efe8da 10px 20px);color:var(--muted);font-family:"Jost",sans-serif;font-size:.72rem;text-align:center;padding:8px}
+.adm-tag.off{background:#efe9df;color:#6b5d48;border:1px dashed #cdbfa6}
+.adm-acts{display:flex;gap:6px;align-items:center;white-space:nowrap}
+.adm-acts form{margin:0}

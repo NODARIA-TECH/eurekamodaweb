@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getProduct, getCategory, listProducts } from '@/lib/store';
+import { getProduct, getCategory, listShopProducts, shownInShop } from '@/lib/store';
 import { looksFor } from '@/lib/lookbook';
 import { productImg } from '@/lib/data';
 import ProductDetail from '@/components/ProductDetail';
@@ -21,10 +21,10 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 
 export default async function ProductPage({ params, searchParams }: { params: { id: string }; searchParams: { color?: string } }) {
   const p = await getProduct(params.id);
-  if (!p) notFound();
+  if (!p || !shownInShop(p)) notFound();   // oculto o sin foto: no se publica
   const cat = await getCategory(p.category);
   const categoryName = cat?.name || p.category;
-  const looks = looksFor(p, await listProducts());
+  const looks = looksFor(p, await listShopProducts());
   const initialColor = searchParams.color && p.colors?.includes(searchParams.color) ? searchParams.color : undefined;
   return (
     <main className="page">

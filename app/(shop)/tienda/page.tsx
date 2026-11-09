@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import ProductGrid from '@/components/ProductGrid';
-import { listProducts, listCategories } from '@/lib/store';
+import { listShopProducts, listCategories } from '@/lib/store';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Tienda · EUREKA' };
@@ -12,7 +12,9 @@ const norm = (s: string) =>
   s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
 export default async function TiendaPage({ searchParams }: { searchParams: SP }) {
-  const [all, categories] = await Promise.all([listProducts(), listCategories()]);
+  const [all, allCategories] = await Promise.all([listShopProducts(), listCategories()]);
+  // Solo las categorías que tienen algo a la vista
+  const categories = allCategories.filter((c) => all.some((p) => p.category === c.slug));
   const q = (searchParams.q || '').trim();
   const cat = (searchParams.cat || '').trim();
   const sort = (searchParams.sort || '').trim();

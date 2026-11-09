@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { listProducts, listCategories } from '@/lib/store';
+import { listShopProducts, listCategories } from '@/lib/store';
 import { LOOKS, findProductByName, spotsFor, maskFor } from '@/lib/lookbook';
 import LookbookView, { type RLook } from '@/components/LookbookView';
 
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 };
 
 export default async function LookbookPage() {
-  const [products, categories] = await Promise.all([listProducts(), listCategories()]);
+  const [products, categories] = await Promise.all([listShopProducts(), listCategories()]);
   const cats = new Map(categories.map((c) => [c.slug, c.name]));
   // Resuelve cada prenda del look a su producto (si existe) en el servidor.
   const looks: RLook[] = LOOKS.map((l) => ({

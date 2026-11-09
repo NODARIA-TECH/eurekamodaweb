@@ -4,6 +4,7 @@ export type Category = { slug: string; name: string; image: string };
 
 export type Product = {
   id: string;
+  hidden?: boolean;   // oculto a mano en la tienda (botón Ocultar del panel)
   slug: string;
   name: string;
   price: number;      // céntimos

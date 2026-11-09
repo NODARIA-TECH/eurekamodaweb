@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import ProductGrid from '@/components/ProductGrid';
-import { getCategory, productsByCategory } from '@/lib/store';
+import { getCategory, shopProductsByCategory } from '@/lib/store';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +13,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 export default async function CategoryPage({ params }: { params: { slug: string } }) {
   const c = await getCategory(params.slug);
   if (!c) notFound();
-  const products = await productsByCategory(c.slug);
+  const products = await shopProductsByCategory(c.slug);
   return (
     <main className="page">
       <div className="wrap">

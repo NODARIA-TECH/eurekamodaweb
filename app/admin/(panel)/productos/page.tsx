@@ -1,9 +1,9 @@
 import Link from 'next/link';
-import { listProducts, listCategories } from '@/lib/store';
+import { listProducts, listCategories, hasRealPhoto } from '@/lib/store';
 import { productImg, swatch } from '@/lib/data';
 import { money } from '@/lib/money';
 import type { Product } from '@/lib/types';
-import { createProductQuick, importCsv, importPhotos } from './actions';
+import { createProductQuick, importCsv, importPhotos, toggleHidden } from './actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,16 +29,21 @@ export default async function ProductosAdmin({ searchParams }: { searchParams: S
     .filter((p) => !q || p.name.toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q))
     .filter((p) => !searchParams.cat || p.category === searchParams.cat)
     .filter((p) => searchParams.f !== 'pend' || pending(p).length > 0)
+    .filter((p) => searchParams.f !== 'ocultos' || p.hidden || !hasRealPhoto(p))
+    .filter((p) => searchParams.f !== 'visibles' || (!p.hidden && hasRealPhoto(p)))
     .slice()
     .sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
   const nPend = all.filter((p) => pending(p).length).length;
+  const nHidden = all.filter((p) => p.hidden || !hasRealPhoto(p)).length;
+  const backUrl = '/admin/productos?' + new URLSearchParams(Object.entries({ q: searchParams.q || '', cat: searchParams.cat || '', f: searchParams.f || '' }).filter(([, v]) => v)).toString();
 
   return (
     <>
       <div className="adm-h">
         <div>
           <h1>Productos</h1>
-          <p>{all.length} productos · {nPend ? <Link href="/admin/productos?f=pend" className="adm-link">{nPend} por completar</Link> : 'todos completos'}</p>
+          <p>{all.length} productos · {nPend ? <Link href="/admin/productos?f=pend" className="adm-link">{nPend} por completar</Link> : 'todos completos'}
+            {nHidden > 0 && <> · <Link href="/admin/productos?f=ocultos" className="adm-link">{nHidden} no se ven en la tienda</Link></>}</p>
         </div>
         <div className="adm-actions">
           <a className="btn-sm ghost" href="/plantilla-productos-eureka.xlsx" download>Descargar plantilla Excel</a>
@@ -73,6 +78,8 @@ export default async function ProductosAdmin({ searchParams }: { searchParams: S
           <select name="f" defaultValue={searchParams.f || ''}>
             <option value="">Todos</option>
             <option value="pend">Por completar</option>
+            <option value="ocultos">No se ven en la tienda</option>
+            <option value="visibles">Se ven en la tienda</option>
           </select>
           <button className="btn-sm" type="submit">Filtrar</button>
         </form>
@@ -106,8 +113,19 @@ export default async function ProductosAdmin({ searchParams }: { searchParams: S
                         {!p.colors?.length && <span className="adm-muted">—</span>}
                       </div>
                     </td>
-                    <td>{pend.length ? pend.map((x) => <span key={x} className="adm-tag warn">{x}</span>) : <span className="adm-tag ok">Completo</span>}</td>
-                    <td><Link className="btn-sm" href={`/admin/productos/${p.id}`}>Editar</Link></td>
+                    <td>
+                      {p.hidden ? <span className="adm-tag off">Oculto</span> : !hasRealPhoto(p) ? <span className="adm-tag off" title="Aparecerá en la tienda en cuanto tenga una foto">Oculto · sin foto</span> : null}
+                      {pend.length ? pend.map((x) => <span key={x} className="adm-tag warn">{x}</span>) : <span className="adm-tag ok">Completo</span>}
+                    </td>
+                    <td><div className="adm-acts">
+                      <Link className="btn-sm" href={`/admin/productos/${p.id}`}>Editar</Link>
+                      <form action={toggleHidden}>
+                        <input type="hidden" name="id" value={p.id} />
+                        <input type="hidden" name="hide" value={p.hidden ? '0' : '1'} />
+                        <input type="hidden" name="back" value={backUrl} />
+                        <button className="btn-sm ghost" type="submit" title={p.hidden ? 'Volver a mostrar en la tienda' : 'Ocultar en la tienda (no se borra)'}>{p.hidden ? 'Mostrar' : 'Ocultar'}</button>
+                      </form>
+                    </div></td>
                   </tr>
                 );
               })}
