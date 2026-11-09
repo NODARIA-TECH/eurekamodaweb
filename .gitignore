@@ -5,3 +5,6 @@ out/
 data/live.json
 public/uploads/
 data/uploads/
+data/site.json
+data/site.json.bak
+data/*.tmp

@@ -1,7 +1,10 @@
 'use client';
 import { useState } from 'react';
 
-export default function Newsletter() {
+type Texts = { script: string; title: string; text: string };
+const DEF: Texts = { script: 'únete al', title: 'Club EUREKA · 20% de bienvenida', text: 'Suscríbete y recibe tu descuento, además de acceso anticipado a novedades y rebajas.' };
+
+export default function Newsletter({ c = DEF }: { c?: Texts }) {
   const [email, setEmail] = useState('');
   const [note, setNote] = useState<{ ok: boolean; msg: string }>({ ok: false, msg: 'Sin spam. Solo moda y ofertas de verdad.' });
 
@@ -18,9 +21,9 @@ export default function Newsletter() {
   return (
     <section className="news" id="nl">
       <div className="wrap">
-        <span className="script">únete al</span>
-        <h2>Club EUREKA · 20% de bienvenida</h2>
-        <p>Suscríbete y recibe tu descuento, además de acceso anticipado a novedades y rebajas.</p>
+        {c.script && <span className="script">{c.script}</span>}
+        <h2>{c.title}</h2>
+        {c.text && <p>{c.text}</p>}
         <form onSubmit={submit}>
           <div className="nlf">
             <input type="email" placeholder="tu@email.com" aria-label="Correo" value={email} onChange={(e) => setEmail(e.target.value)} required />

@@ -27,8 +27,11 @@ async function read(): Promise<DB> {
   const raw = await fs.readFile(FILE, 'utf8');
   return JSON.parse(raw) as DB;
 }
+// Escritura atómica: se escribe un temporal y se renombra (un corte a mitad nunca deja live.json roto).
 async function write(db: DB): Promise<void> {
-  await fs.writeFile(FILE, JSON.stringify(db, null, 2) + '\n', 'utf8');
+  const tmp = `${FILE}.${process.pid}.${randomUUID().slice(0, 8)}.tmp`;
+  await fs.writeFile(tmp, JSON.stringify(db, null, 2) + '\n', 'utf8');
+  await fs.rename(tmp, FILE);
 }
 
 // Recalcula las variantes (talla × color) tras cambiar tallas/colores: conserva referencias y stock.

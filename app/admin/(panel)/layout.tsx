@@ -12,6 +12,7 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
         <div className="brandline">EUREKA<small>Panel interno</small></div>
         <nav className="adm-nav">
           <Link href="/admin">Dashboard</Link>
+          <Link href="/admin/pagina">Página de inicio</Link>
           <Link href="/admin/productos">Productos</Link>
           <Link href="/admin/etiquetas">Etiquetas</Link>
           <Link href="/admin/categorias">Categorías</Link>

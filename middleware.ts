@@ -23,6 +23,10 @@ export async function middleware(req: NextRequest) {
   // Panel interno
   if (pathname.startsWith('/admin') && !pathname.startsWith('/admin/login')) {
     const ok = await validAdmin(req.cookies.get('eureka_admin')?.value);
+    if (!ok && pathname.startsWith('/admin/api/')) {
+      // Las llamadas del editor reciben un 401 (no la página de login) para avisar de "sesión caducada".
+      return NextResponse.json({ error: 'La sesión ha caducado. Vuelve a entrar en el panel.' }, { status: 401 });
+    }
     if (!ok) {
       const url = req.nextUrl.clone();
       url.pathname = '/admin/login';

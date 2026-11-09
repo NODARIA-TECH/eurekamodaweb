@@ -2,13 +2,13 @@
 import type { Product } from '@/lib/types';
 import ProductCard from './ProductCard';
 
-export default function ProductRail({ products }: { products: Product[] }) {
+export default function ProductRail({ products, label = 'Recién llegado', title = 'Novedades' }: { products: Product[]; label?: string; title?: string }) {
   return (
     <section id="rail">
       <div className="wrap">
         <div className="sh">
-          <span className="lab">Recién llegado</span>
-          <h2>Novedades</h2>
+          {label && <span className="lab">{label}</span>}
+          <h2>{title}</h2>
         </div>
         <div className="railwrap">
           <div className="rail">
