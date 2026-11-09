@@ -35,20 +35,18 @@ async function write(db: DB): Promise<void> {
   await fs.rename(tmp, FILE);
 }
 
-/* ---------- Reinicio del catálogo (se ejecuta solo, una vez, al arrancar tras el despliegue) ----------
-   Carga data/catalogo.json (productos de la plantilla EUREKA con sus fotos, que van en
-   public/img/productos/nuevas) dentro de los datos reales:
-   · Antes guarda una copia completa en data/copias/.
-   · Quita los 10 productos de prueba de la demo (si nadie les ha puesto foto real).
-   · Productos que ya están LISTOS (con foto real): no se tocan; solo se rellenan huecos
-     (tallas, colores, descripción… vacíos y fotos de colores que no tengan).
-   · Productos que existían sin foto real: se actualizan con lo del catálogo.
-   · Productos nuevos: se crean con su referencia PEK correlativa.
-   · Nunca toca pedidos, clientas, referencias PEK ni el stock que ya lleva FacturaScripts.
-   No duplica: empareja por nombre (sin tildes ni mayúsculas) o por el nombre anterior. */
+/* ---------- Carga de productos nuevos (se ejecuta sola, una vez, al arrancar tras el despliegue) ----------
+   Añade lo de data/catalogo.json (plantilla EUREKA + fotos en public/img/productos/nuevas)
+   SIN TOCAR lo que ya está en la web:
+   · Productos ya subidos con foto real (fotos de la modelo, subidas o incluidas): NO se tocan nada.
+   · Productos que existen pero solo con la foto de prueba: se les ponen sus fotos y se rellenan
+     SOLO los campos vacíos (no cambia nombre, precio, stock ni nada que ya tenga valor).
+   · Productos que no existen: se crean con su referencia PEK correlativa.
+   · No borra nada, no renombra nada y no toca pedidos, clientas ni stock.
+   · Antes guarda una copia completa en data/copias/ y deja un informe con lo que ha hecho.
+   No duplica: empareja por nombre (sin tildes ni mayúsculas) o por el nombre anterior del Excel. */
 const CATALOG = path.join(DATA_DIR, 'catalogo.json');
 const CATALOG_VERSION = 2;
-const DEMO_IDS = new Set(['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9', 'p10']);
 let migration: Promise<void> | null = null;
 
 type CatalogEntry = {
@@ -59,7 +57,7 @@ type CatalogEntry = {
 };
 
 const realImg = (src?: string) => !!src && /^(\/media\/|\/uploads\/|\/img\/|https?:)/.test(src);
-const nname = (s: string) => s.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ');
+const nname = (s: string) => s.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ');
 
 async function migrateCatalog(): Promise<void> {
   const raw = await fs.readFile(FILE, 'utf8');
@@ -73,68 +71,48 @@ async function migrateCatalog(): Promise<void> {
   const dir = path.join(DATA_DIR, 'copias');
   await fs.mkdir(dir, { recursive: true });
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-  await fs.writeFile(path.join(dir, `antes-del-reinicio-${stamp}.json`), raw, 'utf8');
+  await fs.writeFile(path.join(dir, `antes-de-cargar-productos-${stamp}.json`), raw, 'utf8');
 
+  // "Listo" = tiene alguna foto real (de la modelo / subida / incluida en la web). Esos no se tocan.
   const ready = (p: Product) => realImg(p.image) || !!p.images?.some(realImg) ||
-    Object.values(p.colorImages || {}).some(realImg) || hasCatalogPhoto(p.name);
+    Object.values(p.colorImages || {}).some(realImg) || Object.values(p.colorGallery || {}).flat().some(realImg) ||
+    hasCatalogPhoto(p.name);
   const empty = (v: unknown) => v === undefined || v === null || (Array.isArray(v) ? v.length === 0 : !String(v).trim());
-  const report = { demoRemoved: 0, created: 0, updated: 0, completed: 0 };
+  const report = { creados: [] as string[], fotosYDatosAnadidos: [] as string[], sinTocarYaListos: [] as string[] };
 
-  // 1) Fuera los productos de prueba de la demo
-  const before = db.products.length;
-  db.products = db.products.filter((p) => !(DEMO_IDS.has(p.id) && !ready(p)));
-  report.demoRemoved = before - db.products.length;
-
-  // 2) Categorías que falten
+  // Categorías nuevas (las que ya existen no se tocan)
+  const newCats = new Set<string>();
   for (const e of catalog.products) {
-    if (!db.categories.some((c) => c.slug === e.category)) db.categories.push({ slug: e.category, name: e.categoryName, image: '26998033' });
+    if (!db.categories.some((c) => c.slug === e.category)) {
+      db.categories.push({ slug: e.category, name: e.categoryName, image: '26998033' });
+      newCats.add(e.category);
+    }
   }
 
-  // 3) Productos
-  const addPhotos = (p: Product, e: CatalogEntry, setMain: boolean) => {
-    if (setMain && e.image && !realImg(p.image)) p.image = e.image;
-    const colorImages = { ...(p.colorImages || {}) };
-    for (const [c, url] of Object.entries(e.colorImages || {})) {
-      const col = (p.colors || []).find((x) => nname(x) === nname(c));
-      if (col && !colorImages[col]) colorImages[col] = url;
-    }
-    if (Object.keys(colorImages).length) p.colorImages = colorImages;
-    const colorGallery = { ...(p.colorGallery || {}) };
-    for (const [c, list] of Object.entries(e.colorGallery || {})) {
-      const col = (p.colors || []).find((x) => nname(x) === nname(c));
-      if (col) colorGallery[col] = Array.from(new Set([...(colorGallery[col] || []), ...list]));
-    }
-    if (Object.keys(colorGallery).length) p.colorGallery = colorGallery;
-    const images = Array.from(new Set([...(p.images || []), ...(e.images || [])])).filter((x) => x !== p.image);
-    if (images.length) p.images = images;
-  };
-
+  const now = new Date().toISOString();
   for (const e of catalog.products) {
     const keys = [e.name, ...(e.previousNames || [])].map(nname);
     const p = db.products.find((x) => nname(x.name) === nname(e.name)) || db.products.find((x) => keys.includes(nname(x.name)));
-    const now = new Date().toISOString();
+    if (p && ready(p)) { report.sinTocarYaListos.push(p.name); continue; }   // ya está bien: ni se mira
     if (p) {
-      if (ready(p)) {
-        // Listo: solo huecos
-        if (nname(p.name) !== nname(e.name) || (p.name === p.name.toUpperCase() && /[A-Z]/.test(p.name))) p.name = e.name;
-        if (!p.price) p.price = e.price;
-        if (empty(p.badge) && e.badge) p.badge = e.badge;
-        if (empty(p.sizes) && e.sizes) p.sizes = e.sizes;
-        if (empty(p.colors) && e.colors) p.colors = e.colors;
-        if (empty(p.description) && e.description) p.description = e.description;
-        if (empty(p.details) && e.details) p.details = e.details;
-        addPhotos(p, e, !hasCatalogPhoto(p.name));
-        report.completed++;
-      } else {
-        // Sin foto real: manda el catálogo (se conservan id, referencia PEK y stock de FS)
-        p.name = e.name; p.price = e.price; p.category = e.category;
-        p.sizes = e.sizes ?? p.sizes; p.colors = e.colors ?? p.colors; p.description = e.description ?? p.description; p.details = e.details ?? p.details; p.badge = e.badge ?? p.badge;
-        if (!p.stock && !hasVariants(p) && e.stock) p.stock = e.stock;
-        addPhotos(p, e, true);
-        report.updated++;
-      }
-      refreshVariants(p, e.variantStockText);
+      // Existe con foto de prueba: fotos + solo campos vacíos
+      const hadSizes = !empty(p.sizes), hadColors = !empty(p.colors);
+      if (empty(p.sizes) && e.sizes) p.sizes = e.sizes;
+      if (empty(p.colors) && e.colors) p.colors = e.colors;
+      if (empty(p.description) && e.description) p.description = e.description;
+      if (empty(p.details) && e.details) p.details = e.details;
+      if (empty(p.badge) && e.badge) p.badge = e.badge;
+      if (e.image) p.image = e.image;
+      if (e.images?.length) p.images = e.images;
+      const ci: Record<string, string> = {};
+      for (const [c, url] of Object.entries(e.colorImages || {})) { const col = (p.colors || []).find((x) => nname(x) === nname(c)); if (col) ci[col] = url; }
+      if (Object.keys(ci).length) p.colorImages = ci;
+      const cg: Record<string, string[]> = {};
+      for (const [c, list] of Object.entries(e.colorGallery || {})) { const col = (p.colors || []).find((x) => nname(x) === nname(c)); if (col) cg[col] = list; }
+      if (Object.keys(cg).length) p.colorGallery = cg;
+      if (!hadSizes || !hadColors) refreshVariants(p, hasVariants(p) ? undefined : e.variantStockText);
       p.updatedAt = now;
+      report.fotosYDatosAnadidos.push(p.name);
     } else {
       const prefix = process.env.EUREKA_SKU_PREFIX || 'PEK';
       const n = (db.lastSkuNumber ?? 0) + 1;
@@ -149,20 +127,21 @@ async function migrateCatalog(): Promise<void> {
       };
       refreshVariants(prod, e.variantStockText);
       db.products.push(prod);
-      report.created++;
+      report.creados.push(`${prod.name} (${prod.sku})`);
     }
   }
 
-  // 4) Categorías sin foto: la de su primer producto con foto
+  // Foto de las categorías NUEVAS: la de su primer producto con foto
   for (const c of db.categories) {
-    if (realImg(c.image)) continue;
-    const p = db.products.map(withCatalogPhotos).find((x) => x.category === c.slug && realImg(x.image));
+    if (!newCats.has(c.slug)) continue;
+    const p = db.products.find((x) => x.category === c.slug && realImg(x.image));
     if (p) c.image = p.image;
   }
 
   db.catalogVersion = CATALOG_VERSION;
   await write(db);
-  console.log('[catálogo] Reinicio aplicado:', JSON.stringify(report), `· copia en data/copias/antes-del-reinicio-${stamp}.json`);
+  await fs.writeFile(path.join(dir, `informe-carga-${stamp}.json`), JSON.stringify(report, null, 2), 'utf8');
+  console.log(`[catálogo] Productos cargados: ${report.creados.length} nuevos · ${report.fotosYDatosAnadidos.length} con fotos añadidas · ${report.sinTocarYaListos.length} ya listos sin tocar · informe en data/copias/informe-carga-${stamp}.json`);
 }
 
 // Recalcula las variantes (talla × color) tras cambiar tallas/colores: conserva referencias y stock.
