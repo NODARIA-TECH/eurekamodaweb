@@ -1,0 +1,54 @@
+# Compila la web en GitHub (no en el VPS) cada vez que se sube código a main.
+# El resultado (.next, sin caché) se guarda en la rama "build"; el VPS solo lo descarga
+# con scripts/actualizar.sh, así el servidor no tiene que compilar nada.
+name: Compilar web
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: compilar
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  compilar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: Comprobar tipos
+        run: npm run check
+
+      - name: Compilar
+        run: npx next build
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+
+      - name: Publicar en la rama build
+        run: |
+          SHA="$(git rev-parse HEAD)"
+          OUT="$RUNNER_TEMP/build"
+          mkdir -p "$OUT"
+          cp -r .next "$OUT/.next"
+          rm -rf "$OUT/.next/cache"
+          echo "$SHA" > "$OUT/COMMIT"
+          cd "$OUT"
+          git init -q -b build
+          git add -A
+          git -c user.name="Compilación EUREKA" -c user.email="ci@eurekamoda.com" commit -qm "Compilación de $SHA"
+          git push -qf "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

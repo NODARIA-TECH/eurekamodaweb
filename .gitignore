@@ -10,3 +10,5 @@ data/site.json.bak
 data/*.tmp
 data/copias/
 data/boletin.json
+.next-nueva/
+.next-vieja/

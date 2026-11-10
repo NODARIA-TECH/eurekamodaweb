@@ -4,10 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "NODE_OPTIONS=--max-old-space-size=448 NEXT_TELEMETRY_DISABLED=1 next build",
+    "check": "tsc --noEmit -p .",
     "start": "next start",
     "lint": "next lint",
-    "diagnostico": "node scripts/diagnostico.mjs"
+    "diagnostico": "node scripts/diagnostico.mjs",
+    "actualizar": "bash scripts/actualizar.sh"
   },
   "dependencies": {
     "fflate": "^0.8.2",
