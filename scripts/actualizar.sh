@@ -16,14 +16,16 @@ fi
 paso() { printf '\n\033[1m▸ %s\033[0m\n' "$1"; }
 
 paso "Bajando el código nuevo"
-LOCK_ANTES="$(sha1sum package-lock.json 2>/dev/null | cut -d' ' -f1 || true)"
 git pull --ff-only
 SHA="$(git rev-parse HEAD)"
 echo "  versión $(git log -1 --format='%h · %cd' --date=format:'%d/%m/%Y %H:%M')"
 
 paso "Librerías"
-if [ ! -d node_modules ] || [ "$LOCK_ANTES" != "$(sha1sum package-lock.json | cut -d' ' -f1)" ]; then
+# Se instala si cambió package-lock.json desde la última instalación hecha por este script
+LOCK="$(sha1sum package-lock.json | cut -d' ' -f1)"
+if [ "$(cat node_modules/.eureka-lock 2>/dev/null)" != "$LOCK" ]; then
   npm ci --include=dev --no-audit --no-fund
+  echo "$LOCK" > node_modules/.eureka-lock
 else
   echo "  sin cambios, no hace falta instalar nada"
 fi
