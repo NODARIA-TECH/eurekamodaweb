@@ -56,7 +56,7 @@ export default async function BoletinAdmin({ searchParams }: { searchParams: SP 
         ) : estado.detail === 'Sin configurar' ? (
           <p className="adm-tag warn" style={{ display: 'inline-block', padding: '8px 12px', lineHeight: 1.5 }}>
             Sin configurar: las suscripciones se guardan y el código se ve en pantalla, pero no se envía el email.
-            Hay que poner los datos del correo de IONOS (SMTP_HOST=smtp.ionos.es, SMTP_PORT, SMTP_USER, SMTP_PASS) y el remitente (MAIL_FROM) en el .env del servidor.
+            Hay que poner la dirección y la clave del relé de Cloudflare (MAIL_RELAY_URL y MAIL_RELAY_TOKEN) en el .env del servidor.
           </p>
         ) : (
           <p className="adm-err" style={{ margin: 0 }}>No se puede enviar ({providerName()}): {estado.detail}</p>

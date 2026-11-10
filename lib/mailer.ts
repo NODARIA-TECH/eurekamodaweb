@@ -1,5 +1,7 @@
 // Envío de emails. Tres formas, según lo que haya en .env (se usa la primera que esté):
 //
+//  0) MAIL_RELAY_URL + MAIL_RELAY_TOKEN → buzón propio de IONOS a través de un Worker de Cloudflare
+//     (cloudflare/correo-worker.js). Es lo que usa EUREKA: DigitalOcean no desbloquea el SMTP.
 //  1) RESEND_API_KEY=re_…          → Resend (API por HTTPS)        ← recomendado en DigitalOcean
 //  2) BREVO_API_KEY=xkeysib-…      → Brevo (API por HTTPS)
 //  3) SMTP_HOST / SMTP_USER / SMTP_PASS (+ SMTP_PORT) → SMTP: Amazon SES (puerto 2587, sin límite
@@ -16,22 +18,23 @@
 //   MAIL_REPLY_TO=…                            opcional: a dónde van las respuestas
 import nodemailer, { type Transporter } from 'nodemailer';
 
-export type MailProvider = 'resend' | 'brevo' | 'smtp' | null;
+export type MailProvider = 'relay' | 'resend' | 'brevo' | 'smtp' | null;
 export type MailResult = { ok: true; id?: string } | { ok: false; error: string };
 
 const env = (k: string) => (process.env[k] || '').trim();
 
 export function mailProvider(): MailProvider {
+  if (env('MAIL_RELAY_URL') && env('MAIL_RELAY_TOKEN')) return 'relay';
   if (env('RESEND_API_KEY')) return 'resend';
   if (env('BREVO_API_KEY')) return 'brevo';
   if (env('SMTP_HOST') && env('SMTP_USER') && env('SMTP_PASS')) return 'smtp';
   return null;
 }
 export const mailConfigured = () => mailProvider() !== null;
-export const providerName = (p = mailProvider()) => (p === 'resend' ? 'Resend' : p === 'brevo' ? 'Brevo' : p === 'smtp' ? `SMTP (${env('SMTP_HOST')}:${smtpPort()})` : 'sin configurar');
+export const providerName = (p = mailProvider()) => (p === 'relay' ? 'buzón de IONOS (vía Cloudflare)' : p === 'resend' ? 'Resend' : p === 'brevo' ? 'Brevo' : p === 'smtp' ? `SMTP (${env('SMTP_HOST')}:${smtpPort()})` : 'sin configurar');
 
 export function mailFrom(): string {
-  return env('MAIL_FROM') || (env('SMTP_USER') ? `EUREKA <${env('SMTP_USER')}>` : '');
+  return env('MAIL_FROM') || (env('SMTP_USER') ? `EUREKA <${env('SMTP_USER')}>` : mailProvider() === 'relay' ? 'EUREKA <hola@eurekamoda.com>' : '');
 }
 function parseFrom(s: string): { name?: string; email: string } {
   const m = /^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/.exec(s);
@@ -127,11 +130,34 @@ async function sendBrevo(m: Msg): Promise<MailResult> {
   }
 }
 
+// ---------- Relé propio (Cloudflare Worker → buzón de IONOS) ----------
+// DigitalOcean bloquea los puertos de correo; el Worker (cloudflare/correo-worker.js) se conecta a
+// smtp.ionos.es:465 con el usuario y la contraseña del buzón y entrega el email.
+async function relayCall(method: 'GET' | 'POST', body?: unknown) {
+  const url = env('MAIL_RELAY_URL').replace(/\/+$/, '') + '/';
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), 30000);
+  try {
+    const r = await fetch(url, { method, headers: { Authorization: 'Bearer ' + env('MAIL_RELAY_TOKEN'), 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined, signal: ctl.signal });
+    let j: any = null;
+    try { j = await r.json(); } catch { /* */ }
+    if (r.ok && j?.ok) return { ok: true as const, j };
+    if (!j) return { ok: false as const, error: `El relé de correo respondió ${r.status} sin datos: revisa MAIL_RELAY_URL (la dirección del Worker de Cloudflare).` };
+    return { ok: false as const, error: j.error || `El relé de correo respondió ${r.status}.` };
+  } catch (e: any) {
+    return { ok: false as const, error: e?.name === 'AbortError' ? 'El relé de correo (Cloudflare) no respondió a tiempo.' : 'No hay conexión con el relé de correo (Cloudflare): ' + (e?.cause?.code || e?.message) + '. Revisa MAIL_RELAY_URL.' };
+  } finally { clearTimeout(t); }
+}
+async function sendRelay(m: Msg): Promise<MailResult> {
+  const r = await relayCall('POST', { to: m.to, subject: m.subject, html: m.html, text: m.text, headers: m.headers, replyTo: env('MAIL_REPLY_TO') || undefined });
+  return r.ok ? { ok: true, id: r.j?.id } : { ok: false, error: r.error };
+}
+
 export async function sendMail(opts: Msg): Promise<MailResult> {
   const p = mailProvider();
-  if (!p) return { ok: false, error: 'El envío de emails no está configurado: falta RESEND_API_KEY (o BREVO_API_KEY, o los datos SMTP) en el .env del servidor.' };
+  if (!p) return { ok: false, error: 'El envío de emails no está configurado: faltan MAIL_RELAY_URL y MAIL_RELAY_TOKEN en el .env del servidor.' };
   if (!mailFrom()) return { ok: false, error: 'Falta MAIL_FROM en .env (p. ej. MAIL_FROM="EUREKA <hola@eurekamoda.com>").' };
-  const r = p === 'resend' ? await sendResend(opts) : p === 'brevo' ? await sendBrevo(opts) : await sendSmtp(opts);
+  const r = p === 'relay' ? await sendRelay(opts) : p === 'resend' ? await sendResend(opts) : p === 'brevo' ? await sendBrevo(opts) : await sendSmtp(opts);
   if (!r.ok) console.error('[email]', providerName(p), '→', opts.to, '·', r.error);
   return r;
 }
@@ -141,6 +167,7 @@ export async function checkMail(): Promise<{ ok: boolean; detail: string }> {
   const p = mailProvider();
   if (!p) return { ok: false, detail: 'Sin configurar' };
   if (!mailFrom()) return { ok: false, detail: 'Falta MAIL_FROM' };
+  if (p === 'relay') { const r = await relayCall('GET'); return r.ok ? { ok: true, detail: (r.j?.detail || 'Conexión correcta') + ' · remitente ' + mailFrom() } : { ok: false, detail: r.error }; }
   if (p !== 'smtp') return { ok: true, detail: `${providerName(p)} · remitente ${mailFrom()}` };
   try {
     await Promise.race([transport().verify(), new Promise((_, ko) => setTimeout(() => ko(Object.assign(new Error('Connection timeout'), { code: 'ETIMEDOUT' })), 8000))]);
