@@ -17,6 +17,14 @@
 //   MAIL_FROM="EUREKA <hola@eurekamoda.com>"   remitente (en Resend/Brevo, de un dominio verificado)
 //   MAIL_REPLY_TO=…                            opcional: a dónde van las respuestas
 import nodemailer, { type Transporter } from 'nodemailer';
+import dns from 'dns';
+import net from 'net';
+
+// Los VPS de DigitalOcean suelen no tener salida por IPv6: si Node intenta primero la dirección
+// IPv6 de Cloudflare, la conexión se queda colgada (UND_ERR_CONNECT_TIMEOUT). Se prefiere IPv4
+// y, si hay varias direcciones, se prueban a la vez ("happy eyeballs").
+try { dns.setDefaultResultOrder('ipv4first'); } catch { /* Node antiguo */ }
+try { (net as any).setDefaultAutoSelectFamily?.(true); } catch { /* */ }
 
 export type MailProvider = 'relay' | 'resend' | 'brevo' | 'smtp' | null;
 export type MailResult = { ok: true; id?: string } | { ok: false; error: string };
@@ -142,10 +150,12 @@ async function relayCall(method: 'GET' | 'POST', body?: unknown) {
     let j: any = null;
     try { j = await r.json(); } catch { /* */ }
     if (r.ok && j?.ok) return { ok: true as const, j };
-    if (!j) return { ok: false as const, error: `El relé de correo respondió ${r.status} sin datos: revisa MAIL_RELAY_URL (la dirección del Worker de Cloudflare).` };
+    if (!j) return { ok: false as const, error: `El relé de correo respondió ${r.status} sin datos: revisa MAIL_RELAY_URL (la dirección del Worker de Cloudflare, sin nada detrás).` };
     return { ok: false as const, error: j.error || `El relé de correo respondió ${r.status}.` };
   } catch (e: any) {
-    return { ok: false as const, error: e?.name === 'AbortError' ? 'El relé de correo (Cloudflare) no respondió a tiempo.' : 'No hay conexión con el relé de correo (Cloudflare): ' + (e?.cause?.code || e?.message) + '. Revisa MAIL_RELAY_URL.' };
+    const code = e?.cause?.code || e?.code || '';
+    if (code === 'ENOTFOUND' || code === 'EAI_AGAIN') return { ok: false as const, error: `No existe la dirección del relé (${url}): copia en MAIL_RELAY_URL la dirección exacta del Worker (…workers.dev).` };
+    return { ok: false as const, error: e?.name === 'AbortError' ? 'El relé de correo (Cloudflare) no respondió a tiempo.' : `No hay conexión con el relé de correo (${url}): ${code || e?.message}.` };
   } finally { clearTimeout(t); }
 }
 async function sendRelay(m: Msg): Promise<MailResult> {
