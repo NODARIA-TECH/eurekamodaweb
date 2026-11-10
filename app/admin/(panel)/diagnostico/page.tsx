@@ -73,7 +73,7 @@ async function checks(): Promise<Check[]> {
   out.push({
     name: 'Email del boletín', ok: mail.ok ? true : mailProvider() ? false : 'warn',
     detail: mail.detail === 'Sin configurar' ? 'Sin configurar (las suscripciones se guardan, pero no sale el email)' : (mailProvider() ? providerName() + ' · ' : '') + mail.detail,
-    fix: 'Configúralo con Amazon SES (SMTP, puerto 2587): ver .env.example.',
+    fix: 'Correo de IONOS por SMTP (ver .env.example). Si dice que no hay conexión, DigitalOcean aún no ha desbloqueado el puerto.',
   });
 
   // Límite de subida (Nginx): la web sube por trozos de 768 KB, así que no le afecta

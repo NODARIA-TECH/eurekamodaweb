@@ -61,7 +61,7 @@ function smtpError(e: any): string {
   const code = e?.code || '';
   const msg = String(e?.message || '');
   if (code === 'ETIMEDOUT' || code === 'ECONNREFUSED' || code === 'ESOCKET' && /timeout/i.test(msg) || /Connection timeout|Greeting never received/i.test(msg))
-    return `No hay conexión con ${env('SMTP_HOST')}:${smtpPort()}. DigitalOcean bloquea los puertos SMTP (25, 465 y 587): usa un puerto no bloqueado (Amazon SES: SMTP_PORT=2587) o Resend/Brevo por API.`;
+    return `No hay conexión con ${env('SMTP_HOST')}:${smtpPort()}. DigitalOcean bloquea los puertos SMTP (25, 465 y 587): pide a DigitalOcean (ticket de soporte) que desbloquee el puerto ${smtpPort()} para este servidor; mientras tanto el código se ve en pantalla y luego se puede mandar desde Panel → Boletín.`;
   if (code === 'EAUTH' || /535|Invalid login|Username and Password not accepted/i.test(msg))
     return 'El servidor de correo rechaza el usuario o la contraseña (SMTP_USER / SMTP_PASS). En Amazon SES son las "credenciales SMTP" que se crean en SES (no el usuario de AWS); en Gmail, una "contraseña de aplicación".';
   if (/not verified|identities failed the check/i.test(msg))
