@@ -56,7 +56,7 @@ export default async function BoletinAdmin({ searchParams }: { searchParams: SP 
         ) : estado.detail === 'Sin configurar' ? (
           <p className="adm-tag warn" style={{ display: 'inline-block', padding: '8px 12px', lineHeight: 1.5 }}>
             Sin configurar: las suscripciones se guardan y el código se ve en pantalla, pero no se envía el email.
-            Hay que poner la clave de Resend (RESEND_API_KEY) y el remitente (MAIL_FROM) en el .env del servidor.
+            Hay que poner los datos de Amazon SES (SMTP_HOST, SMTP_PORT=2587, SMTP_USER, SMTP_PASS) y el remitente (MAIL_FROM) en el .env del servidor.
           </p>
         ) : (
           <p className="adm-err" style={{ margin: 0 }}>No se puede enviar ({providerName()}): {estado.detail}</p>

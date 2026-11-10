@@ -2,12 +2,15 @@
 //
 //  1) RESEND_API_KEY=re_…          → Resend (API por HTTPS)        ← recomendado en DigitalOcean
 //  2) BREVO_API_KEY=xkeysib-…      → Brevo (API por HTTPS)
-//  3) SMTP_HOST / SMTP_USER / SMTP_PASS (+ SMTP_PORT) → SMTP (Gmail, correo del dominio…)
+//  3) SMTP_HOST / SMTP_USER / SMTP_PASS (+ SMTP_PORT) → SMTP: Amazon SES (puerto 2587, sin límite
+//     práctico y muy barato), Gmail, correo del dominio…
 //
 // OJO: DigitalOcean bloquea en sus servidores los puertos SMTP 25, 465 y 587, así que por SMTP
 // el envío se queda colgado hasta que caduca. Las opciones 1 y 2 van por HTTPS (puerto 443) y
-// no les afecta. Por SMTP solo funciona si DigitalOcean lo desbloquea o con un puerto distinto
-// (p. ej. Brevo SMTP en el 2525).
+// no les afecta. Por SMTP solo funciona con un puerto distinto: Amazon SES admite el 2587 (STARTTLS)
+// y el 2465 (TLS, con SMTP_SECURE=true).
+//   Amazon SES:  SMTP_HOST=email-smtp.eu-west-1.amazonaws.com  SMTP_PORT=2587
+//                SMTP_USER / SMTP_PASS = credenciales SMTP que da SES (no las de la cuenta de AWS)
 //
 //   MAIL_FROM="EUREKA <hola@eurekamoda.com>"   remitente (en Resend/Brevo, de un dominio verificado)
 //   MAIL_REPLY_TO=…                            opcional: a dónde van las respuestas
@@ -58,9 +61,12 @@ function smtpError(e: any): string {
   const code = e?.code || '';
   const msg = String(e?.message || '');
   if (code === 'ETIMEDOUT' || code === 'ECONNREFUSED' || code === 'ESOCKET' && /timeout/i.test(msg) || /Connection timeout|Greeting never received/i.test(msg))
-    return `No hay conexión con ${env('SMTP_HOST')}:${smtpPort()}. DigitalOcean bloquea los puertos SMTP (25, 465 y 587): usa Resend o Brevo (RESEND_API_KEY / BREVO_API_KEY en .env), o un SMTP en el puerto 2525.`;
+    return `No hay conexión con ${env('SMTP_HOST')}:${smtpPort()}. DigitalOcean bloquea los puertos SMTP (25, 465 y 587): usa un puerto no bloqueado (Amazon SES: SMTP_PORT=2587) o Resend/Brevo por API.`;
   if (code === 'EAUTH' || /535|Invalid login|Username and Password not accepted/i.test(msg))
-    return 'El servidor de correo rechaza el usuario o la contraseña. En Gmail hace falta una "contraseña de aplicación" (no la normal) y tener la verificación en dos pasos activada.';
+    return 'El servidor de correo rechaza el usuario o la contraseña (SMTP_USER / SMTP_PASS). En Amazon SES son las "credenciales SMTP" que se crean en SES (no el usuario de AWS); en Gmail, una "contraseña de aplicación".';
+  if (/not verified|identities failed the check/i.test(msg))
+    return 'Amazon SES rechaza el envío: o el remitente (MAIL_FROM) no está verificado —verifica el dominio eurekamoda.com en SES— o la cuenta sigue en modo de pruebas (sandbox), que solo deja enviar a direcciones verificadas: pide el "acceso de producción". (' + msg + ')';
+  if (/Daily message quota exceeded|Maximum sending rate exceeded|Throttling/i.test(msg)) return 'Se ha llegado al límite de envíos del proveedor por ahora; el código se puede reenviar más tarde desde el panel. (' + msg + ')';
   if (code === 'EENVELOPE' || /sender|from address/i.test(msg)) return 'El remitente (MAIL_FROM) no está permitido en ese correo: usa la misma dirección que SMTP_USER. ' + msg;
   if (code === 'EDNS' || code === 'ENOTFOUND') return `No existe el servidor de correo ${env('SMTP_HOST')}: revisa SMTP_HOST.`;
   return msg || 'Error al enviar';
