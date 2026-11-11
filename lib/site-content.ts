@@ -94,7 +94,7 @@ export const DEFAULT_CONTENT: SiteContent = {
     text: 'Creemos en las prendas que se usan de verdad: cómodas, favorecedoras y con encanto. Selección cuidada, envío rápido y trato de tú a tú.',
     btn: { label: 'Descubrir la tienda', href: '/tienda' },
   },
-  social: { instagram: 'https://www.instagram.com/monica_eureka/', tiktok: '', pinterest: '', facebook: '', whatsapp: '' },
+  social: { instagram: 'https://www.instagram.com/monica_eureka/', tiktok: 'https://www.tiktok.com/@eurekadictas', pinterest: '', facebook: '', whatsapp: '' },
   news: { script: 'únete al', title: 'Club EUREKA · 20 % de bienvenida', text: 'Suscríbete y recibe tu descuento, además de acceso anticipado a novedades y rebajas.' },
 };
 
