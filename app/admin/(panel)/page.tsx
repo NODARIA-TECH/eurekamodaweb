@@ -16,7 +16,7 @@ export default async function Dashboard() {
         <div className="tile"><div className="k">Pedidos</div><div className="v">{s.pedidos}</div></div>
         <div className="tile"><div className="k">Clientes</div><div className="v">{s.clientes}</div></div>
         <div className="tile gold"><div className="k">Ventas</div><div className="v">{money(s.ventas)}</div></div>
-        <div className="tile"><div className="k">Pendientes</div><div className="v">{s.pendientes}</div></div>
+        <div className="tile"><div className="k">Por preparar o enviar</div><div className="v">{s.pendientes}</div></div>
       </div>
       <div className="adm-card">
         <h2>Stock bajo (≤ 3 uds.)</h2>

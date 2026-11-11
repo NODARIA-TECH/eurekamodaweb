@@ -942,3 +942,24 @@ a.cg{display:block}
 .dg-list .bad .dg-dot{background:#c2493a}
 .dg-err{list-style:none;margin:0;padding:0;display:grid;gap:6px;font-size:.82rem;color:#8a2a1a}
 .dg-err b{color:var(--ink);font-weight:500;margin-right:6px}
+
+/* ---- Pedidos: fase «en preparación», envío y mensajes ---- */
+.st-preparando{background:#ece3f3;color:#5f3f7a}
+.ao-st.st-preparando{background:#efe6f5;color:#5f3f7a}
+.track-ship{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin-top:12px;padding:10px 14px;background:var(--cream);border:1px solid var(--hair);border-radius:10px;font-size:.86rem}
+.track-ship-l{font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.track-notes{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:8px}
+.track-notes li{padding:10px 14px;border:1px solid var(--hair);border-radius:10px;background:#fff}
+.track-notes p{margin:4px 0 0;font-size:.88rem;line-height:1.5;color:var(--ink);white-space:pre-line}
+/* 5 fases: caben en una fila; en móvil, en vertical */
+.track{flex-wrap:nowrap}
+.track-step{min-width:0}
+.track-desc{font-size:.74rem}
+@media(max-width:600px){
+  .track{flex-direction:column;gap:14px}
+  .track-step{flex-direction:row;align-items:flex-start;text-align:left;gap:12px;padding:0}
+  .track-step::before{top:-14px;left:15px;width:2px;height:14px}
+  .track-txt{margin-top:4px}
+}
+.adm-card select[name=add]{min-width:320px;max-width:100%}
+.adm-card textarea{font:inherit}

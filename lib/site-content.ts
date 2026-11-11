@@ -94,7 +94,7 @@ export const DEFAULT_CONTENT: SiteContent = {
     text: 'Creemos en las prendas que se usan de verdad: cómodas, favorecedoras y con encanto. Selección cuidada, envío rápido y trato de tú a tú.',
     btn: { label: 'Descubrir la tienda', href: '/tienda' },
   },
-  social: { instagram: '', tiktok: '', pinterest: '', facebook: '', whatsapp: '' },
+  social: { instagram: 'https://www.instagram.com/monica_eureka/', tiktok: '', pinterest: '', facebook: '', whatsapp: '' },
   news: { script: 'únete al', title: 'Club EUREKA · 20 % de bienvenida', text: 'Suscríbete y recibe tu descuento, además de acceso anticipado a novedades y rebajas.' },
 };
 
@@ -207,7 +207,8 @@ export function normalizeContent(raw: unknown): SiteContent {
     social: (() => {
       const so = obj(r.social);
       const u = (v: unknown) => { const x = typeof v === 'string' ? v.trim() : ''; return /^https:\/\/[^\s"<>]{4,300}$/.test(x) ? x : ''; };
-      return { instagram: u(so.instagram), tiktok: u(so.tiktok), pinterest: u(so.pinterest), facebook: u(so.facebook), whatsapp: u(so.whatsapp) };
+      const k = (n: keyof SiteContent['social']) => (typeof so[n] === 'string' ? u(so[n]) : d.social[n]);   // nunca guardado = el de por defecto
+      return { instagram: k('instagram'), tiktok: k('tiktok'), pinterest: k('pinterest'), facebook: k('facebook'), whatsapp: k('whatsapp') };
     })(),
     news: { script: str(news.script, d.news.script, 40), title: str(news.title, d.news.title, 80), text: str(news.text, d.news.text, 300) },
   };

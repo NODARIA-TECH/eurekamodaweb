@@ -447,7 +447,8 @@
    ],
    "stock": 7,
    "variantStockText": "Marrón: S 2, M 0, L 4, XL 1",
-   "image": "/img/productos/nuevas/leggings-barbie.webp"
+   "image": "/img/productos/nuevas/leggings-barbie.webp",
+   "description": "Leggings de tejido suave y elástico con cinturilla ancha de tiro alto que sujeta y estiliza. Muy cómodos para el día a día y perfectos con jerséis, sudaderas y ponchos."
   },
   {
    "name": "Vaquero faja pitillo",
@@ -459,7 +460,8 @@
     "38",
     "40"
    ],
-   "stock": 1
+   "stock": 1,
+   "description": "Vaquero pitillo con cinturilla efecto faja que recoge la cintura y estiliza la figura. Tejido con elasticidad para un ajuste cómodo que combina con todo."
   },
   {
    "name": "Vaquero con lateral y cinturón antelina",

@@ -6,11 +6,12 @@ export const dynamic = 'force-dynamic';
 
 function balClass(n: number) { return n > 0 ? 'bal-pos' : n < 0 ? 'bal-neg' : 'bal-zero'; }
 
-export default async function ClientesAdmin() {
+export default async function ClientesAdmin({ searchParams }: { searchParams: { ok?: string } }) {
   const customers = await listCustomers();
   return (
     <>
-      <div className="adm-h"><div><h1>Clientes</h1><p>{customers.length} clientes · balance = saldo a favor (+) / debe (−)</p></div></div>
+      <div className="adm-h"><div><h1>Clientes</h1><p>{customers.length} {customers.length === 1 ? 'clienta' : 'clientas'} · balance = saldo a favor (+) / debe (−)</p></div></div>
+      {searchParams.ok === 'borrada' && <div className="adm-ok">Clienta eliminada.</div>}
       <div className="adm-card">
         <table className="adm-table">
           <thead><tr><th>Cliente</th><th>Email</th><th>Balance</th><th>Movimientos</th><th></th></tr></thead>

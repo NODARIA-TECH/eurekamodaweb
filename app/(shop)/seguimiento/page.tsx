@@ -46,7 +46,7 @@ export default async function SeguimientoPage({
               <div><span className="muted">Pedido</span><strong>{order.ref}</strong></div>
               <div><span className="muted">Total</span><strong>{money(order.amountPaid ?? order.total)}</strong></div>
             </div>
-            <OrderTracker status={order.status} history={order.history} />
+            <OrderTracker status={order.status} history={order.history} carrier={order.carrier} trackingNumber={order.trackingNumber} trackingUrl={order.trackingUrl} />
             <div className="seg-items">
               <h3>Artículos</h3>
               <ul>

@@ -14,9 +14,7 @@ export const metadata: Metadata = { title: 'Mi cuenta · EUREKA' };
 const fecha = (iso: string) =>
   new Date(iso).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
 
-const statusLabel: Record<string, string> = {
-  pendiente: 'Pendiente', pagado: 'Pagado', enviado: 'Enviado', entregado: 'Entregado', cancelado: 'Cancelado',
-};
+import { STATUS_LABEL as statusLabel } from '@/lib/types';
 
 export default async function CuentaPage() {
   const id = readSession(cookies().get(CUSTOMER_COOKIE)?.value);
@@ -72,10 +70,10 @@ export default async function CuentaPage() {
                         <span key={i}>{it.qty}× {it.name}{(it.size || it.color) ? ` (${[it.size, it.color].filter(Boolean).join(' · ')})` : ''}</span>
                       ))}
                     </div>
-                    {o.status !== 'cancelado' && <OrderTracker status={o.status} history={o.history} />}
+                    <OrderTracker status={o.status} history={o.history} carrier={o.carrier} trackingNumber={o.trackingNumber} trackingUrl={o.trackingUrl} />
                     <div className="ao-bot">
                       <span className="muted">{fecha(o.createdAt)}</span>
-                      <strong>{money(o.total)}</strong>
+                      <strong>{money(o.amountPaid ?? o.total)}</strong>
                     </div>
                   </li>
                 ))}

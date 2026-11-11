@@ -51,13 +51,13 @@ export type Order = {
   customerName?: string;
   items: OrderItem[];
   total: number;      // céntimos
-  status: 'pendiente' | 'pagado' | 'enviado' | 'entregado' | 'cancelado';
+  status: OrderStatus;
   createdAt: string;
   customerEmail?: string;  // para volcar el pedido a FacturaScripts
   facturaRef?: string;     // referencia del documento creado en FacturaScripts
   syncedAt?: string;       // cuándo se volcó a FacturaScripts (null = pendiente)
   stripeSessionId?: string; // id de la sesión de pago de Stripe (checkout online)
-  history?: { status: Order['status']; at: string }[]; // historial de estados (para el seguimiento)
+  history?: { status: Order['status']; at: string; note?: string }[]; // historial (lo ve la clienta en el seguimiento)
   // Datos que llegan de Stripe al pagar
   phone?: string;
   shipping?: ShippingAddress;   // dirección de envío
@@ -66,7 +66,16 @@ export type Order = {
   discount?: number;            // céntimos descontados
   paidAt?: string;
   emails?: { confirmacion?: string; enviado?: string; tienda?: string }; // cuándo se enviaron
+  carrier?: string;             // empresa de transporte
+  trackingNumber?: string;      // nº de seguimiento
+  trackingUrl?: string;         // enlace de seguimiento
+  notes?: string;               // notas internas (solo las ve la tienda)
+  stockTaken?: boolean;         // si este pedido ya descontó stock
+  editedAt?: string;
 };
+export type OrderStatus = 'pendiente' | 'pagado' | 'preparando' | 'enviado' | 'entregado' | 'cancelado';
+export const ORDER_STATUSES: OrderStatus[] = ['pendiente', 'pagado', 'preparando', 'enviado', 'entregado', 'cancelado'];
+export const STATUS_LABEL: Record<OrderStatus, string> = { pendiente: 'Pendiente', pagado: 'Pagado', preparando: 'En preparación', enviado: 'Enviado', entregado: 'Entregado', cancelado: 'Cancelado' };
 export type ShippingAddress = { name?: string; line1?: string; line2?: string; postalCode?: string; city?: string; state?: string; country?: string };
 
 // Item de cesta en el cliente

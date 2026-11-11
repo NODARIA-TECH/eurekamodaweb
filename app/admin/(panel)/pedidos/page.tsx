@@ -1,22 +1,24 @@
 import { listOrders } from '@/lib/store';
 import { money } from '@/lib/money';
+import Link from 'next/link';
 import { setStatus } from './actions';
+import { ORDER_STATUSES, STATUS_LABEL } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
-const STATES = ['pendiente', 'pagado', 'enviado', 'entregado', 'cancelado'];
 
-export default async function PedidosAdmin() {
+export default async function PedidosAdmin({ searchParams }: { searchParams: { ok?: string } }) {
   const orders = await listOrders();
   return (
     <>
-      <div className="adm-h"><div><h1>Pedidos</h1><p>{orders.length} {orders.length === 1 ? 'pedido' : 'pedidos'} · al marcar uno como «enviado», la clienta recibe un email</p></div></div>
+      <div className="adm-h"><div><h1>Pedidos</h1><p>{orders.length} {orders.length === 1 ? 'pedido' : 'pedidos'} · pulsa «Gestionar» para cambiar artículos, datos o envío · al marcarlo «Enviado», la clienta recibe un email</p></div></div>
+      {searchParams.ok === 'borrado' && <div className="adm-ok">Pedido eliminado.</div>}
       <div className="adm-card">
         <table className="adm-table">
           <thead><tr><th>Ref</th><th>Fecha</th><th>Clienta</th><th>Enviar a</th><th>Artículos</th><th>Total</th><th>Estado</th></tr></thead>
           <tbody>
             {orders.map((o) => (
               <tr key={o.id}>
-                <td style={{ whiteSpace: 'nowrap' }}><b>{o.ref}</b></td>
+                <td style={{ whiteSpace: 'nowrap' }}><Link href={`/admin/pedidos/${o.id}`}><b>{o.ref}</b></Link><div><Link className="btn-sm ghost" href={`/admin/pedidos/${o.id}`} style={{ marginTop: 6, display: 'inline-block' }}>Gestionar</Link></div></td>
                 <td>{new Date(o.createdAt).toLocaleDateString('es-ES')}</td>
                 <td>
                   <div>{o.customerName ?? '—'}</div>
@@ -36,9 +38,9 @@ export default async function PedidosAdmin() {
                 <td>
                   <form action={setStatus} className="adm-inline">
                     <input type="hidden" name="id" value={o.id} />
-                    <span className={'badge-pill st-' + o.status}>{o.status}</span>
+                    <span className={'badge-pill st-' + o.status}>{STATUS_LABEL[o.status] || o.status}</span>
                     <select name="status" defaultValue={o.status}>
-                      {STATES.map((s) => (<option key={s} value={s}>{s}</option>))}
+                      {ORDER_STATUSES.map((s) => (<option key={s} value={s}>{STATUS_LABEL[s]}</option>))}
                     </select>
                     <button className="btn-sm ghost" type="submit">Guardar</button>
                   </form>

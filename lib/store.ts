@@ -39,7 +39,7 @@ function locked<T>(fn: () => Promise<T>): Promise<T> {
 
 async function read(): Promise<DB> {
   await ensureFile();
-  await (migration ||= migrateCatalog().catch((e) => { console.error('[catálogo] No se pudo cargar el catálogo nuevo:', e); migration = null; }));
+  await (migration ||= migrateCatalog().then(applyDataFixes).catch((e) => { console.error('[catálogo] No se pudo cargar el catálogo nuevo:', e); migration = null; }));
   const raw = await fs.readFile(FILE, 'utf8');
   return JSON.parse(raw) as DB;
 }
@@ -48,6 +48,36 @@ async function write(db: DB): Promise<void> {
   const tmp = `${FILE}.${process.pid}.${randomUUID().slice(0, 8)}.tmp`;
   await fs.writeFile(tmp, JSON.stringify(db, null, 2) + '\n', 'utf8');
   await fs.rename(tmp, FILE);
+}
+
+/* ---------- Arreglos puntuales de datos (una sola vez, en orden) ----------
+   1) Quita los pedidos y clientas de EJEMPLO que traía la plantilla (María González, Lucía Ramírez y
+      Carmen Pérez, con correo @example.com, y sus pedidos EUR-1001 y EUR-1002). Solo esos: se
+      comprueba id, correo y referencia a la vez, así que nunca toca una clienta o un pedido real.
+   2) Pone descripción a los productos que no tenían (solo si sigue vacía). */
+const FIXES_VERSION = 1;
+const FIX_DESCRIPTIONS: Record<string, string> = {
+  'leggings barbie': 'Leggings de tejido suave y elástico con cinturilla ancha de tiro alto que sujeta y estiliza. Muy cómodos para el día a día y perfectos con jerséis, sudaderas y ponchos.',
+  'vaquero faja pitillo': 'Vaquero pitillo con cinturilla efecto faja que recoge la cintura y estiliza la figura. Tejido con elasticidad para un ajuste cómodo que combina con todo.',
+};
+async function applyDataFixes(): Promise<void> {
+  const db = JSON.parse(await fs.readFile(FILE, 'utf8')) as DB & { fixesVersion?: number };
+  if ((db.fixesVersion ?? 0) >= FIXES_VERSION) return;
+  const demoCust = new Map([['c1', 'maria@example.com'], ['c2', 'lucia@example.com'], ['c3', 'carmen@example.com']]);
+  const demoOrders = new Map([['o1', 'EUR-1001'], ['o2', 'EUR-1002']]);
+  const beforeC = db.customers.length, beforeO = db.orders.length;
+  db.orders = db.orders.filter((o) => !(demoOrders.get(o.id) === o.ref && (!o.customerId || demoCust.has(o.customerId))));
+  db.customers = db.customers.filter((c) => demoCust.get(c.id) !== c.email.toLowerCase());
+  let desc = 0;
+  for (const p of db.products) {
+    const d = FIX_DESCRIPTIONS[nname(p.name)];
+    if (d && !(p.description || '').trim()) { p.description = d; desc++; }
+  }
+  db.fixesVersion = FIXES_VERSION;
+  await fs.mkdir(path.join(DATA_DIR, 'copias'), { recursive: true });
+  await fs.writeFile(path.join(DATA_DIR, 'copias', `antes-de-arreglos-${new Date().toISOString().replace(/[:.]/g, '-')}.json`), JSON.stringify(JSON.parse(await fs.readFile(FILE, 'utf8'))), 'utf8');
+  await write(db);
+  console.log(`[datos] Arreglos aplicados: ${beforeO - db.orders.length} pedidos y ${beforeC - db.customers.length} clientas de ejemplo quitados · ${desc} descripciones añadidas`);
 }
 
 /* ---------- Carga de productos nuevos (se ejecuta sola, una vez, al arrancar tras el despliegue) ----------
@@ -465,6 +495,7 @@ async function createOrder__(input: { items: { productId: string; qty: number; s
   db.lastOrderNumber += 1;
   const now = new Date().toISOString();
   const order: Order = {
+    stockTaken: true,
     id: randomUUID().slice(0, 8),
     ref: 'EUR-' + db.lastOrderNumber,
     customerName: input.customerName,
@@ -515,6 +546,7 @@ async function createPendingOrder__(input: { items: { productId: string; qty: nu
     status: 'pendiente',
     createdAt: now,
     history: [{ status: 'pendiente', at: now }],
+    stockTaken: false,
   };
   if (input.customerEmail) {
     let cust = db.customers.find((c) => c.email.toLowerCase() === input.customerEmail!.toLowerCase());
@@ -565,6 +597,7 @@ async function markOrderPaid__(id: string, details?: Partial<Pick<Order, 'custom
     if (p) takeStock(p, it);
   }
   o.status = 'pagado';
+  o.stockTaken = true;
   if (!o.history) o.history = [];
   o.history.push({ status: 'pagado', at: new Date().toISOString() });
   await write(db);
@@ -583,14 +616,113 @@ export async function getOrder(id: string): Promise<Order | undefined> {
   return (await read()).orders.find((o) => o.id === id);
 }
 
-async function updateOrderStatus__(id: string, status: Order['status']): Promise<void> {
+// ¿Este pedido ya descontó stock? (los antiguos no lo guardaban: se deduce del estado)
+function stockTakenOf(o: Order): boolean {
+  if (o.stockTaken !== undefined) return o.stockTaken;
+  return o.status !== 'cancelado' && !(o.stripeSessionId && o.status === 'pendiente');
+}
+function giveStock(p: Product, l: StockLine) {
+  if (hasVariants(p)) {
+    const v = findVariant(p, l.size, l.color);
+    if (v) v.stock += l.qty;
+    p.stock = totalStock(p.variants!);
+  } else p.stock += l.qty;
+}
+
+// Cambia el estado. Al cancelar se devuelven las unidades al stock; al "descancelar" se vuelven a descontar.
+async function updateOrderStatus__(id: string, status: Order['status'], note?: string): Promise<void> {
   const db = await read();
   const o = db.orders.find((x) => x.id === id);
-  if (o && o.status !== status) {
+  if (!o) return;
+  const changed = o.status !== status;
+  if (changed) {
+    const taken = stockTakenOf(o);
+    if (status === 'cancelado' && taken) {
+      for (const it of o.items) { const p = db.products.find((x) => x.id === it.productId); if (p) giveStock(p, it); }
+      o.stockTaken = false;
+    } else if (o.status === 'cancelado' && status !== 'cancelado' && !taken && !(o.stripeSessionId && status === 'pendiente')) {
+      for (const it of o.items) { const p = db.products.find((x) => x.id === it.productId); if (p) takeStock(p, it); }
+      o.stockTaken = true;
+    } else if (o.stockTaken === undefined) o.stockTaken = taken;
     o.status = status;
-    if (!o.history) o.history = [];
-    o.history.push({ status, at: new Date().toISOString() });
   }
+  const n = (note || '').trim().slice(0, 500);
+  if (changed || n) {
+    if (!o.history) o.history = [];
+    o.history.push({ status, at: new Date().toISOString(), ...(n ? { note: n } : {}) });
+  }
+  await write(db);
+}
+
+async function updateOrderInfo__(id: string, patch: Partial<Pick<Order, 'customerName' | 'customerEmail' | 'phone' | 'shipping' | 'carrier' | 'trackingNumber' | 'trackingUrl' | 'notes'>>): Promise<void> {
+  const db = await read();
+  const o = db.orders.find((x) => x.id === id);
+  if (!o) return;
+  for (const [k, v] of Object.entries(patch)) {
+    if (v === undefined) continue;
+    if (v === '' || v === null) delete (o as any)[k]; else (o as any)[k] = v;
+  }
+  o.editedAt = new Date().toISOString();
+  await write(db);
+}
+
+// Cambiar artículos de un pedido: cantidades (0 = quitar) y líneas nuevas. Si el pedido ya
+// descontó stock, se ajusta la diferencia. Devuelve error si no hay stock para lo añadido.
+async function updateOrderItems__(id: string, qtys: number[], add?: { productId: string; size?: string; color?: string; qty: number }): Promise<{ ok: boolean; error?: string }> {
+  const db = await read();
+  const o = db.orders.find((x) => x.id === id);
+  if (!o) return { ok: false, error: 'Pedido no encontrado.' };
+  const taken = stockTakenOf(o);
+  const next: OrderItem[] = [];
+  const deltas: { p: Product; line: StockLine; diff: number }[] = [];
+  o.items.forEach((it, i) => {
+    const q = Math.max(0, Math.min(99, Math.floor(Number(qtys[i] ?? it.qty))));
+    const p = db.products.find((x) => x.id === it.productId);
+    if (p && q !== it.qty) deltas.push({ p, line: it, diff: q - it.qty });
+    if (q > 0) next.push({ ...it, qty: q });
+  });
+  if (add && add.productId && add.qty > 0) {
+    const p = db.products.find((x) => x.id === add.productId);
+    if (!p) return { ok: false, error: 'Producto no encontrado.' };
+    if (hasVariants(p) && !findVariant(p, add.size, add.color)) return { ok: false, error: 'Elige talla y color del producto.' };
+    const same = next.find((x) => x.productId === p.id && (x.size || '') === (add.size || '') && (x.color || '') === (add.color || ''));
+    if (same) same.qty += add.qty;
+    else next.push({ productId: p.id, name: p.name, price: p.price, qty: add.qty, size: add.size || undefined, color: add.color || undefined, variantSku: findVariant(p, add.size, add.color)?.sku });
+    deltas.push({ p, line: { productId: p.id, qty: add.qty, size: add.size, color: add.color }, diff: add.qty });
+  }
+  if (!next.length) return { ok: false, error: 'El pedido no puede quedarse sin artículos (si no lo quieres, cancélalo o elimínalo).' };
+  if (taken) {
+    for (const d of deltas) {
+      if (d.diff > 0) {
+        const avail = hasVariants(d.p) ? findVariant(d.p, d.line.size, d.line.color)?.stock ?? 0 : d.p.stock;
+        if (avail < d.diff) return { ok: false, error: `No hay stock suficiente de ${d.p.name}${d.line.size || d.line.color ? ' (' + [d.line.size, d.line.color].filter(Boolean).join(' · ') + ')' : ''}: quedan ${avail}.` };
+      }
+    }
+    for (const d of deltas) d.diff > 0 ? takeStock(d.p, { ...d.line, qty: d.diff }) : giveStock(d.p, { ...d.line, qty: -d.diff });
+  }
+  o.items = next;
+  o.total = next.reduce((s, i) => s + i.price * i.qty, 0);
+  o.editedAt = new Date().toISOString();
+  await write(db);
+  return { ok: true };
+}
+
+// Eliminar un pedido (por ejemplo, de prueba). Si había descontado stock, se devuelve.
+async function deleteOrder__(id: string, restock: boolean): Promise<void> {
+  const db = await read();
+  const o = db.orders.find((x) => x.id === id);
+  if (!o) return;
+  if (restock && stockTakenOf(o)) for (const it of o.items) { const p = db.products.find((x) => x.id === it.productId); if (p) giveStock(p, it); }
+  db.orders = db.orders.filter((x) => x.id !== id);
+  await write(db);
+}
+
+// Eliminar una clienta: se borra su ficha, su cuenta y su saldo. Sus pedidos se conservan
+// (hacen falta para la contabilidad) pero quedan sin enlazar a ninguna cuenta.
+async function deleteCustomer__(id: string): Promise<void> {
+  const db = await read();
+  db.customers = db.customers.filter((c) => c.id !== id);
+  for (const o of db.orders) if (o.customerId === id) delete o.customerId;
   await write(db);
 }
 
@@ -685,7 +817,8 @@ export async function getAccountById(id: string): Promise<{ customer: Customer; 
 /* -------- Métricas -------- */
 export async function stats() {
   const db = await read();
-  const ventas = db.orders.reduce((s, o) => s + o.total, 0);
+  // Ventas = lo cobrado de los pedidos pagados (no cuenta pendientes sin pagar ni cancelados)
+  const ventas = db.orders.filter((o) => o.status !== 'cancelado' && !(o.status === 'pendiente' && o.stripeSessionId)).reduce((s, o) => s + (o.amountPaid ?? o.total), 0);
   const lowStock = db.products.filter((p) => p.stock <= 3);
   return {
     productos: db.products.length,
@@ -693,7 +826,7 @@ export async function stats() {
     pedidos: db.orders.length,
     clientes: db.customers.length,
     ventas,
-    pendientes: db.orders.filter((o) => o.status === 'pendiente').length,
+    pendientes: db.orders.filter((o) => o.status === 'pagado' || o.status === 'preparando' || (o.status === 'pendiente' && !o.stripeSessionId)).length,   // por preparar/enviar
     lowStock,
   };
 }
@@ -717,3 +850,7 @@ export function adjustBalance(...a: Parameters<typeof adjustBalance__>): ReturnT
 export function registerCustomer(...a: Parameters<typeof registerCustomer__>): ReturnType<typeof registerCustomer__> { return locked(() => registerCustomer__(...a)) as ReturnType<typeof registerCustomer__>; }
 export function noteOrderEmail(...a: Parameters<typeof noteOrderEmail__>): ReturnType<typeof noteOrderEmail__> { return locked(() => noteOrderEmail__(...a)) as ReturnType<typeof noteOrderEmail__>; }
 export function confirmClaim(...a: Parameters<typeof confirmClaim__>): ReturnType<typeof confirmClaim__> { return locked(() => confirmClaim__(...a)) as ReturnType<typeof confirmClaim__>; }
+export function updateOrderInfo(...a: Parameters<typeof updateOrderInfo__>): ReturnType<typeof updateOrderInfo__> { return locked(() => updateOrderInfo__(...a)) as ReturnType<typeof updateOrderInfo__>; }
+export function updateOrderItems(...a: Parameters<typeof updateOrderItems__>): ReturnType<typeof updateOrderItems__> { return locked(() => updateOrderItems__(...a)) as ReturnType<typeof updateOrderItems__>; }
+export function deleteOrder(...a: Parameters<typeof deleteOrder__>): ReturnType<typeof deleteOrder__> { return locked(() => deleteOrder__(...a)) as ReturnType<typeof deleteOrder__>; }
+export function deleteCustomer(...a: Parameters<typeof deleteCustomer__>): ReturnType<typeof deleteCustomer__> { return locked(() => deleteCustomer__(...a)) as ReturnType<typeof deleteCustomer__>; }

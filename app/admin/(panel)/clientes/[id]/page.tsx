@@ -1,8 +1,10 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getCustomer } from '@/lib/store';
+import { getCustomer, listOrders } from '@/lib/store';
+import { STATUS_LABEL } from '@/lib/types';
+import ConfirmSubmit from '@/components/admin/ConfirmSubmit';
 import { money } from '@/lib/money';
-import { adjust } from '../actions';
+import { adjust, removeCustomer } from '../actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +14,7 @@ export default async function ClienteDetalle({ params }: { params: { id: string 
   const c = await getCustomer(params.id);
   if (!c) notFound();
   const movs = c.movements.slice().reverse();
+  const orders = (await listOrders()).filter((o) => o.customerId === c.id);
   return (
     <>
       <div className="adm-h">
@@ -53,6 +56,26 @@ export default async function ClienteDetalle({ params }: { params: { id: string 
             </tbody>
           </table>
         )}
+      </div>
+      <div className="adm-card">
+        <h2>Pedidos</h2>
+        {orders.length === 0 ? <p style={{ color: 'var(--muted)' }}>Sin pedidos.</p> : (
+          <table className="adm-table">
+            <thead><tr><th>Ref</th><th>Fecha</th><th>Total</th><th>Estado</th></tr></thead>
+            <tbody>{orders.map((o) => (
+              <tr key={o.id}><td><Link href={`/admin/pedidos/${o.id}`}><b>{o.ref}</b></Link></td><td>{new Date(o.createdAt).toLocaleDateString('es-ES')}</td><td>{money(o.amountPaid ?? o.total)}</td><td><span className={'badge-pill st-' + o.status}>{STATUS_LABEL[o.status]}</span></td></tr>
+            ))}</tbody>
+          </table>
+        )}
+      </div>
+
+      <div className="adm-card">
+        <h2>Eliminar clienta</h2>
+        <form action={removeCustomer} style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <input type="hidden" name="id" value={c.id} />
+          <ConfirmSubmit className="btn-sm danger" message={`¿Eliminar a ${c.name}? Se borran su ficha, su cuenta y su saldo. Sus pedidos se conservan.`}>Eliminar clienta</ConfirmSubmit>
+          <span className="adm-help" style={{ margin: 0 }}>Se borran su ficha, su cuenta (si tiene) y su saldo. Sus pedidos se conservan para la contabilidad.</span>
+        </form>
       </div>
     </>
   );

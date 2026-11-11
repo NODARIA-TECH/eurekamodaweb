@@ -56,11 +56,18 @@ function confirmation(base: string, o: Order) {
   return { subject: `Pedido ${o.ref} confirmado · EUREKA`, html, text };
 }
 
+function trackingBox(o: Order) {
+  if (!o.carrier && !o.trackingNumber) return '';
+  const num = o.trackingNumber ? (o.trackingUrl ? `<a href="${esc(o.trackingUrl)}" style="color:#2A2018;font-weight:bold">${esc(o.trackingNumber)}</a>` : `<b>${esc(o.trackingNumber)}</b>`) : '';
+  return box('Envío', [o.carrier ? esc(o.carrier) : '', num ? `Nº de seguimiento: ${num}` : ''].filter(Boolean).join('<br>'));
+}
+const trackingText = (o: Order) => [o.carrier, o.trackingNumber && `Nº de seguimiento: ${o.trackingNumber}`, o.trackingUrl].filter(Boolean).join('\n');
+
 function shipped(base: string, o: Order) {
   const html = frame(base, 'Tu pedido va de camino',
     `Tu pedido <b>${esc(o.ref)}</b> ya ha salido de la tienda. Pronto lo tendrás contigo.`,
-    itemsTable(o) + btn(track(base, o), 'Seguir mi pedido'));
-  const text = `Tu pedido ${o.ref} ya ha salido de la tienda.\n\n${o.items.map(line).join('\n')}\n\nSigue tu pedido: ${track(base, o)}\n\nEUREKA · eurekamoda.com`;
+    itemsTable(o) + trackingBox(o) + btn(o.trackingUrl || track(base, o), o.trackingUrl ? 'Seguir el envío' : 'Seguir mi pedido'));
+  const text = `Tu pedido ${o.ref} ya ha salido de la tienda.\n\n${o.items.map(line).join('\n')}\n${trackingText(o) ? '\n' + trackingText(o) + '\n' : ''}\nSigue tu pedido: ${track(base, o)}\n\nEUREKA · eurekamoda.com`;
   return { subject: `Tu pedido ${o.ref} va de camino · EUREKA`, html, text };
 }
 
@@ -90,6 +97,19 @@ export async function sendOrderPaidEmails(base: string, o: Order): Promise<void>
       if (r.ok) await noteOrderEmail(o.id, 'tienda');
     }
   } catch (e: any) { console.error('[pedidos] Email de pedido', o.ref, e?.message); }
+}
+
+import { STATUS_LABEL } from './types';
+// Aviso de cambio de estado o mensaje de la tienda ("lo estamos preparando", "ya puedes recogerlo"…)
+export async function sendOrderUpdateEmail(base: string, o: Order, note?: string): Promise<boolean> {
+  if (!mailConfigured() || !o.customerEmail) return false;
+  const st = STATUS_LABEL[o.status] || o.status;
+  const html = frame(base, `Tu pedido ${o.ref}: ${st.toLowerCase()}`,
+    note ? esc(note).replace(/\n/g, '<br>') : `El estado de tu pedido ha cambiado a <b>${esc(st)}</b>.`,
+    itemsTable(o) + trackingBox(o) + btn(track(base, o), 'Ver mi pedido'));
+  const text = `Tu pedido ${o.ref}: ${st}\n\n${note || ''}\n\n${o.items.map(line).join('\n')}\n${trackingText(o) ? '\n' + trackingText(o) + '\n' : ''}\nVer tu pedido: ${track(base, o)}\n\nEUREKA · eurekamoda.com`;
+  try { return (await sendMail({ to: o.customerEmail, subject: `Tu pedido ${o.ref}: ${st.toLowerCase()} · EUREKA`, html, text })).ok; }
+  catch { return false; }
 }
 
 export async function sendOrderShippedEmail(base: string, o: Order): Promise<void> {
