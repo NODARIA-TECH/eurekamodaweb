@@ -49,7 +49,7 @@ function parseFrom(s: string): { name?: string; email: string } {
   return m ? { name: m[1].trim() || undefined, email: m[2].trim() } : { email: s.trim() };
 }
 
-type Msg = { to: string; subject: string; html: string; text: string; headers?: Record<string, string> };
+type Msg = { to: string; subject: string; html: string; text: string; headers?: Record<string, string>; replyTo?: string };
 
 // ---------- SMTP ----------
 let cached: Transporter | null = null;
@@ -84,7 +84,7 @@ function smtpError(e: any): string {
 }
 async function sendSmtp(m: Msg): Promise<MailResult> {
   try {
-    const info = await transport().sendMail({ from: mailFrom(), to: m.to, replyTo: env('MAIL_REPLY_TO') || undefined, subject: m.subject, html: m.html, text: m.text, headers: m.headers });
+    const info = await transport().sendMail({ from: mailFrom(), to: m.to, replyTo: m.replyTo || env('MAIL_REPLY_TO') || undefined, subject: m.subject, html: m.html, text: m.text, headers: m.headers });
     return { ok: true, id: info.messageId };
   } catch (e: any) {
     cached = null; // se rehace la conexión en el siguiente envío
@@ -117,7 +117,7 @@ async function sendResend(m: Msg): Promise<MailResult> {
   try {
     const r = await postJson(url, { Authorization: 'Bearer ' + env('RESEND_API_KEY') }, {
       from: mailFrom(), to: [m.to], subject: m.subject, html: m.html, text: m.text,
-      reply_to: env('MAIL_REPLY_TO') || undefined, headers: m.headers,
+      reply_to: m.replyTo || env('MAIL_REPLY_TO') || undefined, headers: m.headers,
     });
     return r.ok ? { ok: true, id: r.j?.id } : { ok: false, error: apiError('Resend', r.status, r.j) };
   } catch (e: any) {
@@ -130,7 +130,7 @@ async function sendBrevo(m: Msg): Promise<MailResult> {
   try {
     const r = await postJson(url, { 'api-key': env('BREVO_API_KEY') }, {
       sender: { name: from.name || 'EUREKA', email: from.email }, to: [{ email: m.to }], subject: m.subject,
-      htmlContent: m.html, textContent: m.text, replyTo: env('MAIL_REPLY_TO') ? { email: env('MAIL_REPLY_TO') } : undefined, headers: m.headers,
+      htmlContent: m.html, textContent: m.text, replyTo: (m.replyTo || env('MAIL_REPLY_TO')) ? { email: m.replyTo || env('MAIL_REPLY_TO') } : undefined, headers: m.headers,
     });
     return r.ok ? { ok: true, id: r.j?.messageId } : { ok: false, error: apiError('Brevo', r.status, r.j) };
   } catch (e: any) {
@@ -159,7 +159,7 @@ async function relayCall(method: 'GET' | 'POST', body?: unknown) {
   } finally { clearTimeout(t); }
 }
 async function sendRelay(m: Msg): Promise<MailResult> {
-  const r = await relayCall('POST', { to: m.to, subject: m.subject, html: m.html, text: m.text, headers: m.headers, replyTo: env('MAIL_REPLY_TO') || undefined });
+  const r = await relayCall('POST', { to: m.to, subject: m.subject, html: m.html, text: m.text, headers: m.headers, replyTo: m.replyTo || env('MAIL_REPLY_TO') || undefined });
   return r.ok ? { ok: true, id: r.j?.id } : { ok: false, error: r.error };
 }
 

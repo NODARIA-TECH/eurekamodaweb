@@ -23,6 +23,8 @@ export interface SiteContent {
   collage: { script: string; label: string; title: string; items: { img: SImg; label: string; href: string }[]; btn: SLink };
   real: { kicker: string; script: string; title: string; text: string; btn: SLink };
   news: { script: string; title: string; text: string };
+  // Pie de página: enlaces a redes (vacío = no se muestra)
+  social: { instagram: string; tiktok: string; pinterest: string; facebook: string; whatsapp: string };
 }
 
 export const SECTION_NAMES: Record<SectionId, string> = {
@@ -56,7 +58,7 @@ export const DEFAULT_CONTENT: SiteContent = {
       img(H('hero-nyc'), 'Jersey NYC', 50, 20),
     ],
     mobile: 1, shade: 45,
-    capTL: 'Moda · Tendencia\nEstilo · Actitud', capTR: 'FW 25/26\nEUREKA Editorial',
+    capTL: 'Moda · Tendencia\nEstilo · Actitud', capTR: 'FW 26/27\nEUREKA Editorial',
     capBL: 'More than a trend ♥', capBR: 'Looks reales\npara días reales',
     kicker: 'Nueva colección', title: 'EUREKA', script: 'Otoño de encanto',
     sub: 'Moda de mujer para vivir cada día, con estilo y buena vibra. Prendas seleccionadas para brillar en cualquier plan.',
@@ -92,7 +94,8 @@ export const DEFAULT_CONTENT: SiteContent = {
     text: 'Creemos en las prendas que se usan de verdad: cómodas, favorecedoras y con encanto. Selección cuidada, envío rápido y trato de tú a tú.',
     btn: { label: 'Descubrir la tienda', href: '/tienda' },
   },
-  news: { script: 'únete al', title: 'Club EUREKA · 20% de bienvenida', text: 'Suscríbete y recibe tu descuento, además de acceso anticipado a novedades y rebajas.' },
+  social: { instagram: '', tiktok: '', pinterest: '', facebook: '', whatsapp: '' },
+  news: { script: 'únete al', title: 'Club EUREKA · 20 % de bienvenida', text: 'Suscríbete y recibe tu descuento, además de acceso anticipado a novedades y rebajas.' },
 };
 
 // ---------- Saneado: todo lo que llega del navegador pasa por aquí ----------
@@ -163,7 +166,7 @@ export function normalizeContent(raw: unknown): SiteContent {
     sections,
     hero: {
       images, mobile: num(hero.mobile, d.hero.mobile, 0, images.length - 1), shade: num(hero.shade, d.hero.shade, 0, 85),
-      capTL: str(hero.capTL, d.hero.capTL, 80), capTR: str(hero.capTR, d.hero.capTR, 80),
+      capTL: str(hero.capTL, d.hero.capTL, 80), capTR: str(hero.capTR, d.hero.capTR, 80).replace('FW 25/26', 'FW 26/27'),   // temporada antigua de la plantilla
       capBL: str(hero.capBL, d.hero.capBL, 80), capBR: str(hero.capBR, d.hero.capBR, 80),
       kicker: str(hero.kicker, d.hero.kicker, 60), title: str(hero.title, d.hero.title, 40), script: str(hero.script, d.hero.script, 60),
       sub: str(hero.sub, d.hero.sub, 300), cta1: nLink(hero.cta1, d.hero.cta1), cta2: nLink(hero.cta2, d.hero.cta2),
@@ -201,6 +204,11 @@ export function normalizeContent(raw: unknown): SiteContent {
       kicker: str(real.kicker, d.real.kicker, 60), script: str(real.script, d.real.script, 40), title: str(real.title, d.real.title, 80),
       text: str(real.text, d.real.text, 500), btn: nLink(real.btn, d.real.btn),
     },
+    social: (() => {
+      const so = obj(r.social);
+      const u = (v: unknown) => { const x = typeof v === 'string' ? v.trim() : ''; return /^https:\/\/[^\s"<>]{4,300}$/.test(x) ? x : ''; };
+      return { instagram: u(so.instagram), tiktok: u(so.tiktok), pinterest: u(so.pinterest), facebook: u(so.facebook), whatsapp: u(so.whatsapp) };
+    })(),
     news: { script: str(news.script, d.news.script, 40), title: str(news.title, d.news.title, 80), text: str(news.text, d.news.text, 300) },
   };
 }

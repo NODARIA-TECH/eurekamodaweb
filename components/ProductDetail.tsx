@@ -6,6 +6,7 @@ import type { Product } from '@/lib/types';
 import { useCart } from './Cart';
 import { hasVariants, stockOf, colorAvailable, vlabel } from '@/lib/variants';
 import ProductGallery from './ProductGallery';
+import { DIAS_DEVOLUCION } from '@/lib/legal';
 
 const PLACEHOLDER = '26998033';
 
@@ -127,7 +128,7 @@ export default function ProductDetail({ p, categoryName, initialColor, compact }
             <summary>Envíos y devoluciones</summary>
             <div className="pdp-acc-b">
               <p>Envío en 24–48 h laborables. Gratis en pedidos desde 50 €.</p>
-              <p>Tienes 7 días naturales desde la recepción para devolver la prenda en perfecto estado, tal como la recibiste. <a href="/legal/devoluciones">Ver política de devoluciones</a>.</p>
+              <p>Tienes {DIAS_DEVOLUCION} días naturales desde la recepción para devolver la prenda en perfecto estado, tal como la recibiste. <a href="/legal/devoluciones">Ver política de devoluciones</a>.</p>
             </div>
           </details>
         </div>

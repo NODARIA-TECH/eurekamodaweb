@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { subscribe } from '@/lib/newsletter';
 import { baseUrl } from '@/lib/base-url';
+import { clientIp } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,7 +22,7 @@ export async function POST(req: Request) {
   try { body = await req.json(); } catch { /* */ }
   // Campo trampa invisible: si viene relleno es un robot (se responde OK sin hacer nada)
   if (body?.empresa) return NextResponse.json({ ok: true, code: '', sent: false, already: false });
-  const ip = (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || 'local';
+  const ip = clientIp();   // IP real detrás de Cloudflare (CF-Connecting-IP)
   if (limited(ip)) return NextResponse.json({ ok: false, error: 'Demasiados intentos. Prueba de nuevo en unos minutos.' }, { status: 429 });
   const r = await subscribe(String(body?.email || ''), baseUrl());
   if (!r.ok) return NextResponse.json(r, { status: 400 });

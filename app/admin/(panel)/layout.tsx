@@ -1,17 +1,19 @@
 import Link from 'next/link';
 import { logout } from '../login/actions';
 import { requireAdmin } from '@/lib/admin-auth';
+import { configIssues } from '@/lib/security-check';
 
 export const metadata = { title: 'Panel · EUREKA' };
 
 export default function PanelLayout({ children }: { children: React.ReactNode }) {
   requireAdmin(); // doble cerrojo además del middleware
+  const graves = configIssues().filter((i) => i.grave);
   return (
     <div className="adm-shell">
       <aside className="adm-side">
         <div className="brandline">EUREKA<small>Panel interno</small></div>
         <nav className="adm-nav">
-          <Link href="/admin">Dashboard</Link>
+          <Link href="/admin">Resumen</Link>
           <Link href="/admin/pagina">Página de inicio</Link>
           <Link href="/admin/productos">Productos</Link>
           <Link href="/admin/etiquetas">Etiquetas</Link>
@@ -26,7 +28,14 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
           <form action={logout}><button type="submit">Cerrar sesión</button></form>
         </div>
       </aside>
-      <main className="adm-main">{children}</main>
+      <main className="adm-main">
+        {graves.length > 0 && (
+          <div className="adm-err" role="alert" style={{ marginBottom: 18 }}>
+            <b>Seguridad:</b> {graves.map((g) => g.titulo).join(' · ')}. <Link href="/admin/diagnostico">Ver cómo arreglarlo</Link>
+          </div>
+        )}
+        {children}
+      </main>
     </div>
   );
 }

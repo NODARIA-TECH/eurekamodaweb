@@ -3,7 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 
 type Texts = { script: string; title: string; text: string };
-const DEF: Texts = { script: 'únete al', title: 'Club EUREKA · 20% de bienvenida', text: 'Suscríbete y recibe tu descuento, además de acceso anticipado a novedades y rebajas.' };
+const DEF: Texts = { script: 'únete al', title: 'Club EUREKA · 20 % de bienvenida', text: 'Suscríbete y recibe tu descuento, además de acceso anticipado a novedades y rebajas.' };
 type Note = { kind: 'info' | 'ok' | 'err'; msg: React.ReactNode };
 
 // Alta en el boletín: se guarda en el servidor y se envía por email el código de bienvenida.
@@ -28,8 +28,8 @@ export default function Newsletter({ c = DEF }: { c?: Texts }) {
         msg: j.sent
           ? j.already
             ? <>¡Ya estabas en el club! Tu código es {code} (te lo enviamos a <b>{value}</b>).</>
-            : <>¡Bienvenida! Te hemos enviado tu código a <b>{value}</b>: {code} · 20% en tu primera compra.</>
-          : <>¡Bienvenida! Tu código: {code} · 20% en tu primera compra. Aplícalo al pagar.</>,
+            : <>¡Bienvenida! Te hemos enviado tu código a <b>{value}</b>: {code} · 20 % en tu primera compra.</>
+          : <>¡Bienvenida! Tu código: {code} · 20 % en tu primera compra. Aplícalo al pagar.</>,
       });
       setEmail('');
     } catch {

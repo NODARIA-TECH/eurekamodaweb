@@ -38,6 +38,8 @@ export type Customer = {
   movements: BalanceMovement[];
   createdAt: string;
   passwordHash?: string;  // "scrypt$<salt>$<hash>" — ausente = cuenta invitado (creada por un pedido)
+  // Una clienta que ya compró como invitada quiere crear su cuenta: se confirma por email
+  pendingClaim?: { hash: string; token: string; exp: number; name?: string };
 };
 
 export type OrderItem = { productId: string; name: string; price: number; qty: number; size?: string; color?: string; variantSku?: string };
@@ -56,7 +58,16 @@ export type Order = {
   syncedAt?: string;       // cuándo se volcó a FacturaScripts (null = pendiente)
   stripeSessionId?: string; // id de la sesión de pago de Stripe (checkout online)
   history?: { status: Order['status']; at: string }[]; // historial de estados (para el seguimiento)
+  // Datos que llegan de Stripe al pagar
+  phone?: string;
+  shipping?: ShippingAddress;   // dirección de envío
+  amountPaid?: number;          // céntimos cobrados (con envío y descuento)
+  shippingCost?: number;        // céntimos
+  discount?: number;            // céntimos descontados
+  paidAt?: string;
+  emails?: { confirmacion?: string; enviado?: string; tienda?: string }; // cuándo se enviaron
 };
+export type ShippingAddress = { name?: string; line1?: string; line2?: string; postalCode?: string; city?: string; state?: string; country?: string };
 
 // Item de cesta en el cliente
 export type CartItem = { id: string; name: string; price: number; image: string; qty: number; size?: string; color?: string };

@@ -1,14 +1,15 @@
 import Link from 'next/link';
-import { stats } from '@/lib/store';
+import { stats, listCategories } from '@/lib/store';
 import { money } from '@/lib/money';
 
 export const dynamic = 'force-dynamic';
 
 export default async function Dashboard() {
   const s = await stats();
+  const catNames = new Map((await listCategories()).map((c) => [c.slug, c.name]));
   return (
     <>
-      <div className="adm-h"><div><h1>Dashboard</h1><p>Resumen de la tienda EUREKA</p></div></div>
+      <div className="adm-h"><div><h1>Resumen</h1><p>Cómo va la tienda EUREKA</p></div></div>
       <div className="adm-tiles">
         <div className="tile"><div className="k">Productos</div><div className="v">{s.productos}</div></div>
         <div className="tile"><div className="k">Categorías</div><div className="v">{s.categorias}</div></div>
@@ -27,8 +28,8 @@ export default async function Dashboard() {
             <tbody>
               {s.lowStock.map((p) => (
                 <tr key={p.id}>
-                  <td><Link href={`/producto/${p.id}`} target="_blank">{p.name}</Link></td>
-                  <td>{p.category}</td>
+                  <td><Link href={`/admin/productos/${p.id}`}>{p.name}</Link></td>
+                  <td>{catNames.get(p.category) || p.category}</td>
                   <td className="low">{p.stock}</td>
                 </tr>
               ))}

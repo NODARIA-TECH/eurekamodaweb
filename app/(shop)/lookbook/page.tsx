@@ -37,7 +37,7 @@ export default async function LookbookPage() {
         <div className="page-head">
           <span className="script lb-script">lookbook</span>
           <h1>Looks para inspirarte</h1>
-          <p>Prendas reales de nuestra tienda, combinadas como nos gusta llevarlas. Pasa por una prenda para verla destacada y tócala para comprarla.</p>
+          <p>Prendas reales de nuestra tienda, combinadas como nos gusta llevarlas. Pasa el cursor (o toca) sobre una prenda para destacarla y entra para comprarla.</p>
         </div>
         <LookbookView looks={looks} />
         <div className="lb-foot">

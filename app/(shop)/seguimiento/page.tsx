@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { findOrderForTracking } from '@/lib/store';
 import { money } from '@/lib/money';
 import OrderTracker from '@/components/OrderTracker';
+import { rateLimit, clientIp } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Seguimiento de pedido · EUREKA' };
@@ -15,7 +16,9 @@ export default async function SeguimientoPage({
   const ref = (searchParams.ref || '').trim();
   const email = (searchParams.email || '').trim();
   const searched = !!(ref && email);
-  const order = searched ? await findOrderForTracking(ref, email) : undefined;
+  // Antiabuso: 30 búsquedas cada 10 minutos por conexión
+  const allowed = !searched || rateLimit('seguimiento:' + clientIp(), 30, 10 * 60 * 1000).ok;
+  const order = searched && allowed ? await findOrderForTracking(ref, email) : undefined;
 
   return (
     <main className="page">
@@ -32,7 +35,8 @@ export default async function SeguimientoPage({
           <button className="btn btn-ink" type="submit">Buscar pedido</button>
         </form>
 
-        {searched && !order && (
+        {searched && !allowed && <p className="seg-none">Demasiadas búsquedas seguidas. Espera unos minutos e inténtalo de nuevo.</p>}
+        {searched && allowed && !order && (
           <p className="seg-none">No encontramos ningún pedido con esos datos. Revisa la referencia y el correo e inténtalo de nuevo.</p>
         )}
 
@@ -40,7 +44,7 @@ export default async function SeguimientoPage({
           <section className="seg-result">
             <div className="seg-top">
               <div><span className="muted">Pedido</span><strong>{order.ref}</strong></div>
-              <div><span className="muted">Total</span><strong>{money(order.total)}</strong></div>
+              <div><span className="muted">Total</span><strong>{money(order.amountPaid ?? order.total)}</strong></div>
             </div>
             <OrderTracker status={order.status} history={order.history} />
             <div className="seg-items">

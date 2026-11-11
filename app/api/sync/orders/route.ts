@@ -23,6 +23,11 @@ export async function GET(req: Request) {
       total: +(o.total / 100).toFixed(2),
       status: o.status,
       createdAt: o.createdAt,
+      phone: o.phone || null,
+      shipping: o.shipping || null,                     // dirección de envío (de Stripe)
+      paid_cents: o.amountPaid ?? null,                 // cobrado con envío y descuento
+      shipping_cents: o.shippingCost ?? null,
+      discount_cents: o.discount ?? null,
       items: o.items.map((i) => ({
         productId: i.productId,
         sku: skuById.get(i.productId) || null,          // referencia del producto (la que conoce FS hoy)

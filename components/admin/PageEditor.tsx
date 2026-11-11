@@ -14,7 +14,7 @@ import {
 } from './PageFields';
 
 type Status = 'saved' | 'pending' | 'saving' | 'error' | 'conflict' | 'auth';
-type CardId = SectionId | 'promo';
+type CardId = SectionId | 'promo' | 'social';
 interface Cat { slug: string; name: string }
 
 const BACKUP_KEY = 'eureka-pagina-copia';
@@ -344,14 +344,14 @@ export default function PageEditor({ initial, products, categories }: { initial:
 
   // ---------- Tarjetas ----------
   const cardHead = (id: CardId, sub: string, i?: number) => {
-    const s = id === 'promo' ? null : sec(id);
-    const shown = id === 'promo' ? c.promo.show : s!.show;
+    const s = id === 'promo' || id === 'social' ? null : sec(id);
+    const shown = id === 'promo' ? c.promo.show : id === 'social' ? true : s!.show;
     const n = c.sections.length;
     return (
       <div className="pc-head">
         <button type="button" className="pc-toggle" onClick={() => toggleCard(id)} aria-expanded={open === id}>
           <Ico d={I.chev} />
-          <span><b>{id === 'promo' ? 'Barra de aviso' : SECTION_NAMES[id]}</b><small>{shown ? sub : 'Oculto en la web'}</small></span>
+          <span><b>{id === 'promo' ? 'Barra de aviso' : id === 'social' ? 'Pie de página · redes sociales' : SECTION_NAMES[id]}</b><small>{shown ? sub : 'Oculto en la web'}</small></span>
         </button>
         <span className="pc-acts">
           {i !== undefined && (
@@ -360,10 +360,10 @@ export default function PageEditor({ initial, products, categories }: { initial:
               <button type="button" disabled={i === n - 1} aria-label="Bajar bloque" title="Bajar" onClick={() => patch((d) => move(d.sections, i, i + 1))}><Ico d={I.down} /></button>
             </>
           )}
-          <button type="button" className={shown ? '' : 'off'} title={shown ? 'Ocultar en la web' : 'Mostrar en la web'} aria-label={shown ? 'Ocultar' : 'Mostrar'}
+          {id !== 'social' && <button type="button" className={shown ? '' : 'off'} title={shown ? 'Ocultar en la web' : 'Mostrar en la web'} aria-label={shown ? 'Ocultar' : 'Mostrar'}
             onClick={() => patch((d) => { if (id === 'promo') d.promo.show = !d.promo.show; else { const x = d.sections.find((q) => q.id === id)!; x.show = !x.show; } })}>
             <Ico d={shown ? I.eye : I.eyeOff} />
-          </button>
+          </button>}
         </span>
       </div>
     );
@@ -614,6 +614,16 @@ export default function PageEditor({ initial, products, categories }: { initial:
           <p className="pf-h">El código de descuento (BIENVENIDA20) se gestiona en Stripe.</p>
         </>
       );
+      case 'social': return (
+        <>
+          <p className="pf-h">Pega la dirección completa de cada perfil (empieza por https://). Las que dejes vacías no salen en la web.</p>
+          <Txt label="Instagram" value={c.social.instagram} max={300} placeholder="https://www.instagram.com/…" onChange={(v) => patch((d) => { d.social.instagram = v.trim(); }, 'soig')} />
+          <Txt label="TikTok" value={c.social.tiktok} max={300} placeholder="https://www.tiktok.com/@…" onChange={(v) => patch((d) => { d.social.tiktok = v.trim(); }, 'sotk')} />
+          <Txt label="Facebook" value={c.social.facebook} max={300} placeholder="https://www.facebook.com/…" onChange={(v) => patch((d) => { d.social.facebook = v.trim(); }, 'sofb')} />
+          <Txt label="Pinterest" value={c.social.pinterest} max={300} placeholder="https://www.pinterest.es/…" onChange={(v) => patch((d) => { d.social.pinterest = v.trim(); }, 'sopi')} />
+          <Txt label="WhatsApp" value={c.social.whatsapp} max={300} placeholder="https://wa.me/34654382023" onChange={(v) => patch((d) => { d.social.whatsapp = v.trim(); }, 'sowa')} />
+        </>
+      );
     }
   };
 
@@ -628,6 +638,7 @@ export default function PageEditor({ initial, products, categories }: { initial:
       case 'collage': return c.collage.items.map((i) => i.label).join(' · ');
       case 'real': return c.real.title;
       case 'news': return c.news.title;
+      case 'social': { const n = Object.values(c.social).filter(Boolean).length; return n ? `${n} red${n > 1 ? 'es' : ''} enlazada${n > 1 ? 's' : ''}` : 'Sin redes: no se muestra «Síguenos»'; }
     }
   };
 
@@ -694,6 +705,7 @@ export default function PageEditor({ initial, products, categories }: { initial:
           <p className="pe-tip">Los cambios se guardan solos como <b>borrador</b>. La web no cambia hasta que pulsas <b>Publicar</b>. Toca un bloque en la vista previa para editarlo.</p>
           {card('promo')}
           {c.sections.map((s, i) => card(s.id, i))}
+          {card('social')}
           <p className="pe-foot">{meta.publishedAt ? `Última publicación: ${fmt(meta.publishedAt)}` : 'Aún no se ha publicado ningún cambio desde el panel.'}</p>
         </div>
 

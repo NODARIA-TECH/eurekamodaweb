@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   try { body = await req.json(); } catch { return NextResponse.json({ ok: false, error: 'JSON inválido.' }, { status: 400 }); }
   const raw = Array.isArray(body?.stock) ? body.stock : Array.isArray(body) ? body : [];
   const items = raw
-    .map((x: any) => ({ sku: String(x.sku || '').trim(), stock: Number(x.stock) }))
+    .map((x: any) => ({ sku: String(x.sku || '').trim(), stock: Math.max(0, Math.floor(Number(x.stock))) }))   // sin negativos
     .filter((x: any) => x.sku && Number.isFinite(x.stock));
   if (!items.length) return NextResponse.json({ ok: true, updated: 0, missing: [], note: 'Sin líneas de stock que sincronizar.' });
 

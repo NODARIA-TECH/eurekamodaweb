@@ -20,7 +20,7 @@ export default async function CategoryPage({ params }: { params: { slug: string 
         <div className="page-head">
           <span className="lab">Categoría</span>
           <h1>{c.name}</h1>
-          <p>{products.length} prendas</p>
+          <p>{products.length} {products.length === 1 ? 'prenda' : 'prendas'}</p>
         </div>
         {products.length > 0 ? (
           <ProductGrid products={products} />

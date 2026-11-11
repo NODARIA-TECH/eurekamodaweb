@@ -53,7 +53,7 @@ export default function LivePreview({ initial, products, categories }: { initial
         </div>
         <Header />
         <main id="top"><HomeBody c={c} products={products} categories={categories} mark /></main>
-        <Footer />
+        <div data-sec="social" className="pv-sec" data-label="Pie de página · redes"><Footer social={c.social} /></div>
       </div>
     </CartProvider>
   );

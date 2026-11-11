@@ -107,7 +107,7 @@ export async function subscribe(rawEmail: string, base: string): Promise<Subscri
   let mail: MailResult = { ok: false, error: 'reciente' };
   if (sendNow) {
     const m = welcomeEmail(base, sub.token);
-    const job = sendMail({ to: email, subject: m.subject, html: m.html, text: m.text, headers: { 'List-Unsubscribe': `<${m.baja}>` } })
+    const job = sendMail({ to: email, subject: m.subject, html: m.html, text: m.text, headers: unsubscribeHeaders(base, sub.token) })
       .then(async (r) => {
         await exclusive(async () => {
           const list = await load();
@@ -133,7 +133,7 @@ export async function sendPending(base: string): Promise<{ sent: number; failed:
   let sent = 0, failed = 0, lastError: string | undefined;
   for (const p of pend.slice(0, 200)) {
     const m = welcomeEmail(base, p.token);
-    const mail = await sendMail({ to: p.email, subject: m.subject, html: m.html, text: m.text, headers: { 'List-Unsubscribe': `<${m.baja}>` } });
+    const mail = await sendMail({ to: p.email, subject: m.subject, html: m.html, text: m.text, headers: unsubscribeHeaders(base, p.token) });
     await exclusive(async () => {
       const list = await load();
       const s = list.find((x) => x.email === p.email);
@@ -145,6 +145,19 @@ export async function sendPending(base: string): Promise<{ sent: number; failed:
     if (mail.ok) sent++; else { failed++; lastError = (mail as { error: string }).error; if (failed >= 3 && !sent) break; }   // si falla la configuración, no insistir
   }
   return { sent, failed, lastError };
+}
+
+export async function findByToken(token: string): Promise<Subscriber | null> {
+  if (!token) return null;
+  return (await load()).find((x) => x.token === token) || null;
+}
+
+// Cabeceras para que Gmail/Outlook muestren "Cancelar suscripción" con un clic (RFC 8058)
+export function unsubscribeHeaders(base: string, token: string): Record<string, string> {
+  return {
+    'List-Unsubscribe': `<${base}/api/boletin/baja?t=${encodeURIComponent(token)}>`,
+    'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+  };
 }
 
 export async function unsubscribe(token: string): Promise<Subscriber | null> {

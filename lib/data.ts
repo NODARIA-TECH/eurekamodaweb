@@ -46,7 +46,7 @@ export function swatch(color: string): string {
 
 export const NAV = [
   { href: '/tienda', label: 'Ropa' },
-  { href: '/#edit', label: 'Novedades' },
+  { href: '/#rail', label: 'Novedades' },
   { href: '/lookbook', label: 'Lookbook' },
   { href: '/#real', label: 'Nosotras' },
   { href: '/seguimiento', label: 'Seguir pedido' },

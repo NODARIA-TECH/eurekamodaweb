@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { DIAS_DEVOLUCION } from '@/lib/legal';
 import { useState } from 'react';
 import { useCart } from '@/components/Cart';
 import { productImg } from '@/lib/data';
@@ -94,7 +95,7 @@ export default function CestaPage() {
           </button>
           <ul className="cart-trust">
             <li>Pago seguro con tarjeta (Stripe)</li>
-            <li>Devoluciones en 7 días</li>
+            <li>Devoluciones en {DIAS_DEVOLUCION} días</li>
             <li>Envío gratis desde 50 €</li>
           </ul>
           <p className="cart-legal">Al finalizar aceptas las <Link href="/legal/condiciones">condiciones de compra</Link> y la <Link href="/legal/devoluciones">política de devoluciones</Link>.</p>

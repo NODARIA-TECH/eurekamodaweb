@@ -167,17 +167,18 @@ export function RealBand({ c }: { c: SiteContent['real'] }) {
   );
 }
 
-export function Footer() {
+export function Footer({ social }: { social?: SiteContent['social'] } = {}) {
+  const redes = ([['Instagram', social?.instagram], ['TikTok', social?.tiktok], ['Facebook', social?.facebook], ['Pinterest', social?.pinterest], ['WhatsApp', social?.whatsapp]] as const).filter(([, u]) => !!u) as [string, string][];
   return (
     <>
       <footer className="foot">
         <div className="wrap">
           <div className="top"><img src="/eureka-logo.png" alt="EUREKA" /><div className="script">estilo con buena vibra</div></div>
           <div className="ftop">
-            <div><h4>Tienda</h4><ul><li><a href="#edit">Novedades</a></li><li><a href="#cats">Vestidos</a></li><li><a href="#cats">Punto</a></li><li><a href="#cats">Abrigos</a></li></ul></div>
+            <div><h4>Tienda</h4><ul><li><a href="/tienda">Toda la colección</a></li><li><a href="/#rail">Novedades</a></li><li><a href="/lookbook">Lookbook</a></li><li><a href="/#nl">Club EUREKA</a></li></ul></div>
             <div><h4>Ayuda</h4><ul><li><a href="/legal/condiciones">Envíos</a></li><li><a href="/legal/devoluciones">Cambios y devoluciones</a></li><li><a href="/seguimiento">Seguir pedido</a></li><li><a href="mailto:eurekamodaecija@gmail.com">Contacto</a></li></ul></div>
             <div><h4>Legal</h4><ul><li><a href="/legal/aviso-legal">Aviso legal</a></li><li><a href="/legal/privacidad">Privacidad</a></li><li><a href="/legal/condiciones">Condiciones de compra</a></li><li><a href="/legal/cookies">Cookies</a></li></ul></div>
-            <div><h4>Síguenos</h4><ul><li><a href="#">Instagram</a></li><li><a href="#">TikTok</a></li><li><a href="#">Pinterest</a></li></ul></div>
+            {redes.length > 0 && <div><h4>Síguenos</h4><ul>{redes.map(([n, u]) => <li key={n}><a href={u} target="_blank" rel="noopener noreferrer">{n}</a></li>)}</ul></div>}
           </div>
           <div className="fbot"><span>© 2026 EUREKA · Tu tienda de moda</span><span><a href="/legal/aviso-legal">Aviso legal</a> · <a href="/legal/privacidad">Privacidad</a> · <a href="/legal/cookies">Cookies</a></span></div>
         </div>

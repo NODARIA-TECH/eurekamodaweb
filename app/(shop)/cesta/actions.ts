@@ -1,6 +1,6 @@
 'use server';
 import { revalidatePath } from 'next/cache';
-import { headers } from 'next/headers';
+import { baseUrl } from '@/lib/base-url';
 import Stripe from 'stripe';
 import { createOrder, createPendingOrder, setOrderStripeSession } from '@/lib/store';
 
@@ -51,14 +51,7 @@ export async function checkout(payload: Payload): Promise<{ ok: boolean; url?: s
 
   // URL base para las vueltas de Stripe. Prioriza EUREKA_BASE_URL (p.ej. https://eurekamoda.com);
   // si no, la deduce de la petición (host + protocolo reenviado por Nginx/Cloudflare).
-  let base = process.env.EUREKA_BASE_URL;
-  if (!base) {
-    const h = headers();
-    const host = h.get('host') || '';
-    const proto = h.get('x-forwarded-proto') || 'http';
-    base = `${proto}://${host}`;
-  }
-  base = base.replace(/\/+$/, '');
+  const base = baseUrl();
 
   const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = order.items.map((it) => ({
     price_data: {
@@ -83,6 +76,12 @@ export async function checkout(payload: Payload): Promise<{ ok: boolean; url?: s
       // que pueda introducirlo en la página de Stripe.
       ...(discounts ? { discounts } : { allow_promotion_codes: true }),
       customer_email: payload.email || undefined,
+      // Dirección de envío y teléfono: sin esto la tienda no sabe a dónde mandar el pedido
+      shipping_address_collection: { allowed_countries: ['ES'] },
+      phone_number_collection: { enabled: true },
+      locale: 'es',
+      // La sesión caduca a las 2 h: si no se paga, el pedido pendiente se cancela (webhook)
+      expires_at: Math.floor(Date.now() / 1000) + 2 * 60 * 60,
       metadata: { orderId: order.id, ref: order.ref },
       success_url: `${base}/cesta/gracias?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${base}/cesta`,

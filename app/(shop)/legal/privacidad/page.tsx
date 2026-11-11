@@ -30,7 +30,7 @@ export default function Privacidad() {
       <p>Conservamos tus datos mientras exista la relación comercial y, después, durante los plazos legalmente exigidos (por ejemplo, los fiscales y contables).</p>
 
       <h2>5. Destinatarios</h2>
-      <p>No cedemos tus datos a terceros salvo obligación legal o a los proveedores necesarios para prestar el servicio (pasarela de pago, empresa de transporte, software de facturación), que actúan como encargados del tratamiento.</p>
+      <p>No cedemos tus datos a terceros salvo obligación legal o a los proveedores necesarios para prestar el servicio (pasarela de pago, empresa de transporte, software de facturación, alojamiento de la web y servicio de correo electrónico), que actúan como encargados del tratamiento.</p>
 
       <h2>6. Tus derechos</h2>
       <p>Puedes ejercer tus derechos de <b>acceso, rectificación, supresión, oposición, limitación y portabilidad</b> escribiendo a <b>{TITULAR.email}</b>. También puedes reclamar ante la Agencia Española de Protección de Datos (www.aepd.es).</p>

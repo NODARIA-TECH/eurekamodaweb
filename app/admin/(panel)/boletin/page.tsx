@@ -31,7 +31,7 @@ export default async function BoletinAdmin({ searchParams }: { searchParams: SP 
   return (
     <>
       <div className="adm-h">
-        <div><h1>Boletín</h1><p>{activas.length} suscritas · {subs.length - activas.length} bajas · código de bienvenida <b>{welcomeCode()}</b></p></div>
+        <div><h1>Boletín</h1><p>{activas.length} {activas.length === 1 ? 'suscrita' : 'suscritas'} · {subs.length - activas.length} bajas · código de bienvenida <b>{welcomeCode()}</b></p></div>
         <a className="btn-sm" href="/admin/api/boletin">Descargar lista (Excel/CSV)</a>
       </div>
 

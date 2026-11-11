@@ -7,6 +7,7 @@ import { requireAdmin } from '@/lib/admin-auth';
 import { UPLOAD_DIR, recentUploadErrors } from '@/lib/uploads';
 import { checkMail, providerName, mailProvider } from '@/lib/mailer';
 import PhotoTest from './PhotoTest';
+import { configIssues } from '@/lib/security-check';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Diagnóstico · EUREKA' };
@@ -75,6 +76,9 @@ async function checks(): Promise<Check[]> {
     detail: mail.detail === 'Sin configurar' ? 'Sin configurar (las suscripciones se guardan, pero no sale el email)' : (mailProvider() ? providerName() + ' · ' : '') + mail.detail,
     fix: 'Buzón de IONOS a través del Worker de Cloudflare: ver cloudflare/correo-worker.js y .env.example.',
   });
+
+  for (const i of configIssues()) out.push({ name: i.titulo, ok: i.grave ? false : 'warn', detail: i.detalle });
+  if (!configIssues().length) out.push({ name: 'Seguridad y configuración', ok: true, detail: 'Contraseña del panel, secretos, dirección de la web y Stripe bien configurados.' });
 
   // Límite de subida (Nginx): la web sube por trozos de 768 KB, así que no le afecta
   out.push({ name: 'Límite de tamaño de Nginx', ok: true, detail: 'Las fotos y ZIP se suben por trozos de 768 KB: funcionan aunque Nginx tenga el límite por defecto (1 MB).' });

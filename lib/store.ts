@@ -22,6 +22,21 @@ async function ensureFile(): Promise<void> {
   }
 }
 
+
+// ---------- Un solo cambio a la vez ----------
+// Cada cambio lee live.json, lo modifica y lo guarda. Sin esto, dos cambios a la vez (un pedido
+// mientras FacturaScripts sincroniza el stock, dos clientas pagando…) se pisan y se pierde uno.
+// Reentrante: si una función con cerrojo llama a otra, no se bloquea.
+import { AsyncLocalStorage } from 'async_hooks';
+const lockCtx = new AsyncLocalStorage<boolean>();
+let lockChain: Promise<unknown> = Promise.resolve();
+function locked<T>(fn: () => Promise<T>): Promise<T> {
+  if (lockCtx.getStore()) return fn();
+  const run = lockChain.then(() => lockCtx.run(true, fn), () => lockCtx.run(true, fn));
+  lockChain = run.catch(() => undefined);
+  return run;
+}
+
 async function read(): Promise<DB> {
   await ensureFile();
   await (migration ||= migrateCatalog().catch((e) => { console.error('[catálogo] No se pudo cargar el catálogo nuevo:', e); migration = null; }));
@@ -194,6 +209,8 @@ function checkStock(db: DB, lines: StockLine[]): string | null {
   for (const l of lines) {
     const p = db.products.find((x) => x.id === l.productId);
     if (!p) return 'Producto no encontrado.';
+    // Solo se puede comprar lo que se ve en la tienda (no lo oculto, sin precio o sin foto)
+    if (!shownInShop(p)) return `${p.name} ya no está a la venta.`;
     if (!Number.isInteger(l.qty) || l.qty < 1 || l.qty > 99) return 'Cantidad no válida.';
     const k = p.id + '#' + (hasVariants(p) ? vkey(l.size, l.color) : '');
     const want = (need.get(k) || 0) + l.qty;
@@ -221,14 +238,14 @@ export async function listCategories(): Promise<Category[]> {
 export async function getCategory(slug: string): Promise<Category | undefined> {
   return (await read()).categories.find((c) => c.slug === slug);
 }
-export async function createCategory(data: { name: string; slug: string; image: string }): Promise<Category> {
+async function createCategory__(data: { name: string; slug: string; image: string }): Promise<Category> {
   const db = await read();
   const cat: Category = { name: data.name, slug: data.slug, image: data.image || '26998033' };
   db.categories.push(cat);
   await write(db);
   return cat;
 }
-export async function deleteCategory(slug: string): Promise<void> {
+async function deleteCategory__(slug: string): Promise<void> {
   const db = await read();
   db.categories = db.categories.filter((c) => c.slug !== slug);
   await write(db);
@@ -262,14 +279,14 @@ export async function listShopProducts(): Promise<Product[]> {
 export async function shopProductsByCategory(slug: string): Promise<Product[]> {
   return (await productsByCategory(slug)).filter(shownInShop);
 }
-export async function setProductHidden(id: string, hidden: boolean): Promise<void> {
+async function setProductHidden__(id: string, hidden: boolean): Promise<void> {
   const db = await read();
   const p = db.products.find((x) => x.id === id);
   if (!p) return;
   if (hidden) p.hidden = true; else delete p.hidden;   // no cambia la fecha: no salta en el orden
   await write(db);
 }
-export async function createProduct(data: Omit<Product, 'id' | 'slug'> & { slug?: string }, opts?: { variantStockText?: string }): Promise<Product> {
+async function createProduct__(data: Omit<Product, 'id' | 'slug'> & { slug?: string }, opts?: { variantStockText?: string }): Promise<Product> {
   const db = await read();
   const slug = (data.slug || data.name).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   // SKU automático con prefijo (EUR-0001, EUR-0002…) si no se indica uno.
@@ -286,7 +303,7 @@ export async function createProduct(data: Omit<Product, 'id' | 'slug'> & { slug?
   await write(db);
   return prod;
 }
-export async function updateProduct(id: string, patch: Partial<Product>): Promise<void> {
+async function updateProduct__(id: string, patch: Partial<Product>): Promise<void> {
   const db = await read();
   const p = db.products.find((x) => x.id === id);
   if (p) {
@@ -296,7 +313,7 @@ export async function updateProduct(id: string, patch: Partial<Product>): Promis
   }
   await write(db);
 }
-export async function deleteProduct(id: string): Promise<void> {
+async function deleteProduct__(id: string): Promise<void> {
   const db = await read();
   db.products = db.products.filter((p) => p.id !== id);
   await write(db);
@@ -342,7 +359,7 @@ function applyRow(p: Product, data: ImportRow, renamed: boolean): boolean {
 
 /* -------- Sincronización con FacturaScripts -------- */
 // Alta/actualización de producto por SKU (referencia). FS->web para artículos creados en FacturaScripts.
-export async function upsertProductBySku(data: ImportRow & { sku: string }): Promise<ImportResult> {
+async function upsertProductBySku__(data: ImportRow & { sku: string }): Promise<ImportResult> {
   const db = await read();
   const sku = data.sku.trim();
   let p = db.products.find((x) => x.sku && x.sku.toLowerCase() === sku.toLowerCase());
@@ -362,7 +379,7 @@ export async function upsertProductBySku(data: ImportRow & { sku: string }): Pro
 // Alta/actualización por NOMBRE (para importaciones de Excel SIN referencia).
 // Empareja por nombre normalizado (ignora mayúsculas/acentos/espacios) para no duplicar.
 // Si el existente no tiene SKU aún, NO lo inventa aquí (se respeta el que ya tenga).
-export async function upsertProductByName(data: ImportRow & { previousName?: string }): Promise<ImportResult> {
+async function upsertProductByName__(data: ImportRow & { previousName?: string }): Promise<ImportResult> {
   const db = await read();
   const norm = (s: string) => s.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ');
   const target = norm(data.name);
@@ -386,7 +403,7 @@ export async function upsertProductByName(data: ImportRow & { previousName?: str
 // Ajuste de stock por SKU (FS manda sobre el stock). No toca campos de catálogo.
 // Acepta la referencia del producto o la de una variante (PEK-0973-01). Si llega la referencia
 // del producto entero y éste lleva stock por talla/color, se ignora para no pisar el desglose.
-export async function setStockBySku(items: { sku: string; stock: number }[]): Promise<{ updated: number; missing: string[]; ignored: string[] }> {
+async function setStockBySku__(items: { sku: string; stock: number }[]): Promise<{ updated: number; missing: string[]; ignored: string[] }> {
   const db = await read();
   let updated = 0;
   const missing: string[] = [];
@@ -418,7 +435,7 @@ export async function listPendingOrders(): Promise<Order[]> {
   );
 }
 // Marcar un pedido como volcado a FacturaScripts.
-export async function markOrderSynced(id: string, facturaRef?: string): Promise<boolean> {
+async function markOrderSynced__(id: string, facturaRef?: string): Promise<boolean> {
   const db = await read();
   const o = db.orders.find((x) => x.id === id);
   if (!o) return false;
@@ -432,7 +449,7 @@ export async function markOrderSynced(id: string, facturaRef?: string): Promise<
 export async function listOrders(): Promise<Order[]> {
   return (await read()).orders.slice().reverse();
 }
-export async function createOrder(input: { items: { productId: string; qty: number; size?: string; color?: string }[]; customerName?: string; customerEmail?: string }): Promise<{ ok: boolean; order?: Order; error?: string }> {
+async function createOrder__(input: { items: { productId: string; qty: number; size?: string; color?: string }[]; customerName?: string; customerEmail?: string }): Promise<{ ok: boolean; order?: Order; error?: string }> {
   const db = await read();
   if (!input.items.length) return { ok: false, error: 'La cesta está vacía.' };
   const items: OrderItem[] = [];
@@ -474,7 +491,7 @@ export async function createOrder(input: { items: { productId: string; qty: numb
 }
 // Crea un pedido PENDIENTE de pago (checkout online con Stripe). NO descuenta stock:
 // el stock se descuenta al confirmarse el pago (markOrderPaid). Valida que haya stock.
-export async function createPendingOrder(input: { items: { productId: string; qty: number; size?: string; color?: string }[]; customerName?: string; customerEmail?: string }): Promise<{ ok: boolean; order?: Order; error?: string }> {
+async function createPendingOrder__(input: { items: { productId: string; qty: number; size?: string; color?: string }[]; customerName?: string; customerEmail?: string }): Promise<{ ok: boolean; order?: Order; error?: string }> {
   const db = await read();
   if (!input.items.length) return { ok: false, error: 'La cesta está vacía.' };
   const items: OrderItem[] = [];
@@ -514,7 +531,7 @@ export async function createPendingOrder(input: { items: { productId: string; qt
 }
 
 // Guarda el id de la sesión de Stripe en el pedido.
-export async function setOrderStripeSession(id: string, sessionId: string): Promise<void> {
+async function setOrderStripeSession__(id: string, sessionId: string): Promise<void> {
   const db = await read();
   const o = db.orders.find((x) => x.id === id);
   if (o) o.stripeSessionId = sessionId;
@@ -526,11 +543,23 @@ export async function getOrderByStripeSession(sessionId: string): Promise<Order 
 }
 
 // Marca un pedido como pagado y descuenta el stock (idempotente: si ya no está 'pendiente', no hace nada).
-export async function markOrderPaid(id: string): Promise<{ ok: boolean; order?: Order; alreadyPaid?: boolean; error?: string }> {
+async function markOrderPaid__(id: string, details?: Partial<Pick<Order, 'customerEmail' | 'customerName' | 'phone' | 'shipping' | 'amountPaid' | 'shippingCost' | 'discount'>>): Promise<{ ok: boolean; order?: Order; alreadyPaid?: boolean; error?: string }> {
   const db = await read();
   const o = db.orders.find((x) => x.id === id);
   if (!o) return { ok: false, error: 'Pedido no encontrado.' };
-  if (o.status !== 'pendiente') return { ok: true, order: o, alreadyPaid: true };
+  // Datos de Stripe (dirección, teléfono, importe cobrado): se guardan aunque ya estuviera pagado
+  if (details) {
+    for (const [k, v] of Object.entries(details)) if (v !== undefined && v !== null && v !== '' && !(o as any)[k]) (o as any)[k] = v;
+    if (o.customerEmail && !o.customerId) {
+      const em = o.customerEmail.toLowerCase();
+      let cust = db.customers.find((c) => c.email.toLowerCase() === em);
+      if (!cust) { cust = { id: randomUUID().slice(0, 8), name: o.customerName || o.customerEmail, email: o.customerEmail, balance: 0, movements: [], createdAt: new Date().toISOString() }; db.customers.push(cust); }
+      o.customerId = cust.id;
+      if (!o.customerName) o.customerName = cust.name;
+    }
+  }
+  if (o.status !== 'pendiente') { if (details) await write(db); return { ok: true, order: o, alreadyPaid: true }; }
+  o.paidAt = new Date().toISOString();
   for (const it of o.items) {
     const p = db.products.find((x) => x.id === it.productId);
     if (p) takeStock(p, it);
@@ -542,7 +571,19 @@ export async function markOrderPaid(id: string): Promise<{ ok: boolean; order?: 
   return { ok: true, order: o };
 }
 
-export async function updateOrderStatus(id: string, status: Order['status']): Promise<void> {
+async function noteOrderEmail__(id: string, kind: 'confirmacion' | 'enviado' | 'tienda'): Promise<void> {
+  const db = await read();
+  const o = db.orders.find((x) => x.id === id);
+  if (!o) return;
+  o.emails = { ...(o.emails || {}), [kind]: new Date().toISOString() };
+  await write(db);
+}
+
+export async function getOrder(id: string): Promise<Order | undefined> {
+  return (await read()).orders.find((o) => o.id === id);
+}
+
+async function updateOrderStatus__(id: string, status: Order['status']): Promise<void> {
   const db = await read();
   const o = db.orders.find((x) => x.id === id);
   if (o && o.status !== status) {
@@ -571,7 +612,7 @@ export async function listCustomers(): Promise<Customer[]> {
 export async function getCustomer(id: string): Promise<Customer | undefined> {
   return (await read()).customers.find((c) => c.id === id);
 }
-export async function adjustBalance(id: string, amount: number, reason: string): Promise<void> {
+async function adjustBalance__(id: string, amount: number, reason: string): Promise<void> {
   const db = await read();
   const c = db.customers.find((x) => x.id === id);
   if (c) {
@@ -582,7 +623,7 @@ export async function adjustBalance(id: string, amount: number, reason: string):
 }
 
 /* -------- Autenticación de clientes -------- */
-export async function registerCustomer(data: { name: string; email: string; password: string }): Promise<{ ok: boolean; customerId?: string; error?: string }> {
+async function registerCustomer__(data: { name: string; email: string; password: string }): Promise<{ ok: boolean; customerId?: string; error?: string; verify?: { token: string; email: string; name: string } }> {
   const email = data.email.toLowerCase().trim();
   if (!email || !email.includes('@')) return { ok: false, error: 'Introduce un correo válido.' };
   if (!data.password || data.password.length < 6) return { ok: false, error: 'La contraseña debe tener al menos 6 caracteres.' };
@@ -590,11 +631,12 @@ export async function registerCustomer(data: { name: string; email: string; pass
   const existing = db.customers.find((c) => c.email.toLowerCase() === email);
   if (existing) {
     if (existing.passwordHash) return { ok: false, error: 'Ya existe una cuenta con ese correo. Inicia sesión.' };
-    // Cliente creado como invitado por un pedido: reclama su cuenta poniéndole contraseña.
-    existing.passwordHash = hashPassword(data.password);
-    if (data.name) existing.name = data.name;
+    // Ya compró como invitada con este correo: sus pedidos y su saldo están ahí, así que antes de
+    // ponerle contraseña se confirma que el correo es suyo (enlace por email, 24 h).
+    const token = randomUUID().replace(/-/g, '') + randomUUID().replace(/-/g, '');
+    existing.pendingClaim = { hash: hashPassword(data.password), token, exp: Date.now() + 24 * 60 * 60 * 1000, name: data.name || undefined };
     await write(db);
-    return { ok: true, customerId: existing.id };
+    return { ok: false, verify: { token, email: existing.email, name: data.name || existing.name } };
   }
   const cust: Customer = {
     id: randomUUID().slice(0, 8), name: data.name || email, email, balance: 0, movements: [],
@@ -603,6 +645,25 @@ export async function registerCustomer(data: { name: string; email: string; pass
   db.customers.push(cust);
   await write(db);
   return { ok: true, customerId: cust.id };
+}
+
+async function confirmClaim__(token: string): Promise<{ ok: boolean; customerId?: string; error?: string }> {
+  if (!token) return { ok: false, error: 'Enlace no válido.' };
+  const db = await read();
+  const c = db.customers.find((x) => x.pendingClaim?.token === token);
+  if (!c || !c.pendingClaim) return { ok: false, error: 'El enlace no es válido o ya se usó.' };
+  if (c.pendingClaim.exp < Date.now()) { delete c.pendingClaim; await write(db); return { ok: false, error: 'El enlace ha caducado. Vuelve a crear la cuenta para recibir otro.' }; }
+  c.passwordHash = c.pendingClaim.hash;
+  if (c.pendingClaim.name) c.name = c.pendingClaim.name;
+  delete c.pendingClaim;
+  await write(db);
+  return { ok: true, customerId: c.id };
+}
+
+export async function findPendingClaim(token: string): Promise<{ email: string } | null> {
+  if (!token) return null;
+  const c = (await read()).customers.find((x) => x.pendingClaim?.token === token && x.pendingClaim.exp > Date.now());
+  return c ? { email: c.email } : null;
 }
 
 export async function authenticate(email: string, password: string): Promise<{ ok: boolean; customerId?: string; error?: string }> {
@@ -636,3 +697,23 @@ export async function stats() {
     lowStock,
   };
 }
+
+export function createCategory(...a: Parameters<typeof createCategory__>): ReturnType<typeof createCategory__> { return locked(() => createCategory__(...a)) as ReturnType<typeof createCategory__>; }
+export function deleteCategory(...a: Parameters<typeof deleteCategory__>): ReturnType<typeof deleteCategory__> { return locked(() => deleteCategory__(...a)) as ReturnType<typeof deleteCategory__>; }
+export function setProductHidden(...a: Parameters<typeof setProductHidden__>): ReturnType<typeof setProductHidden__> { return locked(() => setProductHidden__(...a)) as ReturnType<typeof setProductHidden__>; }
+export function createProduct(...a: Parameters<typeof createProduct__>): ReturnType<typeof createProduct__> { return locked(() => createProduct__(...a)) as ReturnType<typeof createProduct__>; }
+export function updateProduct(...a: Parameters<typeof updateProduct__>): ReturnType<typeof updateProduct__> { return locked(() => updateProduct__(...a)) as ReturnType<typeof updateProduct__>; }
+export function deleteProduct(...a: Parameters<typeof deleteProduct__>): ReturnType<typeof deleteProduct__> { return locked(() => deleteProduct__(...a)) as ReturnType<typeof deleteProduct__>; }
+export function upsertProductBySku(...a: Parameters<typeof upsertProductBySku__>): ReturnType<typeof upsertProductBySku__> { return locked(() => upsertProductBySku__(...a)) as ReturnType<typeof upsertProductBySku__>; }
+export function upsertProductByName(...a: Parameters<typeof upsertProductByName__>): ReturnType<typeof upsertProductByName__> { return locked(() => upsertProductByName__(...a)) as ReturnType<typeof upsertProductByName__>; }
+export function setStockBySku(...a: Parameters<typeof setStockBySku__>): ReturnType<typeof setStockBySku__> { return locked(() => setStockBySku__(...a)) as ReturnType<typeof setStockBySku__>; }
+export function markOrderSynced(...a: Parameters<typeof markOrderSynced__>): ReturnType<typeof markOrderSynced__> { return locked(() => markOrderSynced__(...a)) as ReturnType<typeof markOrderSynced__>; }
+export function createOrder(...a: Parameters<typeof createOrder__>): ReturnType<typeof createOrder__> { return locked(() => createOrder__(...a)) as ReturnType<typeof createOrder__>; }
+export function createPendingOrder(...a: Parameters<typeof createPendingOrder__>): ReturnType<typeof createPendingOrder__> { return locked(() => createPendingOrder__(...a)) as ReturnType<typeof createPendingOrder__>; }
+export function setOrderStripeSession(...a: Parameters<typeof setOrderStripeSession__>): ReturnType<typeof setOrderStripeSession__> { return locked(() => setOrderStripeSession__(...a)) as ReturnType<typeof setOrderStripeSession__>; }
+export function markOrderPaid(...a: Parameters<typeof markOrderPaid__>): ReturnType<typeof markOrderPaid__> { return locked(() => markOrderPaid__(...a)) as ReturnType<typeof markOrderPaid__>; }
+export function updateOrderStatus(...a: Parameters<typeof updateOrderStatus__>): ReturnType<typeof updateOrderStatus__> { return locked(() => updateOrderStatus__(...a)) as ReturnType<typeof updateOrderStatus__>; }
+export function adjustBalance(...a: Parameters<typeof adjustBalance__>): ReturnType<typeof adjustBalance__> { return locked(() => adjustBalance__(...a)) as ReturnType<typeof adjustBalance__>; }
+export function registerCustomer(...a: Parameters<typeof registerCustomer__>): ReturnType<typeof registerCustomer__> { return locked(() => registerCustomer__(...a)) as ReturnType<typeof registerCustomer__>; }
+export function noteOrderEmail(...a: Parameters<typeof noteOrderEmail__>): ReturnType<typeof noteOrderEmail__> { return locked(() => noteOrderEmail__(...a)) as ReturnType<typeof noteOrderEmail__>; }
+export function confirmClaim(...a: Parameters<typeof confirmClaim__>): ReturnType<typeof confirmClaim__> { return locked(() => confirmClaim__(...a)) as ReturnType<typeof confirmClaim__>; }

@@ -62,6 +62,20 @@ try {
 } catch (e) { fail('sharp no funciona: ' + e.message, 'npm install  (y si sigue: npm rebuild sharp)'); }
 existsSync(path.join(root, 'node_modules', 'heic-convert')) ? ok('Conversor HEIC instalado') : fail('Falta el conversor HEIC', 'npm install');
 
+console.log('\nSeguridad y configuración (.env)');
+const envv = {};
+for (const f of ['.env', '.env.local', '.env.production', '.env.production.local']) {
+  try { for (const l of readFileSync(path.join(root, f), 'utf8').split('\n')) { const m = /^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/.exec(l); if (m) envv[m[1]] = m[2].replace(/^["']|["']$/g, '').replace(/\s+#.*$/, '').trim(); } } catch { /* no existe */ }
+}
+const E = (k) => process.env[k] || envv[k] || '';
+const PH = /cambia|cambiame|change|^eureka$|example|xxxx/i;
+(!E('EUREKA_ADMIN_PASSWORD') || E('EUREKA_ADMIN_PASSWORD') === 'eureka' || E('EUREKA_ADMIN_PASSWORD').length < 10) ? fail('Contraseña del panel vacía, "eureka" o corta', 'EUREKA_ADMIN_PASSWORD con 10+ caracteres en .env') : ok('Contraseña del panel configurada');
+(!E('EUREKA_AUTH_SECRET') || E('EUREKA_AUTH_SECRET').length < 24 || PH.test(E('EUREKA_AUTH_SECRET'))) ? fail('Falta EUREKA_AUTH_SECRET propio', 'EUREKA_AUTH_SECRET=$(openssl rand -hex 32) en .env') : ok('Secreto de sesiones configurado');
+if (E('EUREKA_SYNC_SECRET') && (E('EUREKA_SYNC_SECRET').length < 24 || PH.test(E('EUREKA_SYNC_SECRET')))) fail('EUREKA_SYNC_SECRET es el de ejemplo', 'openssl rand -hex 32 (el mismo en n8n)');
+E('EUREKA_BASE_URL') ? ok('EUREKA_BASE_URL=' + E('EUREKA_BASE_URL')) : warn('Falta EUREKA_BASE_URL', 'EUREKA_BASE_URL=https://eurekamoda.com');
+if (E('STRIPE_SECRET_KEY')) E('STRIPE_WEBHOOK_SECRET') ? ok('Stripe y su webhook configurados') : warn('Falta STRIPE_WEBHOOK_SECRET', 'Stripe → Developers → Webhooks → https://eurekamoda.com/api/stripe/webhook');
+(E('MAIL_RELAY_URL') && !/<|TU-SUB/i.test(E('MAIL_RELAY_URL')) && E('MAIL_RELAY_TOKEN')) ? ok('Correo: relé de Cloudflare configurado') : warn('Correo sin configurar (MAIL_RELAY_URL / MAIL_RELAY_TOKEN)');
+
 console.log('\nServidor');
 try {
   const s = await fs.statfs(root);
