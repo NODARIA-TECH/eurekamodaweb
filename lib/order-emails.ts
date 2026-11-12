@@ -4,6 +4,7 @@ import type { Order } from './types';
 import { sendMail, mailConfigured } from './mailer';
 import { noteOrderEmail } from './store';
 import { TITULAR } from './legal';
+import { esRecogida, statusLabel, RECOGIDA } from './envio';
 
 const esc = (s: string) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 const eur = (c: number) => (c / 100).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
@@ -35,7 +36,7 @@ function frame(base: string, title: string, intro: string, body: string) {
 function itemsTable(o: Order) {
   const rows = o.items.map((i) => `<tr><td style="padding:7px 0;border-bottom:1px solid #EFE5D4;font-size:14px;color:#2A2018">${esc(line(i))}</td><td align="right" style="padding:7px 0;border-bottom:1px solid #EFE5D4;font-size:14px;white-space:nowrap">${eur(i.price * i.qty)}</td></tr>`).join('');
   const extra: string[] = [];
-  if (o.shippingCost != null) extra.push(`<tr><td style="padding:6px 0;font-size:14px;color:#5B4E3F">Envío</td><td align="right" style="font-size:14px">${o.shippingCost ? eur(o.shippingCost) : 'Gratis'}</td></tr>`);
+  if (o.shippingCost != null || esRecogida(o)) extra.push(`<tr><td style="padding:6px 0;font-size:14px;color:#5B4E3F">${esRecogida(o) ? 'Recogida en tienda' : 'Envío'}</td><td align="right" style="font-size:14px">${o.shippingCost ? eur(o.shippingCost) : 'Gratis'}</td></tr>`);
   if (o.discount) extra.push(`<tr><td style="padding:6px 0;font-size:14px;color:#5B4E3F">Descuento</td><td align="right" style="font-size:14px">−${eur(o.discount)}</td></tr>`);
   const total = o.amountPaid ?? o.total;
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows}${extra.join('')}
@@ -46,13 +47,17 @@ const box = (label: string, html: string) => `<div style="margin-top:18px;paddin
 const btn = (href: string, text: string) => `<p style="margin:22px 0 0;text-align:center"><a href="${esc(href)}" style="display:inline-block;background:#2A2018;color:#FFFFFF;text-decoration:none;font-size:14px;font-weight:bold;letter-spacing:1px;padding:13px 28px;border-radius:999px">${esc(text)}</a></p>`;
 const track = (base: string, o: Order) => `${base}/seguimiento?ref=${encodeURIComponent(o.ref)}&email=${encodeURIComponent(o.customerEmail || '')}`;
 
+const pickupBox = () => box('Recogida en tienda', `<b>${esc(RECOGIDA.direccion)}</b><br>${esc(RECOGIDA.nota)}`);
+
 function confirmation(base: string, o: Order) {
-  const dir = address(o);
+  const rec = esRecogida(o);
+  const dir = rec ? [] : address(o);
   const html = frame(base, '¡Gracias por tu compra!',
-    `Hemos recibido tu pedido <b>${esc(o.ref)}</b> y ya lo estamos preparando. Te avisaremos cuando salga hacia tu casa.`,
-    itemsTable(o) + (dir.length ? box('Envío a', dir.map(esc).join('<br>')) : '') + btn(track(base, o), 'Seguir mi pedido')
+    rec ? `Hemos recibido tu pedido <b>${esc(o.ref)}</b> y ya lo estamos preparando. Te avisaremos por email cuando esté listo para recoger en la tienda.`
+      : `Hemos recibido tu pedido <b>${esc(o.ref)}</b> y ya lo estamos preparando. Te avisaremos cuando salga hacia tu casa.`,
+    itemsTable(o) + (rec ? pickupBox() : dir.length ? box('Envío a', dir.map(esc).join('<br>')) : '') + btn(track(base, o), 'Seguir mi pedido')
     + `<p style="margin:20px 0 0;font-size:13px;line-height:1.6;color:#5B4E3F;text-align:center">¿Alguna duda? Responde a este correo o escríbenos a ${esc(TITULAR.email)}.</p>`);
-  const text = `¡Gracias por tu compra!\n\nPedido ${o.ref}\n${o.items.map(line).join('\n')}\nTotal: ${eur(o.amountPaid ?? o.total)}\n${dir.length ? '\nEnvío a:\n' + dir.join('\n') + '\n' : ''}\nSigue tu pedido: ${track(base, o)}\n\nEUREKA · eurekamoda.com`;
+  const text = `¡Gracias por tu compra!\n\nPedido ${o.ref}\n${o.items.map(line).join('\n')}\nTotal: ${eur(o.amountPaid ?? o.total)}\n${rec ? `\nRecogida en tienda: ${RECOGIDA.direccion}\n${RECOGIDA.nota}\n` : dir.length ? '\nEnvío a:\n' + dir.join('\n') + '\n' : ''}\nSigue tu pedido: ${track(base, o)}\n\nEUREKA · eurekamoda.com`;
   return { subject: `Pedido ${o.ref} confirmado · EUREKA`, html, text };
 }
 
@@ -63,7 +68,16 @@ function trackingBox(o: Order) {
 }
 const trackingText = (o: Order) => [o.carrier, o.trackingNumber && `Nº de seguimiento: ${o.trackingNumber}`, o.trackingUrl].filter(Boolean).join('\n');
 
+function readyForPickup(base: string, o: Order) {
+  const html = frame(base, 'Tu pedido está listo para recoger',
+    `Tu pedido <b>${esc(o.ref)}</b> ya está preparado. Puedes pasar a recogerlo por la tienda cuando quieras, en horario de apertura.`,
+    itemsTable(o) + box('Dónde recogerlo', `<b>${esc(RECOGIDA.direccion)}</b><br>Di la referencia <b>${esc(o.ref)}</b> o tu nombre al llegar.`) + btn(track(base, o), 'Ver mi pedido'));
+  const text = `Tu pedido ${o.ref} está listo para recoger.\n\n${o.items.map(line).join('\n')}\n\nRecógelo en: ${RECOGIDA.direccion}\nDi la referencia ${o.ref} o tu nombre al llegar.\n\nVer tu pedido: ${track(base, o)}\n\nEUREKA · eurekamoda.com`;
+  return { subject: `Tu pedido ${o.ref} está listo para recoger · EUREKA`, html, text };
+}
+
 function shipped(base: string, o: Order) {
+  if (esRecogida(o)) return readyForPickup(base, o);
   const html = frame(base, 'Tu pedido va de camino',
     `Tu pedido <b>${esc(o.ref)}</b> ya ha salido de la tienda. Pronto lo tendrás contigo.`,
     itemsTable(o) + trackingBox(o) + btn(o.trackingUrl || track(base, o), o.trackingUrl ? 'Seguir el envío' : 'Seguir mi pedido'));
@@ -72,12 +86,13 @@ function shipped(base: string, o: Order) {
 }
 
 function shopNotice(base: string, o: Order) {
-  const dir = address(o);
+  const rec = esRecogida(o);
+  const dir = rec ? [] : address(o);
   const who = [o.customerName, o.customerEmail, o.phone].filter(Boolean).map((x) => esc(String(x))).join('<br>');
   const html = frame(base, `Nuevo pedido ${o.ref}`, `Pagado: <b>${eur(o.amountPaid ?? o.total)}</b>`,
-    itemsTable(o) + box('Clienta', who || '—') + box('Enviar a', dir.length ? dir.map(esc).join('<br>') : 'Sin dirección (¿recogida en tienda?)') + btn(`${base}/admin/pedidos`, 'Ver en el panel'));
-  const text = `Nuevo pedido ${o.ref} · ${eur(o.amountPaid ?? o.total)}\n\n${o.items.map(line).join('\n')}\n\nClienta: ${[o.customerName, o.customerEmail, o.phone].filter(Boolean).join(' · ')}\nEnviar a:\n${dir.join('\n') || '—'}\n\n${base}/admin/pedidos`;
-  return { subject: `Nuevo pedido ${o.ref} · ${eur(o.amountPaid ?? o.total)}`, html, text };
+    itemsTable(o) + box('Clienta', who || '—') + (rec ? box('Entrega', '<b>RECOGIDA EN TIENDA</b> · la clienta pasará a por él. Márcalo «Listo para recoger» cuando esté preparado y le llega el aviso.') : box('Enviar a', dir.length ? dir.map(esc).join('<br>') : 'Sin dirección')) + btn(`${base}/admin/pedidos`, 'Ver en el panel'));
+  const text = `Nuevo pedido ${o.ref} · ${eur(o.amountPaid ?? o.total)}\n\n${o.items.map(line).join('\n')}\n\nClienta: ${[o.customerName, o.customerEmail, o.phone].filter(Boolean).join(' · ')}${rec ? '\nRECOGIDA EN TIENDA' : `\nEnviar a:\n${dir.join('\n') || '—'}`}\n\n${base}/admin/pedidos`;
+  return { subject: `Nuevo pedido ${o.ref}${rec ? ' (recogida en tienda)' : ''} · ${eur(o.amountPaid ?? o.total)}`, html, text };
 }
 
 // A quién avisar en la tienda: SHOP_NOTIFY_EMAIL, si no MAIL_REPLY_TO, si no el correo del aviso legal.
@@ -99,23 +114,24 @@ export async function sendOrderPaidEmails(base: string, o: Order): Promise<void>
   } catch (e: any) { console.error('[pedidos] Email de pedido', o.ref, e?.message); }
 }
 
-import { STATUS_LABEL } from './types';
 // Aviso de cambio de estado o mensaje de la tienda ("lo estamos preparando", "ya puedes recogerlo"…)
 export async function sendOrderUpdateEmail(base: string, o: Order, note?: string): Promise<boolean> {
   if (!mailConfigured() || !o.customerEmail) return false;
-  const st = STATUS_LABEL[o.status] || o.status;
+  const st = statusLabel(o.status, esRecogida(o));
   const html = frame(base, `Tu pedido ${o.ref}: ${st.toLowerCase()}`,
     note ? esc(note).replace(/\n/g, '<br>') : `El estado de tu pedido ha cambiado a <b>${esc(st)}</b>.`,
-    itemsTable(o) + trackingBox(o) + btn(track(base, o), 'Ver mi pedido'));
+    itemsTable(o) + (esRecogida(o) ? pickupBox() : trackingBox(o)) + btn(track(base, o), 'Ver mi pedido'));
   const text = `Tu pedido ${o.ref}: ${st}\n\n${note || ''}\n\n${o.items.map(line).join('\n')}\n${trackingText(o) ? '\n' + trackingText(o) + '\n' : ''}\nVer tu pedido: ${track(base, o)}\n\nEUREKA · eurekamoda.com`;
   try { return (await sendMail({ to: o.customerEmail, subject: `Tu pedido ${o.ref}: ${st.toLowerCase()} · EUREKA`, html, text })).ok; }
   catch { return false; }
 }
 
-export async function sendOrderShippedEmail(base: string, o: Order): Promise<void> {
-  if (!mailConfigured() || !o.customerEmail || o.emails?.enviado) return;
+// «Tu pedido va de camino» (o «listo para recoger» en la recogida en tienda). Devuelve si salió.
+export async function sendOrderShippedEmail(base: string, o: Order): Promise<boolean> {
+  if (!mailConfigured() || !o.customerEmail || o.emails?.enviado) return false;
   try {
     const r = await sendMail({ to: o.customerEmail, ...shipped(base, o) });
     if (r.ok) await noteOrderEmail(o.id, 'enviado');
-  } catch (e: any) { console.error('[pedidos] Email de envío', o.ref, e?.message); }
+    return r.ok;
+  } catch (e: any) { console.error('[pedidos] Email de envío', o.ref, e?.message); return false; }
 }

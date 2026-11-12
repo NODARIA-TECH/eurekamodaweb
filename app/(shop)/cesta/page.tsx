@@ -6,6 +6,7 @@ import { useCart } from '@/components/Cart';
 import { productImg } from '@/lib/data';
 import { money } from '@/lib/money';
 import { checkout } from './actions';
+import { costeEnvio, ENVIO_PRECIO, RECOGIDA, type Entrega } from '@/lib/envio';
 
 export default function CestaPage() {
   const { items, total, setQty, remove, clear } = useCart();
@@ -15,13 +16,15 @@ export default function CestaPage() {
   const [done, setDone] = useState<string | null>(null);
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
+  const [entrega, setEntrega] = useState<Entrega>('envio');
 
-  const envio = total >= 5000 || total === 0 ? 0 : 395;
+  const envio = costeEnvio(total, entrega);
+  const envioCasa = costeEnvio(total, 'envio');
   const grand = total + envio;
 
   async function pay() {
     setLoading(true); setErr('');
-    const res = await checkout({ items: items.map((i) => ({ productId: i.id, qty: i.qty, size: i.size, color: i.color })), name, email, code: code.trim() || undefined });
+    const res = await checkout({ items: items.map((i) => ({ productId: i.id, qty: i.qty, size: i.size, color: i.color })), name, email, code: code.trim() || undefined, delivery: entrega });
     if (res.url) { window.location.href = res.url; return; } // redirige a la pasarela de Stripe
     setLoading(false);
     if (res.ok && res.ref) { clear(); setDone(res.ref); } else setErr(res.error || 'No se pudo completar el pedido.');
@@ -78,7 +81,19 @@ export default function CestaPage() {
         <aside className="cart-sum">
           <h3>Resumen</h3>
           <div className="row"><span>Subtotal</span><b>{money(total)}</b></div>
-          <div className="row"><span>Envío</span><b>{envio === 0 ? 'Gratis' : money(envio)}</b></div>
+          <fieldset className="cart-entrega">
+            <legend>Entrega</legend>
+            <label className={entrega === 'envio' ? 'on' : ''}>
+              <input type="radio" name="entrega" value="envio" checked={entrega === 'envio'} onChange={() => setEntrega('envio')} />
+              <span><b>Envío a domicilio</b><small>24–48 h laborables · {envioCasa === 0 ? 'gratis' : money(ENVIO_PRECIO) + ' (gratis desde 50 €)'}</small></span>
+            </label>
+            <label className={entrega === 'recogida' ? 'on' : ''}>
+              <input type="radio" name="entrega" value="recogida" checked={entrega === 'recogida'} onChange={() => setEntrega('recogida')} />
+              <span><b>Recogida en tienda · gratis</b><small>{RECOGIDA.direccion}</small></span>
+            </label>
+            {entrega === 'recogida' && <p className="cart-entrega-nota">{RECOGIDA.nota}</p>}
+          </fieldset>
+          <div className="row"><span>{entrega === 'recogida' ? 'Recogida en tienda' : 'Envío'}</span><b>{envio === 0 ? 'Gratis' : money(envio)}</b></div>
           <div className="cart-code">
             <label htmlFor="promo">¿Tienes un código?</label>
             <input id="promo" placeholder="BIENVENIDA20" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} />
@@ -96,7 +111,7 @@ export default function CestaPage() {
           <ul className="cart-trust">
             <li>Pago seguro con tarjeta (Stripe)</li>
             <li>Devoluciones en {DIAS_DEVOLUCION} días</li>
-            <li>Envío gratis desde 50 €</li>
+            <li>Envío gratis desde 50 € · recogida en tienda gratis</li>
           </ul>
           <p className="cart-legal">Al finalizar aceptas las <Link href="/legal/condiciones">condiciones de compra</Link> y la <Link href="/legal/devoluciones">política de devoluciones</Link>.</p>
         </aside>

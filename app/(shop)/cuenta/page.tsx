@@ -14,7 +14,7 @@ export const metadata: Metadata = { title: 'Mi cuenta · EUREKA' };
 const fecha = (iso: string) =>
   new Date(iso).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
 
-import { STATUS_LABEL as statusLabel } from '@/lib/types';
+import { statusLabel, esRecogida } from '@/lib/envio';
 
 export default async function CuentaPage() {
   const id = readSession(cookies().get(CUSTOMER_COOKIE)?.value);
@@ -63,14 +63,14 @@ export default async function CuentaPage() {
                   <li key={o.id}>
                     <div className="ao-top">
                       <span className="ao-ref">{o.ref}</span>
-                      <span className={'ao-st st-' + o.status}>{statusLabel[o.status] || o.status}</span>
+                      <span className={'ao-st st-' + o.status}>{statusLabel(o.status, esRecogida(o))}</span>
                     </div>
                     <div className="ao-items">
                       {o.items.map((it, i) => (
                         <span key={i}>{it.qty}× {it.name}{(it.size || it.color) ? ` (${[it.size, it.color].filter(Boolean).join(' · ')})` : ''}</span>
                       ))}
                     </div>
-                    <OrderTracker status={o.status} history={o.history} carrier={o.carrier} trackingNumber={o.trackingNumber} trackingUrl={o.trackingUrl} />
+                    <OrderTracker status={o.status} history={o.history} carrier={o.carrier} trackingNumber={o.trackingNumber} trackingUrl={o.trackingUrl} pickup={esRecogida(o)} />
                     <div className="ao-bot">
                       <span className="muted">{fecha(o.createdAt)}</span>
                       <strong>{money(o.amountPaid ?? o.total)}</strong>

@@ -33,7 +33,8 @@ export async function saveProgress(fd: FormData) {
   if (!before) redirect('/admin/pedidos');
   const url = s(fd, 'trackingUrl', 400);
   if (url && !/^https?:\/\//i.test(url)) back(id, 'e=' + encodeURIComponent('El enlace de seguimiento tiene que empezar por https://'));
-  await updateOrderInfo(id, { carrier: s(fd, 'carrier', 60), trackingNumber: s(fd, 'trackingNumber', 80), trackingUrl: url });
+  // En la recogida en tienda no hay campos de transporte: no se tocan
+  if (fd.has('carrier')) await updateOrderInfo(id, { carrier: s(fd, 'carrier', 60), trackingNumber: s(fd, 'trackingNumber', 80), trackingUrl: url });
   const note = s(fd, 'note', 500);
   await updateOrderStatus(id, status, note);
   const notify = fd.get('notify') === 'on';
@@ -41,7 +42,7 @@ export async function saveProgress(fd: FormData) {
   if (notify) {
     const o = await getOrder(id);
     if (o?.customerEmail) {
-      if (status === 'enviado' && before!.status !== 'enviado' && !o.emails?.enviado) { await sendOrderShippedEmail(baseUrl(), o); mail = 'enviado'; }
+      if (status === 'enviado' && before!.status !== 'enviado' && !o.emails?.enviado) { const ok = await sendOrderShippedEmail(baseUrl(), o); mail = !ok ? 'fallo' : o.delivery === 'recogida' ? 'listo' : 'enviado'; }
       else if (status !== before!.status || note) { const ok = await sendOrderUpdateEmail(baseUrl(), o, note); mail = ok ? 'aviso' : 'fallo'; }
     }
   }
@@ -54,7 +55,9 @@ export async function saveCustomer(fd: FormData) {
   const id = s(fd, 'id');
   const email = s(fd, 'customerEmail', 160);
   if (email && !/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(email)) back(id, 'e=' + encodeURIComponent('El correo no es válido.'));
+  const delivery = s(fd, 'delivery');
   await updateOrderInfo(id, {
+    ...(delivery === 'envio' || delivery === 'recogida' ? { delivery } : {}),
     customerName: s(fd, 'customerName', 120), customerEmail: email, phone: s(fd, 'phone', 40),
     shipping: { name: s(fd, 'sname', 120) || undefined, line1: s(fd, 'line1', 160) || undefined, line2: s(fd, 'line2', 160) || undefined, postalCode: s(fd, 'postalCode', 12) || undefined, city: s(fd, 'city', 80) || undefined, state: s(fd, 'state', 80) || undefined, country: s(fd, 'country', 2).toUpperCase() || 'ES' },
   });

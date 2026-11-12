@@ -1,4 +1,5 @@
 import type { Order } from '@/lib/types';
+import { RECOGIDA } from '@/lib/envio';
 
 // Por dónde va el pedido (lo ven la clienta, en su cuenta y en «Seguir pedido», y la tienda en la ficha).
 const FLOW: { key: Order['status']; label: string; desc: string }[] = [
@@ -8,7 +9,12 @@ const FLOW: { key: Order['status']; label: string; desc: string }[] = [
   { key: 'enviado', label: 'Enviado', desc: 'Tu pedido va de camino' },
   { key: 'entregado', label: 'Entregado', desc: '¡Que lo disfrutes!' },
 ];
-const LABEL: Record<string, string> = Object.fromEntries(FLOW.map((f) => [f.key, f.label]).concat([['cancelado', 'Cancelado']]));
+// Recogida en tienda: mismas fases, pero «Enviado» = listo para recoger y «Entregado» = recogido
+const FLOW_RECOGIDA: typeof FLOW = FLOW.map((f) =>
+  f.key === 'enviado' ? { ...f, label: 'Listo para recoger', desc: 'Ya puedes pasar por la tienda' }
+  : f.key === 'entregado' ? { ...f, label: 'Recogido', desc: '¡Que lo disfrutes!' }
+  : f.key === 'preparando' ? { ...f, desc: 'Lo estamos preparando para que lo recojas' } : f);
+const labels = (flow: typeof FLOW): Record<string, string> => Object.fromEntries(flow.map((f) => [f.key, f.label]).concat([['cancelado', 'Cancelado']]));
 
 const fecha = (iso: string) =>
   new Date(iso).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -16,14 +22,22 @@ const fechaHora = (iso: string) =>
   new Date(iso).toLocaleString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 
 export default function OrderTracker({
-  status, history, carrier, trackingNumber, trackingUrl,
+  status, history, carrier, trackingNumber, trackingUrl, pickup = false,
 }: {
   status: Order['status'];
   history?: Order['history'];
   carrier?: string; trackingNumber?: string; trackingUrl?: string;
+  pickup?: boolean;   // recogida en tienda
 }) {
+  const flow = pickup ? FLOW_RECOGIDA : FLOW;
+  const LABEL = labels(flow);
   const notes = (history || []).filter((h) => h.note).slice().reverse();
-  const envio = (carrier || trackingNumber) ? (
+  const envio = pickup ? (
+    <div className="track-pickup">
+      <b>Recogida en tienda</b>
+      {RECOGIDA.direccion}
+    </div>
+  ) : (carrier || trackingNumber) ? (
     <div className="track-ship">
       <span className="track-ship-l">Envío</span>
       <span>{carrier}{carrier && trackingNumber ? ' · ' : ''}{trackingNumber && (trackingUrl
@@ -54,13 +68,13 @@ export default function OrderTracker({
     );
   }
   // Un pedido que pasó directamente a enviado sin «en preparación» marca esa fase como hecha
-  const cur = Math.max(0, FLOW.findIndex((s) => s.key === status));
+  const cur = Math.max(0, flow.findIndex((s) => s.key === status));
   const whenOf = (k: Order['status']) => history?.find((h) => h.status === k)?.at;
 
   return (
     <>
       <div className="track">
-        {FLOW.map((s, i) => {
+        {flow.map((s, i) => {
           const state = i < cur ? 'done' : i === cur ? 'active' : 'pending';
           const when = whenOf(s.key);
           return (

@@ -421,6 +421,17 @@ section{padding-block:clamp(50px,6vw,92px)}
 .etq-price{font-size:11pt;font-weight:700;margin-top:1px}
 
 /* ===== Cesta: código de descuento, confianza y legal ===== */
+.cart-entrega{border:0;margin:12px 0 4px;padding:0;display:grid;gap:8px}
+.cart-entrega legend{font-size:.82rem;font-weight:600;color:var(--ink);margin-bottom:6px;padding:0}
+.cart-entrega label{display:flex;gap:10px;align-items:flex-start;padding:11px 12px;border:1px solid var(--hair-2);border-radius:10px;background:#fff;cursor:pointer;transition:border-color .15s,background .15s}
+.cart-entrega label.on{border-color:var(--ink);background:var(--cream)}
+.cart-entrega input{margin-top:3px;accent-color:var(--ink);flex:none}
+.cart-entrega span{display:flex;flex-direction:column;gap:2px;font-size:.9rem;line-height:1.35}
+.cart-entrega small{font-size:.78rem;color:var(--muted,#7a6d5c)}
+.cart-entrega-nota{margin:2px 2px 0;font-size:.78rem;line-height:1.45;color:var(--muted,#7a6d5c)}
+.track-pickup{margin-top:14px;padding:12px 14px;border:1px solid var(--hair-2,#e7dcc8);border-radius:12px;background:var(--cream,#fbf6ec);font-size:.9rem;line-height:1.5}
+.track-pickup b{display:block;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:#8C7650;margin-bottom:2px}
+.badge-pickup{display:inline-block;padding:3px 9px;border-radius:999px;background:#EEF0E6;color:#4F5640;font-size:.76rem;font-weight:600;white-space:nowrap}
 .cart-code{margin:10px 0;padding:12px;border:1px dashed var(--hair-2);border-radius:10px;background:var(--cream)}
 .cart-code label{display:block;font-size:.82rem;font-weight:600;color:var(--ink);margin-bottom:6px}
 .cart-code input{width:100%;padding:9px 11px;border:1px solid var(--hair-2);border-radius:8px;background:#fff;text-transform:uppercase;letter-spacing:.04em}

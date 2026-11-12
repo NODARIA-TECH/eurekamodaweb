@@ -22,7 +22,7 @@ export default function Condiciones() {
       <p>Los códigos promocionales (por ejemplo, el descuento de bienvenida del Club {TITULAR.marca}) se aplican en el momento del pago, no son acumulables entre sí salvo indicación expresa, y pueden estar sujetos a condiciones de uso (importe mínimo, caducidad o un solo uso por cliente).</p>
 
       <h2>6. Envíos</h2>
-      <p>Los pedidos se preparan y envían una vez confirmado el pago. Los <b>gastos y plazos de envío</b> se indican en la cesta antes de finalizar la compra. El envío es gratuito a partir del importe indicado en la tienda.</p>
+      <p>Los pedidos se preparan y envían una vez confirmado el pago. Los <b>gastos y plazos de envío</b> se indican en la cesta antes de finalizar la compra. El envío es gratuito a partir del importe indicado en la tienda. También puede elegirse la <b>recogida gratuita en tienda</b> ({TITULAR.domicilio}, {TITULAR.localidad}): avisaremos por email cuando el pedido esté listo para recoger.</p>
 
       <h2>7. Desistimiento, devoluciones y cambios</h2>
       <p>Dispones de <b>{DIAS_DEVOLUCION} días</b> para devolver o cambiar tu pedido en las condiciones detalladas en nuestra <a href="/legal/devoluciones">Política de devoluciones</a>, que forma parte de estas condiciones.</p>

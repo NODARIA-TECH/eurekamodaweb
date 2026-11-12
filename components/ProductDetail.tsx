@@ -127,7 +127,7 @@ export default function ProductDetail({ p, categoryName, initialColor, compact }
           <details>
             <summary>Envíos y devoluciones</summary>
             <div className="pdp-acc-b">
-              <p>Envío en 24–48 h laborables. Gratis en pedidos desde 50 €.</p>
+              <p>Envío en 24–48 h laborables. Gratis en pedidos desde 50 €. También puedes recogerlo gratis en la tienda, en Écija.</p>
               <p>Tienes {DIAS_DEVOLUCION} días naturales desde la recepción para devolver la prenda en perfecto estado, tal como la recibiste. <a href="/legal/devoluciones">Ver política de devoluciones</a>.</p>
             </div>
           </details>

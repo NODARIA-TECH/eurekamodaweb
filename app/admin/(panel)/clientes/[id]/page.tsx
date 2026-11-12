@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getCustomer, listOrders } from '@/lib/store';
-import { STATUS_LABEL } from '@/lib/types';
+import { statusLabel, esRecogida } from '@/lib/envio';
 import ConfirmSubmit from '@/components/admin/ConfirmSubmit';
 import { money } from '@/lib/money';
 import { adjust, removeCustomer } from '../actions';
@@ -63,7 +63,7 @@ export default async function ClienteDetalle({ params }: { params: { id: string 
           <table className="adm-table">
             <thead><tr><th>Ref</th><th>Fecha</th><th>Total</th><th>Estado</th></tr></thead>
             <tbody>{orders.map((o) => (
-              <tr key={o.id}><td><Link href={`/admin/pedidos/${o.id}`}><b>{o.ref}</b></Link></td><td>{new Date(o.createdAt).toLocaleDateString('es-ES')}</td><td>{money(o.amountPaid ?? o.total)}</td><td><span className={'badge-pill st-' + o.status}>{STATUS_LABEL[o.status]}</span></td></tr>
+              <tr key={o.id}><td><Link href={`/admin/pedidos/${o.id}`}><b>{o.ref}</b></Link></td><td>{new Date(o.createdAt).toLocaleDateString('es-ES')}</td><td>{money(o.amountPaid ?? o.total)}</td><td><span className={'badge-pill st-' + o.status}>{statusLabel(o.status, esRecogida(o))}</span>{esRecogida(o) && <> <span className="badge-pickup">Recogida</span></>}</td></tr>
             ))}</tbody>
           </table>
         )}

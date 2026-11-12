@@ -3,16 +3,17 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getOrder, listProducts, getCustomer } from '@/lib/store';
 import { money } from '@/lib/money';
-import { ORDER_STATUSES, STATUS_LABEL } from '@/lib/types';
+import { ORDER_STATUSES } from '@/lib/types';
+import { statusLabel, esRecogida, RECOGIDA } from '@/lib/envio';
 import OrderTracker from '@/components/OrderTracker';
 import ConfirmSubmit from '@/components/admin/ConfirmSubmit';
 import { saveProgress, saveCustomer, saveItems, saveNotes, removeOrder, removeCustomerFromOrder } from '../actions';
 
 export const dynamic = 'force-dynamic';
 
-const CARRIERS = ['Correos', 'Correos Express', 'SEUR', 'MRW', 'GLS', 'CTT Express', 'DHL', 'Recogida en tienda', 'Entrega en mano'];
-const OK: Record<string, string> = { progreso: 'Estado y envío guardados.', datos: 'Datos de la clienta guardados.', articulos: 'Artículos actualizados.', notas: 'Notas guardadas.', clienta: 'Clienta eliminada (el pedido se conserva).' };
-const MAIL: Record<string, string> = { enviado: ' Se ha enviado a la clienta el email «Tu pedido va de camino».', aviso: ' Se ha avisado a la clienta por email.', fallo: ' No se pudo enviar el email a la clienta.' };
+const CARRIERS = ['Correos', 'Correos Express', 'SEUR', 'MRW', 'GLS', 'CTT Express', 'DHL', 'Entrega en mano'];
+const OK: Record<string, string> = { progreso: 'Estado guardado.', datos: 'Datos de la clienta y entrega guardados.', articulos: 'Artículos actualizados.', notas: 'Notas guardadas.', clienta: 'Clienta eliminada (el pedido se conserva).' };
+const MAIL: Record<string, string> = { enviado: ' Se ha enviado a la clienta el email «Tu pedido va de camino».', listo: ' Se ha enviado a la clienta el email «Tu pedido está listo para recoger».', aviso: ' Se ha avisado a la clienta por email.', fallo: ' No se pudo enviar el email a la clienta.' };
 const fecha = (iso?: string) => (iso ? new Date(iso).toLocaleString('es-ES', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '');
 
 export default async function PedidoAdmin({ params, searchParams }: { params: { id: string }; searchParams: { ok?: string; e?: string; mail?: string } }) {
@@ -20,6 +21,7 @@ export default async function PedidoAdmin({ params, searchParams }: { params: { 
   if (!o) notFound();
   const [products, cust] = await Promise.all([listProducts(), o.customerId ? getCustomer(o.customerId) : Promise.resolve(undefined)]);
   const a = o.shipping || {};
+  const rec = esRecogida(o);
   const addOptions: [string, string][] = [];
   for (const p of products) {
     if (p.variants?.length) for (const v of p.variants) addOptions.push([`${p.id}|${v.size || ''}|${v.color || ''}`, `${p.name} · ${[v.size, v.color].filter(Boolean).join(' · ')} (${v.stock} uds · ${money(p.price)})`]);
@@ -34,7 +36,7 @@ export default async function PedidoAdmin({ params, searchParams }: { params: { 
       <div className="adm-h">
         <div>
           <p style={{ margin: 0 }}><Link href="/admin/pedidos">← Pedidos</Link></p>
-          <h1>Pedido {o.ref} <span className={'badge-pill st-' + o.status} style={{ verticalAlign: 'middle', fontSize: '.8rem' }}>{STATUS_LABEL[o.status]}</span></h1>
+          <h1>Pedido {o.ref} <span className={'badge-pill st-' + o.status} style={{ verticalAlign: 'middle', fontSize: '.8rem' }}>{statusLabel(o.status, rec)}</span>{rec && <> <span className="badge-pickup" style={{ verticalAlign: 'middle' }}>Recogida en tienda</span></>}</h1>
           <p>{fecha(o.createdAt)} · {o.customerName || 'Sin nombre'} · <b>{money(o.amountPaid ?? o.total)}</b>{o.stripeSessionId ? ' · pago online (Stripe)' : ''}{o.syncedAt ? ` · pasado a FacturaScripts${o.facturaRef ? ' (' + o.facturaRef + ')' : ''}` : ''}</p>
         </div>
       </div>
@@ -43,18 +45,24 @@ export default async function PedidoAdmin({ params, searchParams }: { params: { 
 
       <div className="adm-card">
         <h2>Por dónde va</h2>
-        <OrderTracker status={o.status} history={o.history} carrier={o.carrier} trackingNumber={o.trackingNumber} trackingUrl={o.trackingUrl} />
+        <OrderTracker status={o.status} history={o.history} carrier={o.carrier} trackingNumber={o.trackingNumber} trackingUrl={o.trackingUrl} pickup={rec} />
         <form key={'saveProgress' + ver} action={saveProgress} className="adm-form" style={{ marginTop: 16 }}>
           <input type="hidden" name="id" value={o.id} />
           <label>Estado
-            <select name="status" defaultValue={o.status}>{ORDER_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}</select>
+            <select name="status" defaultValue={o.status}>{ORDER_STATUSES.map((s) => <option key={s} value={s}>{statusLabel(s, rec)}</option>)}</select>
           </label>
+          {rec ? (
+            <p className="adm-help" style={{ gridColumn: 'span 3', alignSelf: 'center', margin: 0 }}>
+              La clienta recoge en tienda ({RECOGIDA.direccion}). Cuando esté preparado, márcalo <b>«Listo para recoger»</b> y le llega el aviso por email; cuando venga, <b>«Recogido»</b>.
+            </p>
+          ) : <>
           <label>Empresa de envío
             <input name="carrier" list="carriers" defaultValue={o.carrier || ''} placeholder="Correos, SEUR…" />
             <datalist id="carriers">{CARRIERS.map((c) => <option key={c} value={c} />)}</datalist>
           </label>
           <label>Nº de seguimiento<input name="trackingNumber" defaultValue={o.trackingNumber || ''} placeholder="PQ123456789ES" /></label>
           <label>Enlace de seguimiento (opcional)<input name="trackingUrl" defaultValue={o.trackingUrl || ''} placeholder="https://…" /></label>
+          </>}
           <label style={{ gridColumn: '1 / -1' }}>Mensaje para la clienta (opcional · sale en su seguimiento)
             <textarea name="note" rows={2} placeholder="Ej.: Ya lo tenemos preparado, sale mañana por la mañana." />
           </label>
@@ -62,7 +70,7 @@ export default async function PedidoAdmin({ params, searchParams }: { params: { 
             <input type="checkbox" name="notify" defaultChecked={!!o.customerEmail} disabled={!o.customerEmail} style={{ width: 'auto' }} />
             Avisar a la clienta por email{o.customerEmail ? ` (${o.customerEmail})` : ' (no tiene correo)'}
           </label>
-          <button className="btn-sm gold" type="submit" style={{ height: 40 }}>Guardar estado y envío</button>
+          <button className="btn-sm gold" type="submit" style={{ height: 40 }}>{rec ? 'Guardar estado' : 'Guardar estado y envío'}</button>
         </form>
         <p className="adm-help">Al cancelar un pedido, sus unidades vuelven al stock. Las fechas y los mensajes de arriba son los que ve la clienta en «Seguir pedido» y en su cuenta.</p>
       </div>
@@ -108,12 +116,19 @@ export default async function PedidoAdmin({ params, searchParams }: { params: { 
       </div>
 
       <div className="adm-card">
-        <h2>Clienta y envío</h2>
+        <h2>Clienta y entrega</h2>
         <form key={'saveCustomer' + ver} action={saveCustomer} className="adm-form">
           <input type="hidden" name="id" value={o.id} />
+          <label style={{ gridColumn: '1 / -1' }}>Forma de entrega
+            <select name="delivery" defaultValue={rec ? 'recogida' : 'envio'}>
+              <option value="envio">Envío a domicilio</option>
+              <option value="recogida">Recogida en tienda ({RECOGIDA.direccion})</option>
+            </select>
+          </label>
           <label>Nombre<input name="customerName" defaultValue={o.customerName || ''} /></label>
           <label>Correo<input name="customerEmail" type="email" defaultValue={o.customerEmail || ''} /></label>
           <label>Teléfono<input name="phone" defaultValue={o.phone || ''} /></label>
+          <p className="adm-help" style={{ gridColumn: '1 / -1', margin: '4px 0 0' }}>{rec ? 'Dirección (no hace falta para la recogida en tienda; se guarda por si cambia a envío)' : 'Dirección de envío'}</p>
           <label>Destinataria<input name="sname" defaultValue={a.name || ''} /></label>
           <label>Dirección<input name="line1" defaultValue={a.line1 || ''} /></label>
           <label>Piso, puerta…<input name="line2" defaultValue={a.line2 || ''} /></label>
@@ -123,6 +138,7 @@ export default async function PedidoAdmin({ params, searchParams }: { params: { 
           <input type="hidden" name="country" value={a.country || 'ES'} />
           <button className="btn-sm gold" type="submit" style={{ height: 40 }}>Guardar datos</button>
         </form>
+        {rec && o.shippingCost ? <p className="adm-help">Este pedido pagó {money(o.shippingCost)} de envío. Si ahora lo recoge en tienda, puedes devolverle ese importe desde Stripe.</p> : null}
         {cust && (
           <form action={removeCustomerFromOrder} style={{ marginTop: 14, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
             <input type="hidden" name="id" value={o.id} />

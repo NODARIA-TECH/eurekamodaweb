@@ -57,6 +57,7 @@ export type Order = {
   facturaRef?: string;     // referencia del documento creado en FacturaScripts
   syncedAt?: string;       // cuándo se volcó a FacturaScripts (null = pendiente)
   stripeSessionId?: string; // id de la sesión de pago de Stripe (checkout online)
+  delivery?: 'envio' | 'recogida'; // forma de entrega (sin el campo = envío a domicilio, como los pedidos antiguos)
   history?: { status: Order['status']; at: string; note?: string }[]; // historial (lo ve la clienta en el seguimiento)
   // Datos que llegan de Stripe al pagar
   phone?: string;

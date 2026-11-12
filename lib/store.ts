@@ -479,7 +479,7 @@ async function markOrderSynced__(id: string, facturaRef?: string): Promise<boole
 export async function listOrders(): Promise<Order[]> {
   return (await read()).orders.slice().reverse();
 }
-async function createOrder__(input: { items: { productId: string; qty: number; size?: string; color?: string }[]; customerName?: string; customerEmail?: string }): Promise<{ ok: boolean; order?: Order; error?: string }> {
+async function createOrder__(input: { items: { productId: string; qty: number; size?: string; color?: string }[]; customerName?: string; customerEmail?: string; delivery?: 'envio' | 'recogida' }): Promise<{ ok: boolean; order?: Order; error?: string }> {
   const db = await read();
   if (!input.items.length) return { ok: false, error: 'La cesta está vacía.' };
   const items: OrderItem[] = [];
@@ -505,6 +505,7 @@ async function createOrder__(input: { items: { productId: string; qty: number; s
     status: 'pendiente',
     createdAt: now,
     history: [{ status: 'pendiente', at: now }],
+    delivery: input.delivery === 'recogida' ? 'recogida' : 'envio',
   };
   // enlazar/crear cliente por email (opcional)
   if (input.customerEmail) {
@@ -522,7 +523,7 @@ async function createOrder__(input: { items: { productId: string; qty: number; s
 }
 // Crea un pedido PENDIENTE de pago (checkout online con Stripe). NO descuenta stock:
 // el stock se descuenta al confirmarse el pago (markOrderPaid). Valida que haya stock.
-async function createPendingOrder__(input: { items: { productId: string; qty: number; size?: string; color?: string }[]; customerName?: string; customerEmail?: string }): Promise<{ ok: boolean; order?: Order; error?: string }> {
+async function createPendingOrder__(input: { items: { productId: string; qty: number; size?: string; color?: string }[]; customerName?: string; customerEmail?: string; delivery?: 'envio' | 'recogida' }): Promise<{ ok: boolean; order?: Order; error?: string }> {
   const db = await read();
   if (!input.items.length) return { ok: false, error: 'La cesta está vacía.' };
   const items: OrderItem[] = [];
@@ -546,6 +547,7 @@ async function createPendingOrder__(input: { items: { productId: string; qty: nu
     status: 'pendiente',
     createdAt: now,
     history: [{ status: 'pendiente', at: now }],
+    delivery: input.delivery === 'recogida' ? 'recogida' : 'envio',
     stockTaken: false,
   };
   if (input.customerEmail) {
@@ -654,7 +656,7 @@ async function updateOrderStatus__(id: string, status: Order['status'], note?: s
   await write(db);
 }
 
-async function updateOrderInfo__(id: string, patch: Partial<Pick<Order, 'customerName' | 'customerEmail' | 'phone' | 'shipping' | 'carrier' | 'trackingNumber' | 'trackingUrl' | 'notes'>>): Promise<void> {
+async function updateOrderInfo__(id: string, patch: Partial<Pick<Order, 'customerName' | 'customerEmail' | 'phone' | 'shipping' | 'carrier' | 'trackingNumber' | 'trackingUrl' | 'notes' | 'delivery'>>): Promise<void> {
   const db = await read();
   const o = db.orders.find((x) => x.id === id);
   if (!o) return;

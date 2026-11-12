@@ -3,22 +3,26 @@ import { revalidatePath } from 'next/cache';
 import { baseUrl } from '@/lib/base-url';
 import Stripe from 'stripe';
 import { createOrder, createPendingOrder, setOrderStripeSession } from '@/lib/store';
+import { costeEnvio, RECOGIDA, type Entrega } from '@/lib/envio';
 
 type Payload = {
   items: { productId: string; qty: number; size?: string; color?: string }[];
   name?: string;
   email?: string;
   code?: string; // código de descuento (promotion code de Stripe)
+  delivery?: Entrega; // envío a domicilio o recogida en tienda
 };
 
 // Checkout. Si hay STRIPE_SECRET_KEY configurada, crea una sesión de Stripe Checkout
 // y devuelve la URL para redirigir. Si no, cae al flujo antiguo (pedido directo sin pago).
 export async function checkout(payload: Payload): Promise<{ ok: boolean; url?: string; ref?: string; error?: string }> {
   const key = process.env.STRIPE_SECRET_KEY;
+  const delivery: Entrega = payload.delivery === 'recogida' ? 'recogida' : 'envio';
+  const recogida = delivery === 'recogida';
 
   // --- Fallback sin Stripe: comportamiento anterior ---
   if (!key) {
-    const res = await createOrder({ items: payload.items, customerName: payload.name, customerEmail: payload.email });
+    const res = await createOrder({ items: payload.items, customerName: payload.name, customerEmail: payload.email, delivery });
     if (!res.ok) return { ok: false, error: res.error };
     revalidatePath('/tienda');
     revalidatePath('/');
@@ -43,11 +47,11 @@ export async function checkout(payload: Payload): Promise<{ ok: boolean; url?: s
     }
   }
 
-  const res = await createPendingOrder({ items: payload.items, customerName: payload.name, customerEmail: payload.email });
+  const res = await createPendingOrder({ items: payload.items, customerName: payload.name, customerEmail: payload.email, delivery });
   if (!res.ok) return { ok: false, error: res.error };
   const order = res.order!;
 
-  const envio = order.total >= 5000 || order.total === 0 ? 0 : 395; // envío gratis desde 50 €
+  const envio = costeEnvio(order.total, delivery); // gratis desde 50 € y siempre en la recogida en tienda
 
   // URL base para las vueltas de Stripe. Prioriza EUREKA_BASE_URL (p.ej. https://eurekamoda.com);
   // si no, la deduce de la petición (host + protocolo reenviado por Nginx/Cloudflare).
@@ -76,13 +80,14 @@ export async function checkout(payload: Payload): Promise<{ ok: boolean; url?: s
       // que pueda introducirlo en la página de Stripe.
       ...(discounts ? { discounts } : { allow_promotion_codes: true }),
       customer_email: payload.email || undefined,
-      // Dirección de envío y teléfono: sin esto la tienda no sabe a dónde mandar el pedido
-      shipping_address_collection: { allowed_countries: ['ES'] },
+      // Dirección de envío (solo si se envía a casa) y teléfono (siempre, para avisar o llamar)
+      ...(recogida ? {} : { shipping_address_collection: { allowed_countries: ['ES'] as Stripe.Checkout.SessionCreateParams.ShippingAddressCollection.AllowedCountry[] } }),
       phone_number_collection: { enabled: true },
       locale: 'es',
       // La sesión caduca a las 2 h: si no se paga, el pedido pendiente se cancela (webhook)
       expires_at: Math.floor(Date.now() / 1000) + 2 * 60 * 60,
-      metadata: { orderId: order.id, ref: order.ref },
+      metadata: { orderId: order.id, ref: order.ref, entrega: delivery },
+      ...(recogida ? { custom_text: { submit: { message: `Recogida en tienda: ${RECOGIDA.direccion}. Te avisaremos por email cuando esté listo.` } } } : {}),
       success_url: `${base}/cesta/gracias?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${base}/cesta`,
     });
