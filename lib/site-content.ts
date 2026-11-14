@@ -72,7 +72,7 @@ export const DEFAULT_CONTENT: SiteContent = {
   cats: { label: 'Compra por categoría', title: 'Explora la tienda', items: [] },
   edit: {
     script: 'nuestra', label: 'El edit de la semana', title: 'Selección destacada',
-    big: { productId: '', img: img(H('edit-conjunto'), 'Conjunto de punto en marrón chocolate', 50, 20), script: 'Fashion mood ♥', tag: 'Pieza destacada', name: 'Conjunto de punto', sub: '', href: '/categoria/punto' },
+    big: { productId: '', img: img(H('edit-conjunto'), 'Conjunto de punto en beige', 50, 20), script: 'Fashion mood ♥', tag: 'Pieza destacada', name: 'Conjunto de punto', sub: '', href: '/categoria/punto' },
     minis: [
       { productId: '', img: img(H('edit-barco'), 'Jersey de punto con cuello barco en blanco roto', 50, 22), script: '', tag: '', name: 'Jersey cuello barco', sub: 'Punto · canalé', href: '/categoria/punto' },
       { productId: '', img: img(H('edit-coral'), 'Jersey básico de punto en coral', 50, 22), script: '', tag: '', name: 'Jersey básico de punto', sub: 'Punto · cuello semicisne', href: '/categoria/punto' },

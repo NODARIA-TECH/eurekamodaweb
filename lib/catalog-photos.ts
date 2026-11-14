@@ -14,12 +14,13 @@ const ENTRIES: Entry[] = [
     colors: { 'Caldera': I('blusa-satinada-caldera'), 'Verde militar': I('blusa-satinada-verde-militar') } },
   { name: 'Pantalón bomber satinado', main: I('pantalon-bomber-satinado-beige'),
     colors: { 'Beige': I('pantalon-bomber-satinado-beige') }, gallery: [I('pantalon-bomber-satinado-2')] },
-  { name: 'Jersey básico con pañuelo y camiseta', main: I('jersey-panuelo-camiseta-beige'), colors: { 'Beige': I('jersey-panuelo-camiseta-beige') } },
+  // Antes «Jersey básico con pañuelo y camiseta»: sigue encajando con el nombre antiguo (contiene todas las palabras)
+  { name: 'Jersey básico con pañuelo', main: I('jersey-panuelo-camiseta-beige'), colors: { 'Beige': I('jersey-panuelo-camiseta-beige') } },
   { name: 'Jersey peluche', main: I('jersey-peluche-amarillo'), colors: { 'Amarillo': I('jersey-peluche-amarillo') } },
   { name: 'Jersey punto cuello barco', main: I('jersey-cuello-barco-blanco-roto'), colors: { 'Blanco roto': I('jersey-cuello-barco-blanco-roto') } },
   { name: 'Camiseta hombreras y encaje', main: I('camiseta-hombreras-encaje-blanco'), colors: { 'Blanco': I('camiseta-hombreras-encaje-blanco') } },
   { name: 'Jersey básico de punto sin puño', main: I('jersey-basico-sin-puno-coral'), colors: { 'Coral': I('jersey-basico-sin-puno-coral') } },
-  { name: 'Conjunto de punto', main: I('conjunto-punto-chocolate') },
+  { name: 'Conjunto de punto', main: I('conjunto-punto-beige'), colors: { 'Beige': I('conjunto-punto-beige') } },
   // Prendas que aún no están en el catálogo: se aplican solas al crearlas con este nombre
   { name: 'Cazadora de cuadros con cordones', main: I('cazadora-cuadros-marron'),
     colors: { 'Marrón': I('cazadora-cuadros-marron'), 'Berenjena': I('cazadora-cuadros-berenjena') }, gallery: [I('cazadora-cuadros-2')] },

@@ -143,7 +143,7 @@
    "stock": 6
   },
   {
-   "name": "Jersey básico con pañuelo y camiseta",
+   "name": "Jersey básico con pañuelo",
    "category": "punto",
    "categoryName": "Punto",
    "price": 1690,
@@ -153,8 +153,11 @@
     "Gris",
     "Burdeos"
    ],
-   "description": "Conjunto de 3 piezas: jersey básico, camiseta y pañuelo a juego.",
-   "stock": 4
+   "description": "Jersey básico de punto suave con pañuelo a juego para el cuello. Cómodo, favorecedor y fácil de combinar con vaqueros o pantalón de vestir.",
+   "stock": 4,
+   "previousNames": [
+    "Jersey básico con pañuelo y camiseta"
+   ]
   },
   {
    "name": "Vestido polipiel manga abullonada",

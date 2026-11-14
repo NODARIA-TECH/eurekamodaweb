@@ -50,34 +50,99 @@ async function write(db: DB): Promise<void> {
   await fs.rename(tmp, FILE);
 }
 
-/* ---------- Arreglos puntuales de datos (una sola vez, en orden) ----------
-   1) Quita los pedidos y clientas de EJEMPLO que traía la plantilla (María González, Lucía Ramírez y
-      Carmen Pérez, con correo @example.com, y sus pedidos EUR-1001 y EUR-1002). Solo esos: se
-      comprueba id, correo y referencia a la vez, así que nunca toca una clienta o un pedido real.
-   2) Pone descripción a los productos que no tenían (solo si sigue vacía). */
-const FIXES_VERSION = 1;
+/* ---------- Arreglos puntuales de datos (una sola vez cada uno, en orden) ----------
+   Antes de tocar nada se guarda una copia completa en data/copias/antes-de-arreglos-*.json
+   y lo que se cambia queda apuntado en data/copias/informe-arreglos-*.json.
+   v1) Quita los pedidos y clientas de EJEMPLO de la plantilla (comprueba id, correo y referencia a la
+       vez, así que nunca toca nada real) y pone descripción a dos productos que no tenían.
+   v2) Correcciones que pidió la tienda:
+       - «Jersey básico con pañuelo y camiseta» pasa a «Jersey básico con pañuelo» (no son 3 prendas).
+       - Los jerséis que se colaron en Vestidos pasan a Punto.
+       - Pañoletas, pañuelos y bufandas van a su categoría «Pañoletas y bufandas».
+       - Productos repetidos (mismo nombre, categoría y precio, visibles en la tienda): se deja el más
+         completo y los demás se OCULTAN (no se borran; se pueden recuperar o borrar desde el panel). */
+const FIXES_VERSION = 2;
 const FIX_DESCRIPTIONS: Record<string, string> = {
   'leggings barbie': 'Leggings de tejido suave y elástico con cinturilla ancha de tiro alto que sujeta y estiliza. Muy cómodos para el día a día y perfectos con jerséis, sudaderas y ponchos.',
   'vaquero faja pitillo': 'Vaquero pitillo con cinturilla efecto faja que recoge la cintura y estiliza la figura. Tejido con elasticidad para un ajuste cómodo que combina con todo.',
 };
+const PANUELO_NAME = 'Jersey básico con pañuelo';
+const PANUELO_DESC = 'Jersey básico de punto suave con pañuelo a juego para el cuello. Cómodo, favorecedor y fácil de combinar con vaqueros o pantalón de vestir.';
+const SCARF_CAT = { slug: 'panoletas-y-bufandas', name: 'Pañoletas y bufandas' };
+const isScarf = (p: Product) => /^(panolet|panuel|bufand|fular|foulard|pashmin|estola|chal\b)/.test(nname(p.name)) ||
+  [p.image, ...(p.images || []), ...Object.values(p.colorImages || {})].some((u) => typeof u === 'string' && u.includes('/panoletas-'));
+
 async function applyDataFixes(): Promise<void> {
-  const db = JSON.parse(await fs.readFile(FILE, 'utf8')) as DB & { fixesVersion?: number };
-  if ((db.fixesVersion ?? 0) >= FIXES_VERSION) return;
-  const demoCust = new Map([['c1', 'maria@example.com'], ['c2', 'lucia@example.com'], ['c3', 'carmen@example.com']]);
-  const demoOrders = new Map([['o1', 'EUR-1001'], ['o2', 'EUR-1002']]);
-  const beforeC = db.customers.length, beforeO = db.orders.length;
-  db.orders = db.orders.filter((o) => !(demoOrders.get(o.id) === o.ref && (!o.customerId || demoCust.has(o.customerId))));
-  db.customers = db.customers.filter((c) => demoCust.get(c.id) !== c.email.toLowerCase());
-  let desc = 0;
-  for (const p of db.products) {
-    const d = FIX_DESCRIPTIONS[nname(p.name)];
-    if (d && !(p.description || '').trim()) { p.description = d; desc++; }
+  const raw = await fs.readFile(FILE, 'utf8');
+  const db = JSON.parse(raw) as DB & { fixesVersion?: number };
+  const from = db.fixesVersion ?? 0;
+  if (from >= FIXES_VERSION) return;
+  const report: Record<string, string[]> = {};
+  const note = (k: string, v: string) => (report[k] ||= []).push(v);
+
+  if (from < 1) {
+    const demoCust = new Map([['c1', 'maria@example.com'], ['c2', 'lucia@example.com'], ['c3', 'carmen@example.com']]);
+    const demoOrders = new Map([['o1', 'EUR-1001'], ['o2', 'EUR-1002']]);
+    const beforeC = db.customers.length, beforeO = db.orders.length;
+    db.orders = db.orders.filter((o) => !(demoOrders.get(o.id) === o.ref && (!o.customerId || demoCust.has(o.customerId))));
+    db.customers = db.customers.filter((c) => demoCust.get(c.id) !== c.email.toLowerCase());
+    if (beforeO - db.orders.length) note('ejemplo', `${beforeO - db.orders.length} pedidos de ejemplo quitados`);
+    if (beforeC - db.customers.length) note('ejemplo', `${beforeC - db.customers.length} clientas de ejemplo quitadas`);
+    for (const p of db.products) {
+      const d = FIX_DESCRIPTIONS[nname(p.name)];
+      if (d && !(p.description || '').trim()) { p.description = d; note('descripciones', p.name); }
+    }
   }
+
+  if (from < 2) {
+    const now = new Date().toISOString();
+    // Jersey con pañuelo: nombre y descripción (la descripción solo si sigue hablando de 3 prendas o está vacía)
+    for (const p of db.products) {
+      if (nname(p.name) !== 'jersey basico con panuelo y camiseta') continue;
+      const old = p.name;
+      p.name = PANUELO_NAME;
+      if (!(p.aliases || []).some((a) => nname(a) === nname(old))) p.aliases = [...(p.aliases || []), old];
+      if (!(p.description || '').trim() || /3 (piezas|prendas)|tres (piezas|prendas)/i.test(p.description || '')) p.description = PANUELO_DESC;
+      p.updatedAt = now;
+      note('renombrados', `${old} → ${p.name} (${p.sku || p.id})`);
+    }
+    // Jerséis dentro de Vestidos → Punto
+    for (const p of db.products) {
+      if (p.category === 'vestidos' && /^jersey/.test(nname(p.name))) { p.category = 'punto'; p.updatedAt = now; note('aPunto', `${p.name} (${p.sku || p.id})`); }
+    }
+    // Pañoletas y bufandas a su categoría
+    const scarves = db.products.filter(isScarf);
+    if (scarves.length) {
+      if (!db.categories.some((c) => c.slug === SCARF_CAT.slug)) {
+        const img = scarves.map((p) => p.image).find((u) => realImg(u)) || '26998033';
+        db.categories.push({ ...SCARF_CAT, image: img });
+      }
+      for (const p of scarves) if (p.category !== SCARF_CAT.slug) { note('aPanoletas', `${p.name} (${p.sku || p.id}): ${p.category} → ${SCARF_CAT.slug}`); p.category = SCARF_CAT.slug; p.updatedAt = now; }
+    }
+    // Repetidos visibles: se queda el más completo (con ventas, foto, precio, stock); los demás se ocultan
+    const sold = new Set(db.orders.flatMap((o) => o.items.map((i) => i.productId)));
+    const score = (p: Product) => (sold.has(p.id) ? 16 : 0) + (realImg(p.image) ? 8 : 0) + (p.price > 0 ? 4 : 0) + ((p.stock ?? 0) > 0 ? 2 : 0) + (p.variants?.length ? 1 : 0);
+    const groups = new Map<string, Product[]>();
+    for (const p of db.products) {
+      if (!shownInShop(p)) continue;
+      const k = `${nname(p.name)}|${p.category}|${p.price}`;
+      groups.set(k, [...(groups.get(k) || []), p]);
+    }
+    for (const list of Array.from(groups.values())) {
+      if (list.length < 2) continue;
+      const keep = list.reduce((a, b) => (score(b) > score(a) ? b : a));
+      for (const p of list) if (p !== keep) { p.hidden = true; p.updatedAt = now; note('repetidosOcultos', `${p.name} (${p.sku || p.id}) — se queda visible ${keep.sku || keep.id}`); }
+    }
+  }
+
   db.fixesVersion = FIXES_VERSION;
-  await fs.mkdir(path.join(DATA_DIR, 'copias'), { recursive: true });
-  await fs.writeFile(path.join(DATA_DIR, 'copias', `antes-de-arreglos-${new Date().toISOString().replace(/[:.]/g, '-')}.json`), JSON.stringify(JSON.parse(await fs.readFile(FILE, 'utf8'))), 'utf8');
+  const dir = path.join(DATA_DIR, 'copias');
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  await fs.mkdir(dir, { recursive: true });
+  await fs.writeFile(path.join(dir, `antes-de-arreglos-${stamp}.json`), raw, 'utf8');
   await write(db);
-  console.log(`[datos] Arreglos aplicados: ${beforeO - db.orders.length} pedidos y ${beforeC - db.customers.length} clientas de ejemplo quitados · ${desc} descripciones añadidas`);
+  await fs.writeFile(path.join(dir, `informe-arreglos-${stamp}.json`), JSON.stringify(report, null, 2), 'utf8');
+  console.log(`[datos] Arreglos v${from + 1}–v${FIXES_VERSION} aplicados: ${Object.entries(report).map(([k, v]) => `${k}: ${v.join('; ')}`).join(' · ') || 'nada que cambiar'} · informe en data/copias/informe-arreglos-${stamp}.json`);
 }
 
 /* ---------- Carga de productos nuevos (se ejecuta sola, una vez, al arrancar tras el despliegue) ----------
