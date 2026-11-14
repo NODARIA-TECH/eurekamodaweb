@@ -1,5 +1,5 @@
 {
- "version": 3,
+ "version": 4,
  "note": "Catálogo EUREKA (lib/store.ts → migrateCatalog). Fotos en public/img/productos/nuevas.",
  "removePhotos": [
   "/img/productos/nuevas/camiseta-brillo-cuello-holgado-negro.webp",
@@ -809,6 +809,136 @@
    "images": [
     "/img/productos/nuevas/ambientador-prady-fresa-y-nata-2.webp"
    ]
+  },
+  {
+   "name": "Jersey patente rayas",
+   "category": "punto",
+   "categoryName": "Punto",
+   "price": 0,
+   "sizes": [
+    "Talla única"
+   ],
+   "colors": [
+    "Negro/Crudo"
+   ],
+   "stock": 1,
+   "description": "Jersey de punto a rayas anchas en negro y crudo, con manga murciélago y cintura ajustada de punto patente a rayas finas que marca la figura. Combínalo con pantalón negro para un look gráfico y elegante.",
+   "image": "/img/productos/nuevas/jersey-patente-rayas.webp",
+   "images": [
+    "/img/productos/nuevas/jersey-patente-rayas-2.webp"
+   ],
+   "since": 4,
+   "colorImages": {
+    "Negro/Crudo": "/img/productos/nuevas/jersey-patente-rayas.webp"
+   }
+  },
+  {
+   "name": "Sudadera brilli",
+   "category": "sudaderas",
+   "categoryName": "Sudaderas",
+   "price": 0,
+   "sizes": [
+    "Talla única"
+   ],
+   "colors": [
+    "Burdeos"
+   ],
+   "stock": 1,
+   "description": "Sudadera holgada en tono burdeos salpicada de pequeños brillantes dorados. Cuello redondo y puños y bajo elásticos. Con pantalón efecto piel queda perfecta para salir.",
+   "image": "/img/productos/nuevas/sudadera-brilli.webp",
+   "images": [
+    "/img/productos/nuevas/sudadera-brilli-2.webp"
+   ],
+   "since": 4,
+   "colorImages": {
+    "Burdeos": "/img/productos/nuevas/sudadera-brilli.webp"
+   }
+  },
+  {
+   "name": "Sudadera lentejuelas",
+   "category": "sudaderas",
+   "categoryName": "Sudaderas",
+   "price": 0,
+   "sizes": [
+    "Talla única"
+   ],
+   "colors": [
+    "Marrón chocolate"
+   ],
+   "stock": 1,
+   "description": "Sudadera de terciopelo marrón chocolate cubierta de lentejuelas, con manga abullonada y puños y bajo de canalé. El brillo justo para las fiestas, cómoda y con mucho estilo.",
+   "image": "/img/productos/nuevas/sudadera-lentejuelas.webp",
+   "images": [
+    "/img/productos/nuevas/sudadera-lentejuelas-2.webp"
+   ],
+   "since": 4,
+   "colorImages": {
+    "Marrón chocolate": "/img/productos/nuevas/sudadera-lentejuelas.webp"
+   }
+  },
+  {
+   "name": "Jersey punto encaje",
+   "category": "punto",
+   "categoryName": "Punto",
+   "price": 0,
+   "sizes": [
+    "Talla única"
+   ],
+   "colors": [
+    "Crudo"
+   ],
+   "stock": 1,
+   "description": "Jersey de punto suave en color crudo con mangas amplias recogidas en el puño y bajo de encaje que asoma por debajo. Romántico y favorecedor, ideal con pantalón marrón o vaquero.",
+   "image": "/img/productos/nuevas/jersey-punto-encaje.webp",
+   "images": [
+    "/img/productos/nuevas/jersey-punto-encaje-2.webp"
+   ],
+   "since": 4,
+   "colorImages": {
+    "Crudo": "/img/productos/nuevas/jersey-punto-encaje.webp"
+   }
+  },
+  {
+   "name": "Pijamas lacitos",
+   "category": "pijamas",
+   "categoryName": "Pijamas",
+   "price": 0,
+   "colors": [
+    "Rosa",
+    "Gris",
+    "Lila"
+   ],
+   "stock": 3,
+   "variantStockText": "Rosa 1, Gris 1, Lila 1",
+   "description": "Pijama de algodón de manga larga con camiseta de botones y estampado de lazos «A dreamy gift». Pantalón largo con estampado de lacitos y corazones y puños en el tobillo. Calentito y muy cómodo.",
+   "image": "/img/productos/nuevas/pijamas-lacitos.webp",
+   "since": 4,
+   "colorImages": {
+    "Rosa": "/img/productos/nuevas/pijamas-lacitos.webp",
+    "Gris": "/img/productos/nuevas/pijamas-lacitos.webp",
+    "Lila": "/img/productos/nuevas/pijamas-lacitos.webp"
+   }
+  },
+  {
+   "name": "Pijama Animal Print",
+   "category": "pijamas",
+   "categoryName": "Pijamas",
+   "price": 0,
+   "colors": [
+    "Burdeos",
+    "Azul",
+    "Gris"
+   ],
+   "stock": 3,
+   "variantStockText": "Burdeos 1, Azul 1, Gris 1",
+   "description": "Pijama de algodón de manga larga con camiseta de botones y osito «Littlebear», con detalles en animal print. Pantalón largo de animal print con corazones y puños en el tobillo.",
+   "image": "/img/productos/nuevas/pijama-animal-print.webp",
+   "since": 4,
+   "colorImages": {
+    "Burdeos": "/img/productos/nuevas/pijama-animal-print.webp",
+    "Azul": "/img/productos/nuevas/pijama-animal-print.webp",
+    "Gris": "/img/productos/nuevas/pijama-animal-print.webp"
+   }
   }
  ]
 }

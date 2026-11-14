@@ -91,10 +91,11 @@ async function applyDataFixes(): Promise<void> {
    · Antes guarda una copia completa en data/copias/ y deja un informe con lo que ha hecho.
    No duplica: empareja por nombre (sin tildes ni mayúsculas) o por el nombre anterior del Excel. */
 const CATALOG = path.join(DATA_DIR, 'catalogo.json');
-const CATALOG_VERSION = 3;
+const CATALOG_VERSION = 4;
 let migration: Promise<void> | null = null;
 
 type CatalogEntry = {
+  since?: number;   // versión del catálogo en la que se añadió (sin el campo = 1..3). Solo se cargan las entradas nuevas.
   name: string; previousNames?: string[]; category: string; categoryName: string; price: number;
   sizes?: string[]; colors?: string[]; description?: string; details?: string; badge?: string;
   stock?: number; variantStockText?: string; image?: string; images?: string[];
@@ -111,6 +112,9 @@ async function migrateCatalog(): Promise<void> {
   let catalog: { version: number; products: CatalogEntry[]; removePhotos?: string[] };
   try { catalog = JSON.parse(await fs.readFile(CATALOG, 'utf8')); } catch { return; }
   if (!catalog || catalog.version < CATALOG_VERSION) return;
+  // Solo las entradas añadidas después de la última carga: lo ya cargado (o borrado a propósito en el panel) no se repite
+  const from = db.catalogVersion ?? 0;
+  const entries = catalog.products.filter((e) => (e.since ?? 1) > from);
 
   // Copia de seguridad de todo tal cual estaba
   const dir = path.join(DATA_DIR, 'copias');
@@ -127,7 +131,7 @@ async function migrateCatalog(): Promise<void> {
 
   // Fotos que una carga anterior puso en el producto equivocado (una foto = un producto).
   // Solo se quitan esas rutas exactas; nada más de ese producto cambia.
-  const wrong = new Set(catalog.removePhotos || []);
+  const wrong = new Set(from < 3 ? catalog.removePhotos || [] : []);   // ya aplicado en la carga v3
   if (wrong.size) for (const p of db.products) {
     const before = JSON.stringify(p);
     if (p.images) p.images = p.images.filter((u) => !wrong.has(u));
@@ -139,7 +143,7 @@ async function migrateCatalog(): Promise<void> {
 
   // Categorías nuevas (las que ya existen no se tocan)
   const newCats = new Set<string>();
-  for (const e of catalog.products) {
+  for (const e of entries) {
     if (!db.categories.some((c) => c.slug === e.category)) {
       db.categories.push({ slug: e.category, name: e.categoryName, image: '26998033' });
       newCats.add(e.category);
@@ -147,7 +151,7 @@ async function migrateCatalog(): Promise<void> {
   }
 
   const now = new Date().toISOString();
-  for (const e of catalog.products) {
+  for (const e of entries) {
     const keys = [e.name, ...(e.previousNames || [])].map(nname);
     const p = db.products.find((x) => nname(x.name) === nname(e.name)) ||
       db.products.find((x) => keys.includes(nname(x.name)) || (x.aliases || []).some((a) => keys.includes(nname(a))));
