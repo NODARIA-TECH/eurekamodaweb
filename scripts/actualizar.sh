@@ -16,6 +16,20 @@ fi
 paso() { printf '\n\033[1m▸ %s\033[0m\n' "$1"; }
 
 paso "Bajando el código nuevo"
+# Archivos que se regeneran solos al compilar o instalar en el servidor: se devuelven a su versión
+# de git para que no bloqueen la descarga (los datos de la tienda —data/live.json, fotos subidas,
+# .env— no están en git y NO se tocan).
+for f in tsconfig.tsbuildinfo next-env.d.ts package-lock.json; do
+  if git ls-files --error-unmatch "$f" >/dev/null 2>&1 && ! git diff --quiet -- "$f"; then
+    git checkout -- "$f" && echo "  · $f devuelto a su versión de git (se regenera solo)"
+  fi
+done
+if ! git diff --quiet || ! git diff --cached --quiet; then
+  echo "  ✗ Hay archivos del código cambiados a mano en el servidor y no sé si son importantes:"
+  git status --short --untracked-files=no | sed 's/^/      /'
+  echo "  No he tocado nada. Pásale este listado a Nodaria para resolverlo."
+  exit 1
+fi
 git pull --ff-only
 SHA="$(git rev-parse HEAD)"
 echo "  versión $(git log -1 --format='%h · %cd' --date=format:'%d/%m/%Y %H:%M')"

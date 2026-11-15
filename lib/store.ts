@@ -61,7 +61,9 @@ async function write(db: DB): Promise<void> {
        - Pañoletas, pañuelos y bufandas van a su categoría «Pañoletas y bufandas».
        - Productos repetidos (mismo nombre, categoría y precio, visibles en la tienda): se deja el más
          completo y los demás se OCULTAN (no se borran; se pueden recuperar o borrar desde el panel). */
-const FIXES_VERSION = 2;
+const FIXES_VERSION = 3;
+// v3) Fotos guardadas en los productos que ya no existen en la web: la foto marrón del conjunto pasa a
+//     la beige; cualquier otra /img/… que no exista se quita (así sale la foto del catálogo, no un hueco).
 const FIX_DESCRIPTIONS: Record<string, string> = {
   'leggings barbie': 'Leggings de tejido suave y elástico con cinturilla ancha de tiro alto que sujeta y estiliza. Muy cómodos para el día a día y perfectos con jerséis, sudaderas y ponchos.',
   'vaquero faja pitillo': 'Vaquero pitillo con cinturilla efecto faja que recoge la cintura y estiliza la figura. Tejido con elasticidad para un ajuste cómodo que combina con todo.',
@@ -133,6 +135,25 @@ async function applyDataFixes(): Promise<void> {
       const keep = list.reduce((a, b) => (score(b) > score(a) ? b : a));
       for (const p of list) if (p !== keep) { p.hidden = true; p.updatedAt = now; note('repetidosOcultos', `${p.name} (${p.sku || p.id}) — se queda visible ${keep.sku || keep.id}`); }
     }
+  }
+
+  if (from < 3) {
+    const PUB = path.join(process.cwd(), 'public');
+    const exists = async (u: string) => !u.startsWith('/img/') || await fs.access(path.join(PUB, u.split('?')[0])).then(() => true, () => false);
+    const fixUrl = async (u?: string) => {
+      if (typeof u !== 'string' || !u.startsWith('/img/')) return u;
+      const v = u.replace('/img/productos/conjunto-punto-chocolate', '/img/productos/conjunto-punto-beige');
+      return (await exists(v)) ? v : undefined;
+    };
+    for (const p of db.products) {
+      const before = JSON.stringify([p.image, p.images, p.colorImages, p.colorGallery]);
+      const img = await fixUrl(p.image); p.image = img ?? '26998033';
+      if (p.images) p.images = (await Promise.all(p.images.map(fixUrl))).filter((x): x is string => !!x);
+      if (p.colorImages) for (const [c, u] of Object.entries(p.colorImages)) { const v = await fixUrl(u); if (v) p.colorImages[c] = v; else delete p.colorImages[c]; }
+      if (p.colorGallery) for (const [c, l] of Object.entries(p.colorGallery)) p.colorGallery[c] = (await Promise.all(l.map(fixUrl))).filter((x): x is string => !!x);
+      if (JSON.stringify([p.image, p.images, p.colorImages, p.colorGallery]) !== before) { p.updatedAt = new Date().toISOString(); note('fotosArregladas', `${p.name} (${p.sku || p.id})`); }
+    }
+    for (const c of db.categories) { const v = await fixUrl(c.image); if (v !== c.image) { c.image = v || '26998033'; note('fotosArregladas', `categoría ${c.name}`); } }
   }
 
   db.fixesVersion = FIXES_VERSION;
