@@ -61,7 +61,10 @@ async function write(db: DB): Promise<void> {
        - Pañoletas, pañuelos y bufandas van a su categoría «Pañoletas y bufandas».
        - Productos repetidos (mismo nombre, categoría y precio, visibles en la tienda): se deja el más
          completo y los demás se OCULTAN (no se borran; se pueden recuperar o borrar desde el panel). */
-const FIXES_VERSION = 3;
+const FIXES_VERSION = 4;
+// v4) Fecha de alta (createdAt) para los productos que no la tienen, para ordenar «Novedades»:
+//     los del catálogo antiguo cuentan como de lanzamiento, los de la carga v4 y los dados de alta
+//     en el panel usan su fecha de última modificación (lo mejor que hay).
 // v3) Fotos guardadas en los productos que ya no existen en la web: la foto marrón del conjunto pasa a
 //     la beige; cualquier otra /img/… que no exista se quita (así sale la foto del catálogo, no un hueco).
 const FIX_DESCRIPTIONS: Record<string, string> = {
@@ -154,6 +157,22 @@ async function applyDataFixes(): Promise<void> {
       if (JSON.stringify([p.image, p.images, p.colorImages, p.colorGallery]) !== before) { p.updatedAt = new Date().toISOString(); note('fotosArregladas', `${p.name} (${p.sku || p.id})`); }
     }
     for (const c of db.categories) { const v = await fixUrl(c.image); if (v !== c.image) { c.image = v || '26998033'; note('fotosArregladas', `categoría ${c.name}`); } }
+  }
+
+  if (from < 4) {
+    const LAUNCH = '2026-10-01T00:00:00.000Z';
+    let cat: { products?: { name: string; since?: number; previousNames?: string[]; aliases?: string[] }[] } = {};
+    try { cat = JSON.parse(await fs.readFile(CATALOG, 'utf8')); } catch { /* sin catálogo */ }
+    const since = new Map<string, number>();
+    for (const e of cat.products || []) for (const n of [e.name, ...(e.previousNames || []), ...(e.aliases || [])]) since.set(nname(n), e.since ?? 1);
+    let n = 0;
+    for (const p of db.products) {
+      if (p.createdAt) continue;
+      const v = [p.name, ...(p.aliases || [])].map((x) => since.get(nname(x))).find((x) => x != null);
+      p.createdAt = v != null && v < 4 ? LAUNCH : (p.updatedAt || LAUNCH);
+      n++;
+    }
+    if (n) note('fechasDeAlta', `${n} productos con fecha de alta`);
   }
 
   db.fixesVersion = FIXES_VERSION;
@@ -282,7 +301,7 @@ async function migrateCatalog(): Promise<void> {
         name: e.name, price: e.price, image: e.image || '26998033', stock: e.stock ?? 0, category: e.category,
         badge: e.badge, sku: `${prefix}-${String(n).padStart(4, '0')}`, sizes: e.sizes, colors: e.colors,
         description: e.description, details: e.details, images: e.images, colorImages: e.colorImages, colorGallery: e.colorGallery,
-        updatedAt: now,
+        updatedAt: now, createdAt: now,
         ...(aliases.length ? { aliases } : {}),
       };
       refreshVariants(prod, e.variantStockText);
@@ -417,7 +436,7 @@ async function createProduct__(data: Omit<Product, 'id' | 'slug'> & { slug?: str
     db.lastSkuNumber = n;
     sku = `${prefix}-${String(n).padStart(4, '0')}`;
   }
-  const prod: Product = { id: randomUUID().slice(0, 8), slug, name: data.name, price: data.price, image: data.image || '26998033', stock: data.stock ?? 0, category: data.category, badge: data.badge, sku, sizes: data.sizes, colors: data.colors, description: data.description, details: data.details, images: data.images, colorImages: data.colorImages, updatedAt: new Date().toISOString() };
+  const prod: Product = { id: randomUUID().slice(0, 8), slug, name: data.name, price: data.price, image: data.image || '26998033', stock: data.stock ?? 0, category: data.category, badge: data.badge, sku, sizes: data.sizes, colors: data.colors, description: data.description, details: data.details, images: data.images, colorImages: data.colorImages, updatedAt: new Date().toISOString(), createdAt: new Date().toISOString() };
   refreshVariants(prod, opts?.variantStockText);
   db.products.push(prod);
   await write(db);
@@ -489,7 +508,7 @@ async function upsertProductBySku__(data: ImportRow & { sku: string }): Promise<
     return { created: false, changed, product: p };
   }
   const slug = (data.name).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || sku.toLowerCase();
-  p = { id: randomUUID().slice(0, 8), slug, name: data.name, price: data.price, image: data.image || '26998033', stock: data.stock ?? 0, category: data.category || 'tops', badge: data.badge, sku, sizes: data.sizes, colors: data.colors, description: data.description, details: data.details, updatedAt: new Date().toISOString() };
+  p = { id: randomUUID().slice(0, 8), slug, name: data.name, price: data.price, image: data.image || '26998033', stock: data.stock ?? 0, category: data.category || 'tops', badge: data.badge, sku, sizes: data.sizes, colors: data.colors, description: data.description, details: data.details, updatedAt: new Date().toISOString(), createdAt: new Date().toISOString() };
   refreshVariants(p, data.variantStockText);
   db.products.push(p);
   await write(db);

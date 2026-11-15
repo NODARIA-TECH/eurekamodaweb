@@ -9,7 +9,7 @@ export default async function Home() {
   const [products, categories, content] = await Promise.all([listShopProducts(), listCategories(), getPublishedContent()]);
   return (
     <main id="top">
-      <HomeBody c={content} products={products} categories={categories} />
+      <HomeBody c={content} products={products} categories={categories} seed={Date.now()} />
     </main>
   );
 }

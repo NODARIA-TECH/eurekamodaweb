@@ -79,7 +79,7 @@ export const DEFAULT_CONTENT: SiteContent = {
     ],
     btn: { label: 'Ver toda la colección', href: '/tienda' },
   },
-  rail: { label: 'Recién llegado', title: 'Novedades', mode: 'auto', ids: [], max: 12 },
+  rail: { label: 'Recién llegado', title: 'Novedades', mode: 'auto', ids: [], max: 24 },
   collage: {
     script: 'fashion', label: 'Editorial Otoño', title: 'Looks para inspirarte',
     items: [
@@ -190,7 +190,7 @@ export function normalizeContent(raw: unknown): SiteContent {
       label: str(rail.label, d.rail.label, 60), title: str(rail.title, d.rail.title, 80),
       mode: rail.mode === 'manual' ? 'manual' : 'auto',
       ids: arr(rail.ids).filter((x): x is string => typeof x === 'string').slice(0, 24),
-      max: num(rail.max, d.rail.max, 4, 24),
+      max: num(rail.max, d.rail.max, 4, 48),
     },
     collage: {
       script: str(col.script, d.collage.script, 40), label: str(col.label, d.collage.label, 60), title: str(col.title, d.collage.title, 80),

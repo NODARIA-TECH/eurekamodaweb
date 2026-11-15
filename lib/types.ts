@@ -15,6 +15,7 @@ export type Product = {
   badge?: string;
   sku?: string;       // referencia FacturaScripts (llave de sincronización)
   updatedAt?: string; // última modificación del catálogo (web)
+  createdAt?: string; // alta del producto (para «Novedades»: lo nuevo primero)
   sizes?: string[];   // tallas disponibles (vacío = talla única)
   colors?: string[];  // colores disponibles (vacío = sin elección de color)
   description?: string;                 // descripción comercial (ficha de producto)

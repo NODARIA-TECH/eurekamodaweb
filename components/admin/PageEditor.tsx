@@ -552,9 +552,9 @@ export default function PageEditor({ initial, products, categories }: { initial:
               <>
                 <label className="pf">
                   <span className="pf-l">Cuántos productos <em>{r.max}</em></span>
-                  <input type="range" min={4} max={24} value={r.max} onChange={(e) => patch((d) => { d.rail.max = Number(e.target.value); }, 'rmax')} />
+                  <input type="range" min={4} max={48} value={r.max} onChange={(e) => patch((d) => { d.rail.max = Number(e.target.value); }, 'rmax')} />
                 </label>
-                <p className="pf-h">Primero los que tienen foto y stock, después los últimos que has tocado. Nunca se repite una prenda.</p>
+                <p className="pf-h">Primero lo nuevo (dado de alta en las últimas 3 semanas, con stock) en orden aleatorio que cambia en cada visita; después el resto, de lo más reciente a lo más antiguo, y lo agotado al final. Nunca se repite una prenda.</p>
               </>
             ) : (
               <>
