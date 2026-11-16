@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         EUREKA · Lector de códigos (FacturaScripts / TPVneo)
 // @namespace    https://eurekamoda.com/
-// @version      1.4
-// @description  La pistola escribe PEK'0897 (teclado en inglés): esto lo corrige a PEK-0897 al momento, y devuelve la lectura al buscador del TPV aunque se haya perdido el foco (p. ej. al borrar una línea).
+// @version      1.5
+// @description  La pistola escribe PEK'0897 (teclado en inglés): esto lo corrige a PEK-0897 al momento, y lleva SIEMPRE la lectura al buscador del TPV: aunque se haya perdido el foco o el cursor se haya quedado en otra casilla (cantidad, precio…) al borrar una línea.
 // @match        *://*/*
 // @run-at       document-start
 // @grant        none
@@ -49,14 +49,22 @@
     racha.t = ahora;
   }
   var huella = null;           // id/name del buscador, por si el TPV lo vuelve a crear
+  function pareceBuscador(el) {
+    var s = (el.id || '') + ' ' + (el.name || '') + ' ' + (el.placeholder || '') + ' ' + (typeof el.className === 'string' ? el.className : '');
+    return PISTA.test(s) && !/client|nombre|email|correo|telef|direcc|nota|observ|cantidad|precio|dto|descuento/i.test(s);
+  }
   function recordar(el) {
+    if (huella && !pareceBuscador(el) && ultimoCampo && ultimoCampo.isConnected) return;   // no cambiar el buscador por una casilla cualquiera
     if (ultimoCampo !== el) log('buscador del TPV detectado: ' + desc(el));
     ultimoCampo = el; huella = { id: el.id, name: el.name, ph: el.placeholder };
   }
   function campoDelTpv() {
     if (ultimoCampo && visible(ultimoCampo) && campo(ultimoCampo)) return ultimoCampo;
-    if (!huella) return null;
     var todos = document.querySelectorAll('input, textarea');
+    if (!huella) {   // aún no se ha picado nada: el campo que tenga pinta de código de barras
+      for (var k = 0; k < todos.length; k++) if (campo(todos[k]) && visible(todos[k]) && pareceBuscador(todos[k])) return todos[k];
+      return null;
+    }
     for (var i = 0; i < todos.length; i++) {
       var c = todos[i];
       if (!campo(c) || !visible(c)) continue;
@@ -89,7 +97,7 @@
       panel.style.cssText = 'position:fixed;right:8px;bottom:8px;z-index:2147483647;width:min(560px,96vw);max-height:46vh;overflow:auto;background:rgba(20,16,12,.92);color:#fff;font:12px/1.45 monospace;padding:10px 12px;border-radius:10px;pointer-events:none;white-space:pre-wrap;box-shadow:0 6px 24px rgba(0,0,0,.35)';
     }
     if (!panel.isConnected) document.body.appendChild(panel);
-    panel.textContent = 'EUREKA lector 1.4 · diagnóstico (Ctrl+Alt+D para cerrar)\nfoco ahora: ' + desc(document.activeElement) + '\nbuscador: ' + (ultimoCampo ? desc(ultimoCampo) + (ultimoCampo.isConnected ? '' : ' (ya no existe)') : '—') + '\n────────\n' + lineas.join('\n');
+    panel.textContent = 'EUREKA lector 1.5 · diagnóstico (Ctrl+Alt+D para cerrar)\nfoco ahora: ' + desc(document.activeElement) + '\nbuscador: ' + (ultimoCampo ? desc(ultimoCampo) + (ultimoCampo.isConnected ? '' : ' (ya no existe)') : '—') + '\n────────\n' + lineas.join('\n');
   }
   document.addEventListener('focusin', function (e) { log('foco → ' + desc(e.target)); }, true);
   document.addEventListener('mousedown', function (e) { log('clic en ' + desc(e.target)); }, true);
@@ -126,6 +134,43 @@
     });
   }
 
+  // ---- Ráfaga de la pistola que cae en una casilla equivocada (cantidad, precio, otra línea…) ----
+  // La pistola teclea muy rápido (pocos ms entre teclas); una persona, no. A la 4.ª tecla rápida
+  // seguida, si no está en el buscador del TPV: se deja esa casilla como estaba y la lectura entera
+  // pasa al buscador. Lo que queda de la ráfaga (y su Enter) ya entra ahí directamente.
+  var RAFAGA_MS = 45, RAFAGA_N = 4;
+  var rf = { el: null, t: 0, txt: '', n: 0, antes: null, movida: false };
+  function poner0(el, v) {
+    var set = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el), 'value').set;
+    set.call(el, v);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  function inicioLectura(t) {
+    return t.replace(/^([A-Z]{2,5})['´`’]/, '$1-').replace(/^(PEK|EUR)(\d)/i, function (_, a, b) { return a.toUpperCase() + '-' + b; });
+  }
+  function rafagaFueraDeSitio(e) {
+    var ahora = Date.now(), el = e.target;
+    if (ahora - rf.t > RAFAGA_MS || rf.el !== el && !rf.movida) {
+      var conValor = el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA');
+      rf = { el: el, t: ahora, txt: '', n: 0, antes: conValor ? el.value : null, movida: false };
+    }
+    rf.t = ahora; rf.n++; rf.txt += e.key;
+    if (rf.movida || rf.n < RAFAGA_N) return false;
+    var dest = campoDelTpv();
+    if (!dest || dest === el) return false;
+    // La casilla equivocada vuelve a lo que tenía antes de la ráfaga
+    if (rf.antes != null && rf.el && rf.el.isConnected && rf.el.value !== rf.antes) { try { poner0(rf.el, rf.antes); } catch (x) {} }
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    log('lectura rápida en ' + desc(el) + ' (no es el buscador) → la paso entera al buscador');
+    dest.focus();
+    try { dest.select(); } catch (x) {}
+    insertar(dest, inicioLectura(rf.txt));
+    rf.movida = true;
+    anotar(dest); anotar(dest); anotar(dest); anotar(dest);
+    return true;
+  }
+
   // En window y en captura: así va antes que cualquier código del TPV.
   window.addEventListener('keydown', function (e) {
     if (e.__eureka) return;
@@ -137,6 +182,7 @@
     if (e.ctrlKey || e.altKey || e.metaKey) return;
     var el = e.target;
     var imprimible = e.key && e.key.length === 1;
+    if (imprimible && e.key !== ' ' && rafagaFueraDeSitio(e)) return;
 
     if (!campo(el)) {
       if (!imprimible || e.key === ' ') return;
