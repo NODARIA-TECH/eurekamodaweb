@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EUREKA · Lector de códigos (FacturaScripts / TPVneo)
 // @namespace    https://eurekamoda.com/
-// @version      1.5
+// @version      1.6
 // @description  La pistola escribe PEK'0897 (teclado en inglés): esto lo corrige a PEK-0897 al momento, y lleva SIEMPRE la lectura al buscador del TPV: aunque se haya perdido el foco o el cursor se haya quedado en otra casilla (cantidad, precio…) al borrar una línea.
 // @match        *://*/*
 // @run-at       document-start
@@ -59,6 +59,8 @@
     ultimoCampo = el; huella = { id: el.id, name: el.name, ph: el.placeholder };
   }
   function campoDelTpv() {
+    var bcTpv = document.forms['barcodeForm'] && document.forms['barcodeForm'].elements && document.forms['barcodeForm'].elements['barcode'];
+    if (bcTpv && bcTpv.tagName && visible(bcTpv)) return bcTpv;   // TPVneo: siempre su casilla de código de barras
     if (ultimoCampo && visible(ultimoCampo) && campo(ultimoCampo)) return ultimoCampo;
     var todos = document.querySelectorAll('input, textarea');
     if (!huella) {   // aún no se ha picado nada: el campo que tenga pinta de código de barras
@@ -97,7 +99,7 @@
       panel.style.cssText = 'position:fixed;right:8px;bottom:8px;z-index:2147483647;width:min(560px,96vw);max-height:46vh;overflow:auto;background:rgba(20,16,12,.92);color:#fff;font:12px/1.45 monospace;padding:10px 12px;border-radius:10px;pointer-events:none;white-space:pre-wrap;box-shadow:0 6px 24px rgba(0,0,0,.35)';
     }
     if (!panel.isConnected) document.body.appendChild(panel);
-    panel.textContent = 'EUREKA lector 1.5 · diagnóstico (Ctrl+Alt+D para cerrar)\nfoco ahora: ' + desc(document.activeElement) + '\nbuscador: ' + (ultimoCampo ? desc(ultimoCampo) + (ultimoCampo.isConnected ? '' : ' (ya no existe)') : '—') + '\n────────\n' + lineas.join('\n');
+    panel.textContent = 'EUREKA lector 1.6 · diagnóstico (Ctrl+Alt+D para cerrar)\nfoco ahora: ' + desc(document.activeElement) + '\nbuscador: ' + (ultimoCampo ? desc(ultimoCampo) + (ultimoCampo.isConnected ? '' : ' (ya no existe)') : '—') + '\n────────\n' + lineas.join('\n');
   }
   document.addEventListener('focusin', function (e) { log('foco → ' + desc(e.target)); }, true);
   document.addEventListener('mousedown', function (e) { log('clic en ' + desc(e.target)); }, true);
@@ -171,6 +173,70 @@
     return true;
   }
 
+  // ---- TPVneo (FacturaScripts): la lectura va a SU formulario del código de barras ----
+  // TPVneo busca con <form name="barcodeForm" onsubmit="return addBarcode()"> y su casilla «barcode».
+  // Al borrar una línea redibuja el carrito (y si queda vacío cambia de pestaña): el cursor se pierde
+  // y la casilla puede quedar oculta. Si una ráfaga de la pistola no está entrando en esa casilla, se
+  // recoge entera aquí y, con su Enter, se escribe en la casilla y se envía su formulario: TPVneo hace
+  // exactamente lo mismo que al picar con el cursor bien puesto, esté visible o no.
+  function tpvneoCampo() {
+    var f = document.forms['barcodeForm'];
+    var c = f && f.elements && f.elements['barcode'];
+    return c && c.tagName ? c : null;
+  }
+  var tn = { activa: false, txt: '', t: 0, n: 0, el: null, antes: null };
+  function enviarTpvneo(bc, codigo) {
+    poner0(bc, codigo);
+    var f = bc.form;
+    if (f.requestSubmit) f.requestSubmit();
+    else { var ev = new Event('submit', { bubbles: true, cancelable: true }); if (f.dispatchEvent(ev) && typeof f.onsubmit === 'function') f.onsubmit(ev); }
+    if (visible(bc)) { try { bc.focus(); } catch (x) {} }
+  }
+  function tpvneoTecla(e) {
+    var bc = tpvneoCampo();
+    if (!bc) return false;
+    var el = e.target, ahora = Date.now();
+    if (el === bc && document.activeElement === bc && visible(bc)) { tn.activa = false; return false; }   // camino normal
+    if (e.key === 'Enter') {
+      if (!tn.activa || ahora - tn.t > 300) return false;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      var codigo = normaliza(tn.txt);
+      log('TPVneo: lectura «' + tn.txt + '» → envío «' + codigo + '» al buscador de códigos (el cursor estaba en ' + desc(el) + (visible(bc) ? '' : '; la casilla estaba oculta') + ')');
+      tn = { activa: false, txt: '', t: 0, n: 0, el: null, antes: null };
+      enviarTpvneo(bc, codigo);
+      return true;
+    }
+    if (!(e.key && e.key.length === 1) || e.key === ' ') return false;
+    if (ahora - tn.t > RAFAGA_MS) {
+      var conValor = el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA');
+      tn = { activa: false, txt: '', t: ahora, n: 0, el: el, antes: conValor ? el.value : null };
+    }
+    tn.t = ahora; tn.n++; tn.txt += e.key;
+    if (!tn.activa && tn.n >= RAFAGA_N) {
+      tn.activa = true;
+      if (tn.antes != null && tn.el && tn.el !== bc && tn.el.isConnected && tn.el.value !== tn.antes) { try { poner0(tn.el, tn.antes); } catch (x) {} }
+      if (tn.el === bc) { try { poner0(bc, ''); } catch (x) {} }
+    }
+    if (tn.activa) { e.preventDefault(); e.stopImmediatePropagation(); return true; }
+    return false;
+  }
+
+  // Diagnóstico: qué pide el TPV al servidor y qué contesta (solo con el diagnóstico activo)
+  try {
+    var fetchOriginal = window.fetch;
+    if (fetchOriginal) window.fetch = function (url, opts) {
+      var accion = null;
+      try { if (diag && opts && opts.body instanceof FormData && opts.body.get('action')) accion = opts.body.get('action') + (opts.body.get('action-code') ? ' «' + opts.body.get('action-code') + '»' : ''); } catch (x) {}
+      if (accion) log('TPV → servidor: ' + accion);
+      var pr = fetchOriginal.apply(this, arguments);
+      if (accion) pr.then(function (r) { return r.clone().json().then(function (d) { var m = (d && d.messages || []).map(function (x) { return x.level + ': ' + String(x.message).replace(/<[^>]*>/g, ''); }); log('servidor → TPV (' + accion + '): ' + r.status + (m.length ? ' · ' + m.join(' | ') : ' · ok')); }); }).catch(function (x) { log('servidor → TPV (' + accion + '): FALLO ' + (x && x.message || x)); });
+      return pr;
+    };
+    var alertOriginal = window.alert;
+    window.alert = function (m) { log('aviso del TPV: ' + m); return alertOriginal.apply(this, arguments); };
+  } catch (x) {}
+
   // En window y en captura: así va antes que cualquier código del TPV.
   window.addEventListener('keydown', function (e) {
     if (e.__eureka) return;
@@ -182,6 +248,7 @@
     if (e.ctrlKey || e.altKey || e.metaKey) return;
     var el = e.target;
     var imprimible = e.key && e.key.length === 1;
+    if (tpvneoTecla(e)) return;
     if (imprimible && e.key !== ' ' && rafagaFueraDeSitio(e)) return;
 
     if (!campo(el)) {
