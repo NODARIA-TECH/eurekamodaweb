@@ -569,10 +569,18 @@ async function setStockBySku__(items: { sku: string; stock: number }[]): Promise
     const qty = Math.max(0, Math.round(it.stock));
     let found = false;
     for (const p of db.products) {
-      const v = p.variants?.find((x) => x.sku && x.sku.toLowerCase() === sku);
-      if (v) { v.stock = qty; p.stock = totalStock(p.variants!); updated++; found = true; break; }
+      // Solo se aplica el stock de FacturaScripts cuando CAMBIA allí (una venta en tienda, una
+      // entrada…). Si sigue igual que la última vez, se respeta lo que se haya puesto a mano en el
+      // panel de la web: antes n8n lo devolvía cada 5 min al valor de FacturaScripts.
+      const v = p.variants?.find((x) => x.sku && x.sku.toLowerCase() === sku) as (NonNullable<Product['variants']>[number] & { stockFs?: number }) | undefined;
+      if (v) {
+        if (v.stockFs !== qty) { v.stock = qty; p.stock = totalStock(p.variants!); updated++; }
+        v.stockFs = qty; found = true; break;
+      }
       if (p.sku && p.sku.toLowerCase() === sku) {
-        if (hasVariants(p)) ignored.push(it.sku); else { p.stock = qty; updated++; }
+        if (hasVariants(p)) ignored.push(it.sku);
+        else if (p.stockFs !== qty) { p.stock = qty; updated++; }
+        p.stockFs = qty;
         found = true; break;
       }
     }

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { checkSyncAuth } from '@/lib/sync-auth';
-import { listProducts, listCategories, upsertProductBySku } from '@/lib/store';
+import { listProducts, listCategories, upsertProductBySku, setStockBySku } from '@/lib/store';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,13 +54,15 @@ export async function POST(req: Request) {
       sku,
       name: String(it.name),
       price: price_cents,
-      stock: it.stock != null ? Number(it.stock) : undefined,
+      stock: undefined,   // el stock va aparte (abajo), con la regla de «solo si cambia en FS»
       category: it.category ? String(it.category) : undefined,
       image: it.image ? String(it.image) : undefined,
       badge: it.badge ? String(it.badge) : undefined,
     });
     results.push({ sku, ok: true, created: r.created, id: r.product.id });
   }
+  const conStock = items.filter((it: any) => it.sku && it.stock != null && Number.isFinite(Number(it.stock))).map((it: any) => ({ sku: String(it.sku).trim(), stock: Number(it.stock) }));
+  if (conStock.length) await setStockBySku(conStock);
   const created = results.filter((r) => r.created).length;
   return NextResponse.json({ ok: true, total: results.length, created, updated: results.filter((r) => r.ok && !r.created).length, results });
 }
