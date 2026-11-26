@@ -1,6 +1,6 @@
 import { login } from './actions';
 
-export const metadata = { title: 'Admin · EUREKA' };
+export const metadata = { title: 'Admin · EUREKA', robots: { index: false, follow: false } };
 
 export default function LoginPage({ searchParams }: { searchParams: { e?: string } }) {
   return (

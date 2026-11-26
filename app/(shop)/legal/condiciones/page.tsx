@@ -1,7 +1,7 @@
 import LegalPage from '@/components/LegalPage';
 import { TITULAR, DIAS_DEVOLUCION } from '@/lib/legal';
 
-export const metadata = { title: 'Condiciones de compra · EUREKA' };
+export const metadata = { title: 'Condiciones de compra · EUREKA', alternates: { canonical: '/legal/condiciones' } };
 
 export default function Condiciones() {
   return (

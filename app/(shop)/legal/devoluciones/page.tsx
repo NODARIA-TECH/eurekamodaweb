@@ -1,7 +1,7 @@
 import LegalPage from '@/components/LegalPage';
 import { TITULAR, DIAS_DEVOLUCION } from '@/lib/legal';
 
-export const metadata = { title: 'Devoluciones y cambios · EUREKA' };
+export const metadata = { title: 'Devoluciones y cambios · EUREKA', alternates: { canonical: '/legal/devoluciones' } };
 
 export default function Devoluciones() {
   return (

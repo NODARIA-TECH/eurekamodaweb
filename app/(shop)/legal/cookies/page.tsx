@@ -1,7 +1,7 @@
 import LegalPage from '@/components/LegalPage';
 import { TITULAR } from '@/lib/legal';
 
-export const metadata = { title: 'Política de cookies · EUREKA' };
+export const metadata = { title: 'Política de cookies · EUREKA', alternates: { canonical: '/legal/cookies' } };
 
 export default function Cookies() {
   return (

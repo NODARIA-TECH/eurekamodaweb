@@ -2,11 +2,15 @@ import Link from 'next/link';
 import { logout } from '../login/actions';
 import { requireAdmin } from '@/lib/admin-auth';
 import { configIssues } from '@/lib/security-check';
+import { asegurarBorradorDeHoy } from '@/lib/diario';
+import { listShopProducts, listCategories } from '@/lib/store';
 
-export const metadata = { title: 'Panel · EUREKA' };
+export const metadata = { title: 'Panel · EUREKA', robots: { index: false, follow: false } };
 
-export default function PanelLayout({ children }: { children: React.ReactNode }) {
+export default async function PanelLayout({ children }: { children: React.ReactNode }) {
   requireAdmin(); // doble cerrojo además del middleware
+  // Diario: el borrador del día se prepara solo al entrar al panel; el punto avisa de que espera revisión
+  const diaPendiente = await asegurarBorradorDeHoy(await listShopProducts(), await listCategories()).catch(() => null);
   const graves = configIssues().filter((i) => i.grave);
   return (
     <div className="adm-shell">
@@ -20,6 +24,7 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
           <Link href="/admin/categorias">Categorías</Link>
           <Link href="/admin/pedidos">Pedidos</Link>
           <Link href="/admin/clientes">Clientes</Link>
+          <Link href="/admin/diario">Diario{diaPendiente && <span className="adm-dot" title="Hay una entrada para revisar y publicar" />}</Link>
           <Link href="/admin/boletin">Boletín</Link>
           <Link href="/admin/diagnostico">Diagnóstico</Link>
         </nav>

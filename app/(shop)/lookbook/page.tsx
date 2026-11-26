@@ -9,6 +9,7 @@ export const dynamic = 'force-dynamic';
 export const metadata: Metadata = {
   title: 'Lookbook · EUREKA',
   description: 'Looks reales de EUREKA para inspirarte: combina nuestras prendas y compra el look completo.',
+  alternates: { canonical: '/lookbook' },
 };
 
 export default async function LookbookPage() {

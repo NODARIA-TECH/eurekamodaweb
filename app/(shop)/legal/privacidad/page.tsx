@@ -1,7 +1,7 @@
 import LegalPage from '@/components/LegalPage';
 import { TITULAR } from '@/lib/legal';
 
-export const metadata = { title: 'Política de privacidad · EUREKA' };
+export const metadata = { title: 'Política de privacidad · EUREKA', alternates: { canonical: '/legal/privacidad' } };
 
 export default function Privacidad() {
   return (

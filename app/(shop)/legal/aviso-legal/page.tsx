@@ -1,7 +1,7 @@
 import LegalPage from '@/components/LegalPage';
 import { TITULAR } from '@/lib/legal';
 
-export const metadata = { title: 'Aviso legal · EUREKA' };
+export const metadata = { title: 'Aviso legal · EUREKA', alternates: { canonical: '/legal/aviso-legal' } };
 
 export default function AvisoLegal() {
   return (

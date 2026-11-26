@@ -13,3 +13,4 @@ data/boletin.json
 .next-nueva/
 .next-vieja/
 tsconfig.tsbuildinfo
+data/diario.json

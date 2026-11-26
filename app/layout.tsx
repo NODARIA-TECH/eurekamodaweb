@@ -1,9 +1,15 @@
 import './globals.css';
 import type { Metadata } from 'next';
+import { siteUrl } from '@/lib/seo';
 
 export const metadata: Metadata = {
-  title: 'EUREKA — Tu tienda de moda',
-  description: 'Tienda online de moda de mujer. Selección cuidada, envío rápido y trato cercano.',
+  metadataBase: new URL(siteUrl()),
+  title: 'EUREKA — Moda de mujer en Écija · Tienda online',
+  description: 'Tienda de moda de mujer en Écija (Sevilla) y online: punto, vestidos, sudaderas, pijamas y accesorios. Envío en 24–48 h o recogida gratis en tienda.',
+  applicationName: 'EUREKA',
+  openGraph: { siteName: 'EUREKA', locale: 'es_ES', type: 'website', images: ['/eureka-logo.png'] },
+  twitter: { card: 'summary_large_image' },
+  ...(process.env.GOOGLE_SITE_VERIFICATION ? { verification: { google: process.env.GOOGLE_SITE_VERIFICATION } } : {}),
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

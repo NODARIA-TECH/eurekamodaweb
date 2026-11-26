@@ -974,3 +974,27 @@ a.cg{display:block}
 }
 .adm-card select[name=add]{min-width:320px;max-width:100%}
 .adm-card textarea{font:inherit}
+
+/* Diario */
+.dia-lista{display:grid;gap:22px;max-width:900px;margin:0 auto}
+.dia-card{display:grid;grid-template-columns:150px 1fr;gap:20px;align-items:center;padding:14px;border:1px solid var(--hair);border-radius:16px;background:#fff;transition:border-color .2s}
+.dia-card:hover{border-color:var(--gold)}
+.dia-card img{width:150px;height:200px;object-fit:cover;border-radius:10px}
+.dia-card time{font-family:"Jost",sans-serif;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--gold-deep)}
+.dia-card h2{font-family:"Cormorant Garamond",serif;font-size:clamp(1.4rem,2.6vw,1.9rem);color:var(--ink);margin:6px 0 8px;line-height:1.15}
+.dia-card p{color:var(--muted);font-size:.95rem;line-height:1.55}
+@media (max-width:560px){.dia-card{grid-template-columns:96px 1fr;gap:14px}.dia-card img{width:96px;height:128px}}
+.dia-art{max-width:720px;margin:0 auto 40px}
+.dia-art h1{font-family:"Cormorant Garamond",serif;font-size:clamp(2.1rem,5vw,3.2rem);line-height:1.1;color:var(--ink);margin-bottom:16px}
+.dia-art p{font-size:1.05rem;line-height:1.75;color:var(--ink);margin-bottom:16px}
+.dia-art .dia-intro{font-size:1.2rem;color:var(--wood-deep);font-style:italic}
+.dia-art strong{font-weight:600}
+.dia-prendas{margin:20px 0 40px}
+.dia-mas{max-width:720px;margin:0 auto 20px;padding-top:20px;border-top:1px solid var(--hair)}
+.dia-mas h2{font-family:"Cormorant Garamond",serif;font-size:1.5rem;margin-bottom:10px}
+.dia-mas li{margin:6px 0}.dia-mas a{color:var(--wood-deep);text-decoration:underline}
+.dia-prods{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 16px}
+.dia-prod{display:flex;flex-direction:column;gap:4px;width:110px;font-family:"Jost",sans-serif;font-size:.72rem;color:var(--ink)}
+.dia-prod img{width:110px;height:146px;object-fit:cover;border-radius:8px}
+.dia-form{grid-template-columns:1fr}
+.adm-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#c0392b;margin-left:8px;vertical-align:middle}

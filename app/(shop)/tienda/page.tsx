@@ -4,7 +4,11 @@ import ProductGrid from '@/components/ProductGrid';
 import { listShopProducts, listCategories } from '@/lib/store';
 
 export const dynamic = 'force-dynamic';
-export const metadata: Metadata = { title: 'Tienda · EUREKA' };
+export const metadata: Metadata = {
+  title: 'Tienda de ropa de mujer · EUREKA',
+  description: 'Toda la colección de EUREKA, tu tienda de moda de mujer en Écija: punto, vestidos, sudaderas, pijamas y accesorios. Envío en 24–48 h o recogida gratis en tienda.',
+  alternates: { canonical: '/tienda' },
+};
 
 type SP = { q?: string; cat?: string; sort?: string };
 
