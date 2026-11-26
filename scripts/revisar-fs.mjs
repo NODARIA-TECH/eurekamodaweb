@@ -45,11 +45,11 @@ console.log('\n3) La clave en FacturaScripts');
 const RECURSOS = { productos: 'GET POST PUT', variantes: 'GET PUT', stocks: 'GET POST PUT', almacenes: 'GET' };
 if (token && cfg.FS_DB_NAME && cfg.FS_API_KEY !== token && (cfg.FS_DB_TYPE || 'mysql').startsWith('mysql')) {
   const sql = `SELECT CONCAT('K\t',id,'\t',enabled,'\t',fullaccess,'\t',IFNULL(description,'')) FROM api_keys WHERE apikey='${token.replace(/'/g, "''")}';
-SELECT CONCAT('A\t',a.resource,'\t',a.allowget,'\t',a.allowpost,'\t',a.allowput) FROM api_access a JOIN api_keys k ON k.id=a.idapikey WHERE k.apikey='${token.replace(/'/g, "''")}';
-SELECT CONCAT('S\t',IFNULL((SELECT value FROM settings WHERE name='default' LIMIT 1),''));`;
+SELECT CONCAT('A\t',a.resource,'\t',a.allowget,'\t',a.allowpost,'\t',a.allowput) FROM api_access a JOIN api_keys k ON k.id=a.idapikey WHERE k.apikey='${token.replace(/'/g, "''")}';`;
   const args = ['-N', '-B', '-h', cfg.FS_DB_HOST || 'localhost', '-P', String(cfg.FS_DB_PORT || 3306), '-u', cfg.FS_DB_USER || 'root', cfg.FS_DB_NAME];
   const r = spawnSync('mysql', args, { input: sql, encoding: 'utf8', env: { ...process.env, MYSQL_PWD: cfg.FS_DB_PASS || '' } });
-  if (r.error || r.status !== 0) mal(r.error ? 'no está el programa mysql en el servidor; mira la clave a mano en FacturaScripts → Admin → API' : 'no he podido consultar la base de datos: ' + String(r.stderr).split('\n')[0]);
+  const errSql = String(r.stderr || '').split('\n').find((l) => /^ERROR/.test(l));
+  if (r.error || (r.status !== 0 && !r.stdout.trim())) mal(r.error ? 'no está el programa mysql en el servidor; mira la clave a mano en FacturaScripts → Admin → API' : 'no he podido consultar la base de datos: ' + (errSql || String(r.stderr).trim().split('\n').pop()));
   else {
     const lines = r.stdout.trim().split('\n').map((l) => l.split('\t'));
     const k = lines.find((l) => l[0] === 'K');
@@ -68,8 +68,7 @@ SELECT CONCAT('S\t',IFNULL((SELECT value FROM settings WHERE name='default' LIMI
         if (falta) info('lo más fácil: en FacturaScripts → Admin → API, marca «Acceso completo» en esta clave');
       }
     }
-    const s = lines.find((l) => l[0] === 'S');
-    if (s && !cfg.FS_API_KEY && !/"enable_api";(s:1:"1"|b:1|i:1)|"enable_api":"?(1|true)/.test(s[1] || '')) info('ojo: puede que la API esté desactivada en FacturaScripts → Admin → Panel de control');
+    if (errSql) info('aviso de la base de datos: ' + errSql);
   }
 } else if (token && cfg.FS_API_KEY !== token) info('no compruebo la base de datos (faltan datos o no es MySQL)');
 
