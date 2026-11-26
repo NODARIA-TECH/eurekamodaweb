@@ -30,6 +30,7 @@ export async function middleware(req: NextRequest) {
     if (!ok) {
       const url = req.nextUrl.clone();
       url.pathname = '/admin/login';
+      url.search = pathname !== '/admin' ? `?next=${encodeURIComponent(pathname)}` : '';   // tras entrar, vuelve aquí
       return NextResponse.redirect(url);
     }
   }

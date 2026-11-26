@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { productImg, swatch } from '@/lib/data';
 import { combos, vkey } from '@/lib/variants';
 import type { Variant } from '@/lib/types';
@@ -62,12 +62,30 @@ export default function VariantEditor({ sizes: s0, colors: c0, colorImages, gall
   const [colors, setColors] = useState<string[]>(c0);
   const [picked, setPicked] = useState<Record<string, string>>({});
   const [byVariant, setByVariant] = useState<boolean>(!!variants?.length);
-  const [total, setTotal] = useState<number>(stock0);
+  // Un stock negativo (ventas de más) se muestra como 0: con negativos el navegador no dejaba guardar
+  const [total, setTotal] = useState<number>(Math.max(0, stock0 || 0));
   const [cells, setCells] = useState<Record<string, string>>(() => {
     const m: Record<string, string> = {};
-    for (const v of variants || []) m[vkey(v.size, v.color)] = String(v.stock);
+    for (const v of variants || []) m[vkey(v.size, v.color)] = String(Math.max(0, v.stock || 0));
     return m;
   });
+  // Si el navegador no deja guardar por algún campo, decirlo bien visible (antes no pasaba nada)
+  const raiz = useRef<HTMLDivElement>(null);
+  const [bloqueo, setBloqueo] = useState('');
+  useEffect(() => {
+    const form = raiz.current?.closest('form');
+    if (!form) return;
+    const onInvalid = (e: Event) => {
+      const el = e.target as HTMLInputElement;
+      const campo = el.getAttribute('aria-label') || el.closest('label')?.textContent?.split('\n')[0]?.trim() || el.name;
+      setBloqueo(`No se ha guardado: revisa «${campo}» (${el.validationMessage}).`);
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    };
+    const onSubmit = () => setBloqueo('');
+    form.addEventListener('invalid', onInvalid, true);
+    form.addEventListener('submit', onSubmit);
+    return () => { form.removeEventListener('invalid', onInvalid, true); form.removeEventListener('submit', onSubmit); };
+  }, []);
   const grid = combos(sizes, colors);
   const canVariant = grid.length > 1;
   const useGrid = byVariant && canVariant;
@@ -76,7 +94,8 @@ export default function VariantEditor({ sizes: s0, colors: c0, colorImages, gall
   const cols = sizes.length ? sizes : [undefined];
 
   return (
-    <div className="ve">
+    <div className="ve" ref={raiz}>
+      {bloqueo && <div className="adm-err" role="alert">{bloqueo}</div>}
       <input type="hidden" name="tallas" value={sizes.join(', ')} />
       <input type="hidden" name="colores" value={colors.join(', ')} />
 
@@ -170,7 +189,7 @@ export default function VariantEditor({ sizes: s0, colors: c0, colorImages, gall
                         return (
                           <td key={k}>
                             <input
-                              type="number" min={0} inputMode="numeric" name={`vs:${k}`} value={v}
+                              type="number" step="any" inputMode="numeric" name={`vs:${k}`} value={v}
                               aria-label={`Stock ${[s, c].filter(Boolean).join(' ')}`}
                               className={(parseInt(v, 10) || 0) === 0 ? 'zero' : ''}
                               onFocus={(e) => e.target.select()}
@@ -190,7 +209,7 @@ export default function VariantEditor({ sizes: s0, colors: c0, colorImages, gall
         ) : (
           <div className="adm-form pe-form">
             <label className="pe-wide">Unidades (total)
-              <input name="stock" type="number" min={0} value={total} onChange={(e) => setTotal(parseInt(e.target.value, 10) || 0)} />
+              <input name="stock" type="number" step="any" inputMode="numeric" value={total} onChange={(e) => setTotal(Math.max(0, parseInt(e.target.value, 10) || 0))} />
             </label>
           </div>
         )}
