@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { requireAdmin } from '@/lib/admin-auth';
 import { asegurarBorradorDeHoy, listarDiario, hoy, type DiarioEntrada } from '@/lib/diario';
 import { listShopProducts, listCategories, listProducts } from '@/lib/store';
-import { productImg } from '@/lib/data';
+import { productImg, productPath } from '@/lib/data';
 import { guardar, otra, estado } from './actions';
 
 export const dynamic = 'force-dynamic';
@@ -87,7 +87,7 @@ function Borrador({ e, prod, esHoy }: { e: DiarioEntrada; prod: (id: string) => 
       <h2>{esHoy ? 'Propuesta de hoy' : `Borrador del ${fmt(e.date + 'T12:00:00')}`} <span className="adm-tag">{e.tema}</span></h2>
       <div className="dia-prods">
         {e.productIds.map((id) => { const p = prod(id); return p ? (
-          <Link key={id} href={`/producto/${id}`} target="_blank" className="dia-prod"><img src={productImg(p.image, 300, 400)} alt="" /><span>{p.name}</span></Link>
+          <Link key={id} href={productPath(p)} target="_blank" className="dia-prod"><img src={productImg(p.image, 300, 400)} alt="" /><span>{p.name}</span></Link>
         ) : null; })}
       </div>
       <form key={v} action={guardar} className="adm-form dia-form">

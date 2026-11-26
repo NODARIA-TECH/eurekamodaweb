@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import ProductGrid from '@/components/ProductGrid';
 import { getCategory, shopProductsByCategory } from '@/lib/store';
 import JsonLd from '@/components/JsonLd';
-import { breadcrumbLd } from '@/lib/seo';
+import { breadcrumbLd, textoCategoria } from '@/lib/seo';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,6 +37,7 @@ export default async function CategoryPage({ params }: { params: { slug: string 
         ) : (
           <p className="empty">Pronto más novedades en esta categoría.</p>
         )}
+        <div className="cat-seo"><h2>{c.name} de mujer en Écija</h2><p>{textoCategoria(c.slug, c.name)}</p></div>
       </div>
     </main>
   );

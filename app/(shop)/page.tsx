@@ -13,7 +13,7 @@ export default async function Home() {
   const [products, categories, content] = await Promise.all([listShopProducts(), listCategories(), getPublishedContent()]);
   return (
     <main id="top">
-      <JsonLd data={[storeLd(content.social as unknown as Record<string, string>), websiteLd()]} />
+      <JsonLd data={[storeLd(content.social as unknown as Record<string, string>, content.tienda), websiteLd()]} />
       <HomeBody c={content} products={products} categories={categories} seed={Date.now()} />
     </main>
   );

@@ -1,4 +1,5 @@
 'use client';
+import { productPath } from '@/lib/data';
 import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -12,7 +13,7 @@ export type RPiece = {
 export type RLook = { slug: string; title: string; mood: string; photo: string; alt: string; pieces: RPiece[] };
 
 const hrefOf = (pc: RPiece) =>
-  pc.product ? `/producto/${pc.product.id}${pc.color && pc.product.colors?.includes(pc.color) ? `?color=${encodeURIComponent(pc.color)}` : ''}` : pc.categoryHref;
+  pc.product ? `${productPath(pc.product)}${pc.color && pc.product.colors?.includes(pc.color) ? `?color=${encodeURIComponent(pc.color)}` : ''}` : pc.categoryHref;
 const priceOf = (pc: RPiece) => (pc.product ? money(pc.product.price) : pc.categoryHref ? 'Ver' : 'En tienda');
 
 // Un look: al pasar por un punto o por una prenda de la lista, la prenda se ilumina

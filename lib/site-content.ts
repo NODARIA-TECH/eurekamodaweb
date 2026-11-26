@@ -2,7 +2,7 @@
 // Este archivo es compartido por servidor y navegador: tipos, valores por defecto y saneado.
 // El guardado en disco vive en lib/site-store.ts.
 
-export type SectionId = 'hero' | 'strip' | 'cats' | 'edit' | 'rail' | 'collage' | 'real' | 'news';
+export type SectionId = 'hero' | 'strip' | 'cats' | 'tienda' | 'edit' | 'rail' | 'collage' | 'real' | 'news';
 
 export interface SImg { src: string; x: number; y: number; alt: string }   // x/y = punto de foco en %
 export interface SLink { label: string; href: string }
@@ -22,6 +22,8 @@ export interface SiteContent {
   rail: { label: string; title: string; mode: 'auto' | 'manual'; ids: string[]; max: number };
   collage: { script: string; label: string; title: string; items: { img: SImg; label: string; href: string }[]; btn: SLink };
   real: { kicker: string; script: string; title: string; text: string; btn: SLink };
+  // La tienda física: quién está detrás, dónde, cuándo abre y cómo contactar (genera confianza y SEO local)
+  tienda: { kicker: string; title: string; text: string; img: SImg; horario: string; telefono: string; maps: string };
   news: { script: string; title: string; text: string };
   // Pie de página: enlaces a redes (vacío = no se muestra)
   social: { instagram: string; tiktok: string; pinterest: string; facebook: string; whatsapp: string };
@@ -31,6 +33,7 @@ export const SECTION_NAMES: Record<SectionId, string> = {
   hero: 'Portada (foto grande)',
   strip: 'Franja de frases',
   cats: 'Categorías',
+  tienda: 'Nuestra tienda en Écija',
   edit: 'Selección destacada',
   rail: 'Novedades',
   collage: 'Looks para inspirarte',
@@ -94,6 +97,12 @@ export const DEFAULT_CONTENT: SiteContent = {
     text: 'Creemos en las prendas que se usan de verdad: cómodas, favorecedoras y con encanto. Selección cuidada, envío rápido y trato de tú a tú.',
     btn: { label: 'Descubrir la tienda', href: '/tienda' },
   },
+  tienda: {
+    kicker: 'Tienda física en Écija', title: 'Ven a conocernos',
+    text: 'EUREKA es la tienda de Mónica en el centro de Écija. Elegimos cada prenda a mano y te aconsejamos como lo haría una amiga: pásate a probarte lo que te guste, o pídelo online y recógelo gratis en la tienda.',
+    img: img(H('hero-nyc'), 'Mónica en la tienda EUREKA de Écija', 50, 25),
+    horario: '', telefono: '654 382 023', maps: '',
+  },
   social: { instagram: 'https://www.instagram.com/monica_eureka/', tiktok: 'https://www.tiktok.com/@eurekadictas', pinterest: '', facebook: '', whatsapp: '' },
   news: { script: 'únete al', title: 'Club EUREKA · 20 % de bienvenida', text: 'Suscríbete y recibe tu descuento, además de acceso anticipado a novedades y rebajas.' },
 };
@@ -141,7 +150,7 @@ export function normalizeContent(raw: unknown): SiteContent {
   const d = DEFAULT_CONTENT;
   const r = obj(raw);
   const promo = obj(r.promo), hero = obj(r.hero), strip = obj(r.strip), cats = obj(r.cats), edit = obj(r.edit);
-  const rail = obj(r.rail), col = obj(r.collage), real = obj(r.real), news = obj(r.news);
+  const rail = obj(r.rail), col = obj(r.collage), real = obj(r.real), news = obj(r.news), tienda = obj(r.tienda);
 
   // Bloques: todos presentes una sola vez, en el orden elegido.
   const seen = new Set<SectionId>();
@@ -151,7 +160,14 @@ export function normalizeContent(raw: unknown): SiteContent {
     const id = o.id as SectionId;
     if (ALL_SECTIONS.includes(id) && !seen.has(id)) { seen.add(id); sections.push({ id, show: bool(o.show, true) }); }
   }
-  for (const id of ALL_SECTIONS) if (!seen.has(id)) sections.push({ id, show: true });
+  // Bloques nuevos que aún no estaban guardados: van en su sitio por defecto, no al final
+  ALL_SECTIONS.forEach((id, i) => {
+    if (seen.has(id)) return;
+    const prev = ALL_SECTIONS.slice(0, i).reverse().find((x) => seen.has(x));
+    const at = prev ? sections.findIndex((s) => s.id === prev) + 1 : 0;
+    sections.splice(at, 0, { id, show: true });
+    seen.add(id);
+  });
 
   const heroImgs = (Array.isArray(hero.images) ? hero.images : d.hero.images).slice(0, 3)
     .map((v, i) => nImg(v, d.hero.images[i] || d.hero.images[0])).filter((i) => i.src);
@@ -203,6 +219,12 @@ export function normalizeContent(raw: unknown): SiteContent {
     real: {
       kicker: str(real.kicker, d.real.kicker, 60), script: str(real.script, d.real.script, 40), title: str(real.title, d.real.title, 80),
       text: str(real.text, d.real.text, 500), btn: nLink(real.btn, d.real.btn),
+    },
+    tienda: {
+      kicker: str(tienda.kicker, d.tienda.kicker, 60), title: str(tienda.title, d.tienda.title, 80), text: str(tienda.text, d.tienda.text, 600),
+      img: nImg(tienda.img, d.tienda.img), horario: str(tienda.horario, d.tienda.horario, 300),
+      telefono: str(tienda.telefono, d.tienda.telefono, 30).replace(/[^\d +]/g, '').replace(/\s+/g, ' ').trim(),
+      maps: (() => { const x = typeof tienda.maps === 'string' ? tienda.maps.trim() : ''; return /^https:\/\/[^\s"<>]{4,400}$/.test(x) ? x : ''; })(),
     },
     social: (() => {
       const so = obj(r.social);

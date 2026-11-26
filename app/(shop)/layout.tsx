@@ -3,6 +3,7 @@ import Promo from '@/components/Promo';
 import Header from '@/components/Header';
 import { Footer } from '@/components/Sections';
 import { getPublishedContent } from '@/lib/site-store';
+import { WhatsAppFlotante } from '@/components/Tienda';
 
 export default async function ShopLayout({ children }: { children: React.ReactNode }) {
   const { promo, social } = await getPublishedContent();
@@ -12,6 +13,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
       <Header />
       {children}
       <Footer social={social} />
+      <WhatsAppFlotante url={social.whatsapp} />
     </CartProvider>
   );
 }

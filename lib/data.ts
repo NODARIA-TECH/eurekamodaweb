@@ -44,11 +44,17 @@ export function swatch(color: string): string {
   return '#d9cfbf';
 }
 
+// URL de producto con el nombre (mejor para Google): /producto/jersey-basico-de-punto-ce1b72be.
+// La parte final es el id; las direcciones antiguas (/producto/ce1b72be) redirigen a esta.
+export const slugTexto = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60).replace(/-+$/, '');
+export const productPath = (p: { id: string; name: string }) => { const s = slugTexto(p.name || ''); return `/producto/${s ? s + '-' : ''}${p.id}`; };
+export const idDeRuta = (param: string) => { const x = decodeURIComponent(param); return x.includes('-') ? x.slice(x.lastIndexOf('-') + 1) : x; };
+
 export const NAV = [
   { href: '/tienda', label: 'Ropa' },
   { href: '/#rail', label: 'Novedades' },
   { href: '/lookbook', label: 'Lookbook' },
-  { href: '/#real', label: 'Nosotras' },
+  { href: '/nuestra-tienda', label: 'Nuestra tienda' },
   { href: '/seguimiento', label: 'Seguir pedido' },
   { href: '/#nl', label: 'Club' },
 ];

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getProduct, listCategories } from '@/lib/store';
-import { productImg } from '@/lib/data';
+import { productImg, productPath } from '@/lib/data';
 import VariantEditor from '@/components/admin/VariantEditor';
 import ConfirmSubmit from '@/components/admin/ConfirmSubmit';
 import { saveProduct, removeProduct, createZoom, removeColorExtras, toggleHidden } from '../actions';
@@ -25,7 +25,7 @@ export default async function EditProduct({ params, searchParams }: { params: { 
           <Link href="/admin/productos" className="adm-back">← Productos</Link>
           <h1>{p.name}</h1>
           <p>Ref. <b>{p.sku || '—'}</b> · {shownInShop(p)
-            ? <Link className="adm-link" href={`/producto/${p.id}`} target="_blank">Ver en la tienda ↗</Link>
+            ? <Link className="adm-link" href={productPath(p)} target="_blank">Ver en la tienda ↗</Link>
             : <span className="adm-tag off">{p.hidden ? 'Oculto en la tienda' : !hasRealPhoto(p) ? 'No se ve en la tienda: le falta la foto' : 'No se ve en la tienda: le falta el precio'}</span>}</p>
         </div>
         <form action={toggleHidden} className="adm-actions">

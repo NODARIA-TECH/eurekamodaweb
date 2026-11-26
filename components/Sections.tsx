@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { Fragment } from 'react';
-import { productImg } from '@/lib/data';
+import { productImg, productPath } from '@/lib/data';
 import { money } from '@/lib/money';
 import type { Category, Product } from '@/lib/types';
 import { CAT_PHOTO, type SImg, type SPick, type SiteContent } from '@/lib/site-content';
@@ -103,7 +103,7 @@ export function Categories({ c, categories, products = [] }: { c: SiteContent['c
 // Una pieza de "Selección destacada": si está enlazada a un producto, lleva a su ficha y muestra su precio.
 function resolvePick(pk: SPick, products: Product[]) {
   const p = pk.productId ? products.find((x) => x.id === pk.productId) : undefined;
-  return { href: p ? `/producto/${p.id}` : pk.href || '/tienda', price: p ? money(p.price) : null, name: pk.name || p?.name || '' };
+  return { href: p ? productPath(p) : pk.href || '/tienda', price: p ? money(p.price) : null, name: pk.name || p?.name || '' };
 }
 
 export function EditFeature({ c, products = [] }: { c: SiteContent['edit']; products?: Product[] }) {
@@ -175,7 +175,7 @@ export function Footer({ social }: { social?: SiteContent['social'] } = {}) {
         <div className="wrap">
           <div className="top"><img src="/eureka-logo.png" alt="EUREKA" /><div className="script">estilo con buena vibra</div></div>
           <div className="ftop">
-            <div><h4>Tienda</h4><ul><li><a href="/tienda">Toda la colección</a></li><li><a href="/#rail">Novedades</a></li><li><a href="/lookbook">Lookbook</a></li><li><a href="/diario">Diario de moda</a></li><li><a href="/#nl">Club EUREKA</a></li></ul></div>
+            <div><h4>Tienda</h4><ul><li><a href="/tienda">Toda la colección</a></li><li><a href="/#rail">Novedades</a></li><li><a href="/lookbook">Lookbook</a></li><li><a href="/diario">Diario de moda</a></li><li><a href="/nuestra-tienda">Nuestra tienda en Écija</a></li><li><a href="/#nl">Club EUREKA</a></li></ul></div>
             <div><h4>Ayuda</h4><ul><li><a href="/legal/condiciones">Envíos</a></li><li><a href="/legal/devoluciones">Cambios y devoluciones</a></li><li><a href="/seguimiento">Seguir pedido</a></li><li><a href="mailto:eurekamodaecija@gmail.com">Contacto</a></li></ul></div>
             <div><h4>Legal</h4><ul><li><a href="/legal/aviso-legal">Aviso legal</a></li><li><a href="/legal/privacidad">Privacidad</a></li><li><a href="/legal/condiciones">Condiciones de compra</a></li><li><a href="/legal/cookies">Cookies</a></li></ul></div>
             {redes.length > 0 && <div><h4>Síguenos</h4><ul>{redes.map(([n, u]) => <li key={n}><a href={u} target="_blank" rel="noopener noreferrer">{n}</a></li>)}</ul></div>}

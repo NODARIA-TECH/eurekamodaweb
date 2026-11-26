@@ -1,4 +1,5 @@
 'use client';
+import { productPath } from '@/lib/data';
 // Editor de la portada: tarjetas por bloque a la izquierda, vista previa en directo a la derecha.
 // Guardado automático del borrador (con cola, reintentos y copia local), publicar, deshacer e historial.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -606,6 +607,23 @@ export default function PageEditor({ initial, products, categories }: { initial:
           <LinkField label="Botón" value={c.real.btn} onChange={(v, k) => patch((d) => { d.real.btn = v; }, 'rbtn' + k)} />
         </>
       );
+      case 'tienda': return (
+        <>
+          <p className="pf-h">Que se vea que detrás de la web hay una tienda de verdad en Écija. Lo que dejes vacío no se muestra.</p>
+          <ImageField label="Foto (Mónica o la tienda)" value={c.tienda.img} ratio="4 / 5" onChange={(v, k) => patch((d) => { d.tienda.img = v; }, 'tim' + k)} />
+          <div className="pf-2">
+            <Txt label="Antetítulo" value={c.tienda.kicker} max={60} onChange={(v) => patch((d) => { d.tienda.kicker = v; }, 'tk')} />
+            <Txt label="Título" value={c.tienda.title} max={80} onChange={(v) => patch((d) => { d.tienda.title = v; }, 'tt')} />
+          </div>
+          <Txt label="Texto" multiline rows={4} value={c.tienda.text} max={600} onChange={(v) => patch((d) => { d.tienda.text = v; }, 'tx')} />
+          <Txt label="Horario (una línea por fila)" multiline rows={3} value={c.tienda.horario} max={300} placeholder={'Lunes a viernes: 10:00–14:00 y 17:30–21:00\nSábados: 10:00–14:00'} onChange={(v) => patch((d) => { d.tienda.horario = v; }, 'th')} />
+          <div className="pf-2">
+            <Txt label="Teléfono" value={c.tienda.telefono} max={30} placeholder="654 382 023" onChange={(v) => patch((d) => { d.tienda.telefono = v; }, 'tf')} />
+            <Txt label="Enlace de Google Maps (ficha de la tienda)" value={c.tienda.maps} max={400} placeholder="https://maps.app.goo.gl/…" onChange={(v) => patch((d) => { d.tienda.maps = v.trim(); }, 'tm')} />
+          </div>
+          <p className="pf-h">El WhatsApp se pone en «Pie de página · redes sociales»: si lo rellenas, sale un botón para escribiros.</p>
+        </>
+      );
       case 'news': return (
         <>
           <Txt label="Frase manuscrita" value={c.news.script} max={40} onChange={(v) => patch((d) => { d.news.script = v; }, 'ns')} />
@@ -637,6 +655,7 @@ export default function PageEditor({ initial, products, categories }: { initial:
       case 'rail': return c.rail.mode === 'auto' ? `Automático · ${c.rail.max} productos` : `${c.rail.ids.length} elegidos a mano`;
       case 'collage': return c.collage.items.map((i) => i.label).join(' · ');
       case 'real': return c.real.title;
+      case 'tienda': return [c.tienda.title, c.tienda.horario ? 'con horario' : 'sin horario'].join(' · ');
       case 'news': return c.news.title;
       case 'social': { const n = Object.values(c.social).filter(Boolean).length; return n ? `${n} red${n > 1 ? 'es' : ''} enlazada${n > 1 ? 's' : ''}` : 'Sin redes: no se muestra «Síguenos»'; }
     }
@@ -652,7 +671,7 @@ export default function PageEditor({ initial, products, categories }: { initial:
   const linkOptions = useMemo(() => [
     ['/tienda', 'Tienda (todo)'], ['/lookbook', 'Lookbook'], ['#edit', 'Selección destacada (en la portada)'], ['#rail', 'Novedades (en la portada)'],
     ...categories.map((x) => [`/categoria/${x.slug}`, `Categoría: ${x.name}`]),
-    ...products.slice(0, 200).map((p) => [`/producto/${p.id}`, `Producto: ${p.name}`]),
+    ...products.slice(0, 200).map((p) => [productPath(p), `Producto: ${p.name}`]),
   ], [categories, products]);
 
   const canPublish = meta.dirty || status !== 'saved';

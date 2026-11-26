@@ -3,6 +3,7 @@
 import ProductRail from './ProductRail';
 import Newsletter from './Newsletter';
 import { Hero, Strip, Categories, EditFeature, Collage, RealBand } from './Sections';
+import { TrustBar, TiendaBand } from './Tienda';
 import type { Category, Product } from '@/lib/types';
 import { SECTION_NAMES, type SectionId, type SiteContent } from '@/lib/site-content';
 
@@ -48,13 +49,14 @@ export function railProducts(products: Product[], c: SiteContent['rail'], seed =
 export default function HomeBody({ c, products, categories, mark = false, seed = 1 }: { c: SiteContent; products: Product[]; categories: Category[]; mark?: boolean; seed?: number }) {
   const render = (id: SectionId) => {
     switch (id) {
-      case 'hero': return <Hero c={c.hero} />;
+      case 'hero': return <><Hero c={c.hero} /><TrustBar /></>;   // la franja de confianza va siempre pegada a la portada
       case 'strip': return <Strip c={c.strip} />;
       case 'cats': return <Categories c={c.cats} categories={categories} products={products} />;
       case 'edit': return <EditFeature c={c.edit} products={products} />;
       case 'rail': { const r = railProducts(products, c.rail, seed); return r.length ? <ProductRail products={r} label={c.rail.label} title={c.rail.title} /> : null; }
       case 'collage': return <Collage c={c.collage} />;
       case 'real': return <RealBand c={c.real} />;
+      case 'tienda': return <TiendaBand c={c.tienda} social={c.social} />;
       case 'news': return <Newsletter c={c.news} />;
     }
   };
