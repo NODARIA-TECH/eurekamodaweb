@@ -452,6 +452,23 @@ async function updateProduct__(id: string, patch: Partial<Product>): Promise<voi
   }
   await write(db);
 }
+// Añade fotos ya subidas a un producto (desde el móvil). Si no tenía foto real, la primera pasa a
+// ser la principal. Si se indica color y ese color aún no tiene foto, se le asigna.
+async function addProductPhotos__(id: string, srcs: string[], color?: string): Promise<Product | null> {
+  const db = await read();
+  const p = db.products.find((x) => x.id === id);
+  if (!p) return null;
+  const real = (u?: string) => !!u && /^(\/media\/|\/uploads\/|\/img\/|https?:)/.test(u);
+  const imgs = [p.image, ...(p.images || [])].filter(real);
+  for (const s of srcs) if (real(s) && !imgs.includes(s)) imgs.push(s);
+  if (!imgs.length) return p;
+  p.image = imgs[0];
+  p.images = imgs.slice(1);
+  if (color && (p.colors || []).includes(color) && !p.colorImages?.[color] && srcs[0]) p.colorImages = { ...(p.colorImages || {}), [color]: srcs[0] };
+  p.updatedAt = new Date().toISOString();
+  await write(db);
+  return p;
+}
 async function deleteProduct__(id: string): Promise<void> {
   const db = await read();
   db.products = db.products.filter((p) => p.id !== id);
@@ -947,6 +964,7 @@ export function deleteCategory(...a: Parameters<typeof deleteCategory__>): Retur
 export function setProductHidden(...a: Parameters<typeof setProductHidden__>): ReturnType<typeof setProductHidden__> { return locked(() => setProductHidden__(...a)) as ReturnType<typeof setProductHidden__>; }
 export function createProduct(...a: Parameters<typeof createProduct__>): ReturnType<typeof createProduct__> { return locked(() => createProduct__(...a)) as ReturnType<typeof createProduct__>; }
 export function updateProduct(...a: Parameters<typeof updateProduct__>): ReturnType<typeof updateProduct__> { return locked(() => updateProduct__(...a)) as ReturnType<typeof updateProduct__>; }
+export function addProductPhotos(...a: Parameters<typeof addProductPhotos__>): ReturnType<typeof addProductPhotos__> { return locked(() => addProductPhotos__(...a)) as ReturnType<typeof addProductPhotos__>; }
 export function deleteProduct(...a: Parameters<typeof deleteProduct__>): ReturnType<typeof deleteProduct__> { return locked(() => deleteProduct__(...a)) as ReturnType<typeof deleteProduct__>; }
 export function upsertProductBySku(...a: Parameters<typeof upsertProductBySku__>): ReturnType<typeof upsertProductBySku__> { return locked(() => upsertProductBySku__(...a)) as ReturnType<typeof upsertProductBySku__>; }
 export function upsertProductByName(...a: Parameters<typeof upsertProductByName__>): ReturnType<typeof upsertProductByName__> { return locked(() => upsertProductByName__(...a)) as ReturnType<typeof upsertProductByName__>; }
