@@ -17,6 +17,9 @@ export const fsConfigurado = () => !!process.env.FS_API_TOKEN;
 export class FsError extends Error { constructor(public status: number, msg: string) { super(msg); } }
 const gp = globalThis as any;
 const PAUSA_MS = 10 * 60 * 1000;
+// Sin permiso en estos, la web sigue (sin código de barras / con el almacén de otra fila de stock)
+const OPCIONALES = new Set(['variantes', 'almacenes']);
+const sinPermiso = (recurso: string) => (gp.__eurekaFsSinPermiso?.[recurso] || 0) > Date.now();
 export const pausaFs = (): { hasta: number; motivo: string } | null => (gp.__eurekaFsPausa && gp.__eurekaFsPausa.hasta > Date.now() ? gp.__eurekaFsPausa : null);
 
 function explicar(status: number, method: string, ruta: string) {
@@ -39,11 +42,26 @@ async function fs(method: string, ruta: string, body?: Record<string, string | n
   });
   if (!r.ok) {
     const msg = explicar(r.status, method, ruta);
-    if ([401, 403, 429].includes(r.status)) gp.__eurekaFsPausa = { hasta: Date.now() + PAUSA_MS, motivo: msg };
+    const recurso = ruta.replace(/^\//, '').split(/[/?]/)[0];
+    if (r.status === 403 && OPCIONALES.has(recurso)) (gp.__eurekaFsSinPermiso ||= {})[recurso] = Date.now() + PAUSA_MS;
+    else if ([401, 403, 429].includes(r.status)) gp.__eurekaFsPausa = { hasta: Date.now() + PAUSA_MS, motivo: msg };
     throw new FsError(r.status, msg);
   }
   const j = await r.json().catch(() => null);
   return Array.isArray(j) ? j : j?.data ?? j;
+}
+
+// Almacén donde va el stock: el de cualquier fila de stock que ya exista (no hace falta permiso en «almacenes»)
+async function almacen(): Promise<string | undefined> {
+  if (gp.__eurekaFsAlmacen) return gp.__eurekaFsAlmacen;
+  const st = await fs('GET', '/stocks?limit=1');
+  let cod = Array.isArray(st) ? st[0]?.codalmacen : undefined;
+  if (!cod && !sinPermiso('almacenes')) {
+    const alms = await fs('GET', '/almacenes?limit=1').catch(() => null);
+    cod = Array.isArray(alms) ? alms[0]?.codalmacen : undefined;
+  }
+  if (cod) gp.__eurekaFsAlmacen = cod;
+  return cod;
 }
 
 export async function ponerStockFs(referencia: string, cantidad: number): Promise<FsResultado> {
@@ -61,8 +79,7 @@ export async function ponerStockFs(referencia: string, cantidad: number): Promis
     const prods = await fs('GET', `/productos?filter[referencia]=${ref}&limit=1`);
     const prod = Array.isArray(prods) ? prods[0] : null;
     if (!prod?.idproducto) return { ok: false, motivo: 'sin-producto' };
-    const alms = await fs('GET', '/almacenes?limit=1');
-    const codalmacen = Array.isArray(alms) ? alms[0]?.codalmacen : undefined;
+    const codalmacen = await almacen();
     if (!codalmacen) return { ok: false, motivo: 'error', detalle: 'FacturaScripts no tiene almacén' };
     await fs('POST', '/stocks', { referencia: referencia.trim(), idproducto: prod.idproducto, codalmacen, cantidad: qty });
     return { ok: true, antes: null };
@@ -93,6 +110,7 @@ async function primeraFila(ruta: string) {
 }
 
 async function ponerCodigoBarras(ref: string) {
+  if (sinPermiso('variantes')) return;
   const v = await primeraFila(`/variantes?filter[referencia]=${encodeURIComponent(ref)}&limit=1`);
   if (!v?.idvariante) return;
   const cb = codigoBarras(ref);
