@@ -1,10 +1,10 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import JsBarcode from 'jsbarcode';
 import { jsPDF } from 'jspdf';
 
 type V = { size?: string; color?: string; stock: number };
-type Item = { id: string; sku: string; name: string; price: number; category: string; variants?: V[] };
+type Item = { id: string; sku: string; name: string; price: number; category: string; variants?: V[]; sizes?: string[]; colors?: string[] };
 type Cat = { slug: string; name: string };
 
 // Rollos Brother DK para la QL-570. `w` × `h` = como los nombra el driver de Brother
@@ -38,7 +38,17 @@ export const barcodeValue = (sku: string) => sku.replace(/[^A-Za-z0-9]/g, '').to
 const euros = (c: number) => (c / 100).toFixed(2).replace('.', ',') + ' €';
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 
-type Label = { sku: string; text: string; price: number };
+type Label = { sku: string; text: string; price: number; vari?: string };
+
+// Tallas × colores de una prenda: de sus variantes (con su stock) o, si no tiene, de sus listas de tallas y colores.
+type Combo = { k: string; size?: string; color?: string; stock?: number };
+function combosDe(p: Item): Combo[] {
+  if (p.variants?.length) return p.variants.map((v) => ({ k: `${v.size || ''}|${v.color || ''}`, size: v.size, color: v.color, stock: v.stock }));
+  const ss = p.sizes?.length ? p.sizes : [undefined], cs = p.colors?.length ? p.colors : [undefined];
+  if (!p.sizes?.length && !p.colors?.length) return [];
+  return ss.flatMap((size) => cs.map((color) => ({ k: `${size || ''}|${color || ''}`, size, color })));
+}
+const textoVariante = (c: { size?: string; color?: string }) => [c.size ? `Talla ${c.size}` : '', c.color || ''].filter(Boolean).join(' · ');
 type Opts = { showName: boolean; showPrice: boolean; showSku: boolean };
 
 // Dibuja UNA etiqueta en un canvas a 300 ppp, en horizontal (el lado largo en horizontal),
@@ -82,10 +92,16 @@ function drawLabel(lab: Label, Wmm: number, Hmm: number, o: Opts): HTMLCanvasEle
 
   let showSku = o.showSku;
   const showPrice = o.showPrice;
-  const nameBlock = () => (showName ? nameLines.length * nameSize * 1.08 + gap : 0);
+  // Talla y color: en su propia franja negra con letra blanca, para verlas de un vistazo en la percha.
+  const vari = (lab.vari || '').trim();
+  let varEm = clamp(Hmm * 0.13, 2, 3.8);
+  if (vari) varEm = Math.max(1.8, Math.min(varEm, (availW - 2) / Math.max(0.01, widthPerMm(vari))));
+  const varH = () => (vari ? varEm * 1.35 : 0);
+  const nameBlock = () => (showName ? nameLines.length * nameSize * 1.08 + gap : 0) + (vari ? varH() + gap : 0);
   const bottomH = () => (wide ? Math.max(showSku ? skuEm : 0, showPrice ? priceEm : 0) : (showSku ? skuEm + gap : 0) + (showPrice ? priceEm : 0));
   const bcHmm = () => Hmm - 2 * pad - nameBlock() - bottomH() - gap;
   if (bcHmm() < 5 && showSku) showSku = false;
+  if (bcHmm() < 6 && vari) varEm = Math.max(1.7, varEm * 0.78);
   if (bcHmm() < 6 && nameLines.length > 1) { nameLines = [text]; nameSize = Math.max(1.8, Math.min(nameEm, availW / widthPerMm(text))); }
   if (bcHmm() < 4 && showName) showName = false;
 
@@ -101,7 +117,17 @@ function drawLabel(lab: Label, Wmm: number, Hmm: number, o: Opts): HTMLCanvasEle
       }
       ctx.fillText(t, W / 2, mm(y + nameSize * 0.8 + i * nameSize * 1.08));
     });
-    y += nameBlock();
+    y += nameLines.length * nameSize * 1.08 + gap;
+  }
+  if (vari) {
+    ctx.fillStyle = '#000';
+    const tw = (() => { ctx.font = font(varEm); return ctx.measureText(vari).width; })();
+    const bw = Math.min(mm(availW), tw + mm(varEm * 0.9));
+    ctx.fillRect(Math.round((W - bw) / 2), Math.round(mm(y)), Math.round(bw), Math.round(mm(varH())));
+    ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
+    ctx.fillText(vari, W / 2, mm(y + varH() / 2 + varEm * 0.36));
+    ctx.fillStyle = '#000';
+    y += varH() + gap;
   }
 
   // Código de barras Code128: cada barra ocupa un nº ENTERO de puntos de la impresora (lectura fiable)
@@ -158,16 +184,19 @@ export default function LabelMaker({ products, categories }: { products: Item[];
   const [showName, setShowName] = useState(true);
   const [showPrice, setShowPrice] = useState(true);
   const [showSku, setShowSku] = useState(true);
-  const [perVariant, setPerVariant] = useState(false);
+  const [perVariant, setPerVariant] = useState(true);            // por talla y color
+  const [vsel, setVsel] = useState<Record<string, Record<string, number>>>({}); // id -> talla|color -> copias
   const [preview, setPreview] = useState<string>('');
   const [offset, setOffset] = useState({ x: 0, y: 0 }); // ajuste fino de la hoja A4 (mm)
   const [startAt, setStartAt] = useState(1);             // empezar en la etiqueta nº (hojas ya usadas)
 
   useEffect(() => {
     const r = store.get('eureka_label_roll'); if (r) setRollId(r);
+    if (store.get('eureka_label_porvar') === '0') setPerVariant(false);
     const l = Number(store.get('eureka_label_len')); if (l >= 15) setLen(l);
   }, []);
   useEffect(() => { store.set('eureka_label_roll', rollId); store.set('eureka_label_len', String(len)); }, [rollId, len]);
+  useEffect(() => { store.set('eureka_label_porvar', perVariant ? '1' : '0'); }, [perVariant]);
 
   const sheet = SHEETS.find((x) => x.id === rollId);
   const roll: Roll = sheet
@@ -188,36 +217,43 @@ export default function LabelMaker({ products, categories }: { products: Item[];
     setSel((s) => { const n = { ...s }; if (n[p.id]) delete n[p.id]; else n[p.id] = 1; return n; });
     setTexts((t) => (t[p.id] === undefined ? { ...t, [p.id]: p.name } : t));
   };
+  // Copias de cada talla/color: lo que se haya escrito; si no, su stock (o 1 si la prenda no tiene stock por talla).
+  const porDefecto = (c: Combo) => (c.stock !== undefined ? Math.max(0, c.stock) : 1);
+  const copiasVar = (p: Item, c: Combo) => vsel[p.id]?.[c.k] ?? porDefecto(c);
+  const setCopiasVar = (id: string, k: string, v: number) => setVsel((s) => ({ ...s, [id]: { ...(s[id] || {}), [k]: Math.max(0, Math.floor(v) || 0) } }));
+  const rellenar = (p: Item, f: (c: Combo) => number) => setVsel((s) => ({ ...s, [p.id]: Object.fromEntries(combosDe(p).map((c) => [c.k, f(c)])) }));
   const setCopies = (id: string, v: number) => setSel((s) => ({ ...s, [id]: Math.max(1, Math.floor(v) || 1) }));
   const selectAllVisible = () => {
     setSel((s) => { const n = { ...s }; visible.forEach((p) => { if (!n[p.id]) n[p.id] = 1; }); return n; });
     setTexts((t) => { const n = { ...t }; visible.forEach((p) => { if (n[p.id] === undefined) n[p.id] = p.name; }); return n; });
   };
 
-  // Lista de etiquetas. "Una por unidad": por cada talla/color tantas como su stock, con la talla y el color en el texto.
+  // Lista de etiquetas. «Por talla y color»: para cada talla/color las copias que digas (de entrada, su stock),
+  // con la talla y el color en su franja. El código de barras es el de la prenda (FacturaScripts no tiene tallas).
   const labels = useMemo(() => {
     const out: Label[] = [];
     for (const p of products) {
       const c = sel[p.id];
       if (!c) continue;
       const base = textFor(p);
-      if (perVariant && p.variants?.length) {
-        for (const v of p.variants) {
-          const t = [base, v.color, v.size].filter(Boolean).join(' ');
-          for (let i = 0; i < v.stock; i++) out.push({ sku: p.sku, text: t, price: p.price });
+      const cs = perVariant ? combosDe(p) : [];
+      if (cs.length) {
+        for (const v of cs) {
+          const n = copiasVar(p, v), vari = textoVariante(v);
+          for (let i = 0; i < n; i++) out.push({ sku: p.sku, text: base, price: p.price, vari });
         }
       } else for (let i = 0; i < c; i++) out.push({ sku: p.sku, text: base, price: p.price });
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sel, products, texts, perVariant]);
+  }, [sel, vsel, products, texts, perVariant]);
 
   // Vista previa de la primera etiqueta, tal cual saldrá (en horizontal)
-  const sample: Label = labels[0] || { sku: products[0]?.sku || 'PEK-0001', text: products[0] ? textFor(products[0]) : 'Blusa Az', price: products[0]?.price || 1990 };
+  const sample: Label = labels[0] || { sku: products[0]?.sku || 'PEK-0001', text: products[0] ? textFor(products[0]) : 'Blusa Az', price: products[0]?.price || 1990, ...(perVariant ? { vari: 'Talla M · Negro' } : {}) };
   useEffect(() => {
     try { setPreview(drawLabel(sample, labW, labH, opts).toDataURL('image/png')); } catch { setPreview(''); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [labW, labH, showName, showPrice, showSku, sample.sku, sample.text, sample.price]);
+  }, [labW, labH, showName, showPrice, showSku, sample.sku, sample.text, sample.price, sample.vari]);
 
   function buildPdf(): jsPDF | null {
     if (!labels.length) return null;
@@ -297,7 +333,7 @@ export default function LabelMaker({ products, categories }: { products: Item[];
               <label className="chk"><input type="checkbox" checked={showName} onChange={(e) => setShowName(e.target.checked)} /> Texto</label>
               <label className="chk"><input type="checkbox" checked={showSku} onChange={(e) => setShowSku(e.target.checked)} /> Referencia</label>
               <label className="chk"><input type="checkbox" checked={showPrice} onChange={(e) => setShowPrice(e.target.checked)} /> Precio</label>
-              <label className="chk"><input type="checkbox" checked={perVariant} onChange={(e) => setPerVariant(e.target.checked)} /> Una por unidad (según stock de cada talla y color)</label>
+              <label className="chk"><input type="checkbox" checked={perVariant} onChange={(e) => setPerVariant(e.target.checked)} /> Por talla y color (cada etiqueta con su talla y su color)</label>
             </div>
           </div>
           <div className="etq-preview">
@@ -334,22 +370,44 @@ export default function LabelMaker({ products, categories }: { products: Item[];
           <table className="adm-table">
             <thead><tr><th></th><th>Ref</th><th>Producto</th><th>Texto etiqueta</th><th>Precio</th><th>Copias</th></tr></thead>
             <tbody>
-              {visible.map((p) => (
-                <tr key={p.id}>
+              {visible.map((p) => { const cs = perVariant && sel[p.id] ? combosDe(p) : []; return (
+                <Fragment key={p.id}>
+                <tr>
                   <td><input type="checkbox" checked={!!sel[p.id]} onChange={() => toggle(p)} aria-label={`Seleccionar ${p.name}`} /></td>
                   <td style={{ fontFamily: 'monospace', fontSize: '.82rem' }}>{p.sku}</td>
-                  <td>{p.name}{p.variants?.length ? <div className="adm-sku">{p.variants.length} tallas/colores · {p.variants.reduce((a, v) => a + v.stock, 0)} uds</div> : null}</td>
+                  <td>{p.name}{p.variants?.length ? <div className="adm-sku">{p.variants.length} tallas/colores · {p.variants.reduce((a, v) => a + v.stock, 0)} uds</div> : combosDe(p).length ? <div className="adm-sku">{combosDe(p).length} tallas/colores</div> : null}</td>
                   <td>{sel[p.id] ? (
                     <input value={textFor(p)} onChange={(e) => setText(p.id, e.target.value)} placeholder="Blusa Az" style={{ width: 150 }} />
                   ) : '—'}</td>
                   <td>{euros(p.price)}</td>
                   <td>{sel[p.id] ? (
-                    perVariant && p.variants?.length
-                      ? <span className="adm-muted">según stock</span>
+                    cs.length
+                      ? <b>{cs.reduce((a, c) => a + copiasVar(p, c), 0)}</b>
                       : <input type="number" min={1} value={sel[p.id]} onChange={(e) => setCopies(p.id, +e.target.value)} style={{ width: 64 }} />
                   ) : '—'}</td>
                 </tr>
-              ))}
+                {cs.length > 0 && (
+                  <tr className="etq-vars">
+                    <td></td>
+                    <td colSpan={5}>
+                      <div className="etq-vgrid">
+                        {cs.map((c) => (
+                          <label key={c.k} className={copiasVar(p, c) ? '' : 'cero'}>
+                            <span>{textoVariante(c) || 'Única'}{c.stock !== undefined && <small> · {c.stock} en stock</small>}</span>
+                            <input type="number" min={0} value={copiasVar(p, c)} onChange={(e) => setCopiasVar(p.id, c.k, +e.target.value)} aria-label={`Copias de ${p.name} ${textoVariante(c)}`} />
+                          </label>
+                        ))}
+                      </div>
+                      <div className="etq-vbtns">
+                        {cs.some((c) => c.stock !== undefined) && <button type="button" className="btn-sm ghost" onClick={() => rellenar(p, porDefecto)}>Según stock</button>}
+                        <button type="button" className="btn-sm ghost" onClick={() => rellenar(p, () => 1)}>Una de cada</button>
+                        <button type="button" className="btn-sm ghost" onClick={() => rellenar(p, () => 0)}>Ninguna</button>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
+              ); })}
             </tbody>
           </table>
         </div>

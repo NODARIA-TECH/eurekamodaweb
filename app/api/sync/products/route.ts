@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { checkSyncAuth } from '@/lib/sync-auth';
-import { listProducts, listCategories, upsertProductBySku, setStockBySku } from '@/lib/store';
+import { listProducts, listCategories, upsertProductBySku, setStockBySku, conOrigenStock } from '@/lib/store';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,6 +38,9 @@ export async function GET(req: Request) {
 // Alta/actualización de productos por SKU (FS -> web), para artículos creados en FacturaScripts.
 // Body: { products: [{ sku, name, price (euros) | price_cents, stock?, category?, image?, badge? }] }
 export async function POST(req: Request) {
+  return conOrigenStock('FacturaScripts → web (catálogo, n8n cada 10 min)', () => postCatalogo(req));
+}
+async function postCatalogo(req: Request) {
   const unauth = checkSyncAuth(req);
   if (unauth) return unauth;
   let body: any;

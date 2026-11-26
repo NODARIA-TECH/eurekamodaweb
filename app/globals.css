@@ -1088,3 +1088,13 @@ a.cg{display:block}
 .fm-nueva input,.fm-nueva select,.fm-buscar{width:100%;box-sizing:border-box;min-width:0}
 .adm-login-l{display:block;text-align:left;font-family:"Jost",sans-serif;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 4px 2px}
 .adm-login .adm-login-h{margin:14px 0 0;font-size:.76rem;line-height:1.45}
+.stk-hist{margin-top:14px;font-family:"Jost",sans-serif}
+.stk-hist summary{cursor:pointer;font-size:.82rem;font-weight:600;color:var(--ink);padding:6px 0}
+.stk-hist table{margin-top:6px}
+.etq-vars td{background:#fbf8f3;border-top:none}
+.etq-vgrid{display:flex;flex-wrap:wrap;gap:6px 10px}
+.etq-vgrid label{display:flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--hair);border-radius:8px;padding:4px 6px 4px 10px;font-size:.8rem}
+.etq-vgrid label.cero{opacity:.55}
+.etq-vgrid small{color:var(--muted,#8a8278)}
+.etq-vgrid input{width:52px}
+.etq-vbtns{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}

@@ -8,7 +8,7 @@ import {
   setProductHidden,
 } from '@/lib/store';
 import { requireAdmin } from '@/lib/admin-auth';
-import { ponerStockFs } from '@/lib/facturascripts';
+import { ponerStockFs, asegurarProductoFs, lanzarVolcadoFs } from '@/lib/facturascripts';
 import { saveUploadBuffer, saveUploadBufferOnce, sniffImage, saveUploadFile, uploadedExists } from '@/lib/uploads';
 import { readStaged, dropStaged } from '@/lib/chunked';
 import { unzipSync } from 'fflate';
@@ -61,7 +61,8 @@ export async function createProductQuick(fd: FormData) {
   });
   refresh();
   await pingCatalogSync();
-  redirect(`/admin/productos/${p.id}?nuevo=1`);
+  const fsr = await asegurarProductoFs(p);   // que la pistola del TPV la reconozca desde ya
+  redirect(`/admin/productos/${p.id}?nuevo=1` + (fsr.ok ? '&fsp=' + fsr.accion : `&fsp=${fsr.motivo}`));
 }
 
 /* ---------- Guardar ficha completa (datos + variantes + fotos) ---------- */
@@ -151,10 +152,14 @@ export async function saveProduct(fd: FormData) {
   refresh(id);
   await pingCatalogSync();
   // Stock cambiado a mano: se manda también a FacturaScripts; si no, n8n lo devolvería al de FacturaScripts
+  // Y que la prenda exista en FacturaScripts (si no estaba, se crea con este stock).
   let fsq = '';
-  if (stock !== p!.stock && p!.sku) {
+  const nuevo = await getProduct(id);
+  const fsp = nuevo ? await asegurarProductoFs(nuevo) : null;
+  if (fsp) fsq += fsp.ok ? (fsp.accion === 'creado' ? '&fsp=creado' : '') : fsp.motivo === 'error' ? '&fsp=error&fsd=' + encodeURIComponent((fsp.detalle || '').slice(0, 120)) : '';
+  if (stock !== p!.stock && p!.sku && !(fsp?.ok && fsp.accion === 'creado')) {
     const r = await ponerStockFs(p!.sku, stock);
-    fsq = r.ok ? '&fs=ok' : `&fs=${r.motivo}` + (r.ok === false && r.detalle ? '&fsd=' + encodeURIComponent(r.detalle.slice(0, 120)) : '');
+    fsq += r.ok ? '&fs=ok' : `&fs=${r.motivo}` + (r.ok === false && r.detalle && !fsq.includes('fsd=') ? '&fsd=' + encodeURIComponent(r.detalle.slice(0, 120)) : '');
   }
   redirect(`/admin/productos/${id}?ok=1${fsq}` + (fotoErr.length ? '&ferr=' + encodeURIComponent(fotoErr.slice(0, 4).join(' · ')) : ''));
 }
@@ -269,6 +274,7 @@ export async function importCsv(fd: FormData) {
   }
   refresh();
   await pingCatalogSync();
+  if (created) lanzarVolcadoFs(await listProducts());   // las nuevas, también a FacturaScripts (en segundo plano)
   const q = new URLSearchParams({ imp: '1', c: String(created), u: String(updated), t: String(untouched), s: String(skipped.length), m: fillOnly ? 'f' : 'a' });
   if (skipped.length) q.set('sn', skipped.slice(0, 8).join(' · '));
   redirect('/admin/productos?' + q.toString());

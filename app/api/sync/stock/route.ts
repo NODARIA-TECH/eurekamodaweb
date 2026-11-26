@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { checkSyncAuth } from '@/lib/sync-auth';
-import { setStockBySku } from '@/lib/store';
+import { setStockBySku, conOrigenStock } from '@/lib/store';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +18,6 @@ export async function POST(req: Request) {
     .filter((x: any) => x.sku && Number.isFinite(x.stock));
   if (!items.length) return NextResponse.json({ ok: true, updated: 0, missing: [], note: 'Sin líneas de stock que sincronizar.' });
 
-  const res = await setStockBySku(items);
+  const res = await conOrigenStock('FacturaScripts → web (stock, n8n cada 5 min)', () => setStockBySku(items));
   return NextResponse.json({ ok: true, updated: res.updated, missing: res.missing, ignored: res.ignored });
 }

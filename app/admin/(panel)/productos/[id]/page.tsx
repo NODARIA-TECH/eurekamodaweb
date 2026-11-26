@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getProduct, listCategories } from '@/lib/store';
+import { getProduct, listCategories, historialStock } from '@/lib/store';
 import { productImg, productPath } from '@/lib/data';
 import VariantEditor from '@/components/admin/VariantEditor';
 import ConfirmSubmit from '@/components/admin/ConfirmSubmit';
@@ -13,8 +13,9 @@ export const dynamic = 'force-dynamic';
 
 const PLACEHOLDER = '26998033';
 
-export default async function EditProduct({ params, searchParams }: { params: { id: string }; searchParams: { ok?: string; nuevo?: string; zok?: string; zerr?: string; ferr?: string; fs?: string; fsd?: string } }) {
+export default async function EditProduct({ params, searchParams }: { params: { id: string }; searchParams: { ok?: string; nuevo?: string; zok?: string; zerr?: string; ferr?: string; fs?: string; fsd?: string; fsp?: string } }) {
   const [p, categories] = await Promise.all([getProduct(params.id), listCategories()]);
+  const histStock = p ? await historialStock(p.id, 15) : [];
   if (!p) notFound();
   const gallery = [p.image, ...(p.images || [])].filter((x) => x && x !== PLACEHOLDER);
 
@@ -37,6 +38,8 @@ export default async function EditProduct({ params, searchParams }: { params: { 
       </div>
 
       {searchParams.ok && <div className="adm-ok">Cambios guardados. Ya se ven en la tienda.</div>}
+      {searchParams.fsp === 'creado' && <div className="adm-ok">Creada también en FacturaScripts ✓ — ya se puede vender en el TPV con la pistola.</div>}
+      {searchParams.fsp === 'error' && <div className="adm-tag warn" style={{ display: 'block', padding: '10px 14px', lineHeight: 1.5, marginBottom: 14 }}>No se ha podido crear o actualizar en FacturaScripts{searchParams.fsd ? ` (${searchParams.fsd})` : ''}. Prueba otra vez desde <a href="/admin/facturascripts">Panel → FacturaScripts</a>.</div>}
       {searchParams.fs === 'ok' && <div className="adm-ok">Stock actualizado también en FacturaScripts ✓</div>}
       {searchParams.fs && searchParams.fs !== 'ok' && <div className="adm-tag warn" style={{ display: 'block', padding: '10px 14px', lineHeight: 1.5, marginBottom: 14 }}>Stock guardado en la web. En FacturaScripts no se ha podido cambiar{searchParams.fs === 'sin-config' ? ' (falta conectar la web con FacturaScripts: FS_API_TOKEN en el .env)' : searchParams.fs === 'sin-producto' ? ' (esa referencia aún no existe allí)' : searchParams.fsd ? ` (${searchParams.fsd})` : ''}: la web mantiene tu número, pero cuando el stock cambie en FacturaScripts (por ejemplo, una venta en tienda) se usará el de allí. Para que coincidan siempre, cámbialo también en FacturaScripts.</div>}
       {searchParams.ferr && <div className="adm-ok adm-err">Algunas fotos no se pudieron guardar: {searchParams.ferr}</div>}
@@ -77,6 +80,23 @@ export default async function EditProduct({ params, searchParams }: { params: { 
             <section className="adm-card">
               <h2>Tallas, colores y stock</h2>
               <VariantEditor sizes={p.sizes || []} colors={p.colors || []} colorImages={p.colorImages || {}} gallery={gallery} stock={p.stock} variants={p.variants} />
+              <details className="stk-hist" open={histStock.length > 0 && histStock[0].a === 0}>
+                <summary>Últimos cambios de stock {histStock.length ? `(${histStock.length})` : ''}</summary>
+                {histStock.length === 0 ? <p className="adm-help">Aún no hay cambios apuntados (se apuntan desde esta versión).</p> : (
+                  <table className="adm-table">
+                    <thead><tr><th>Cuándo</th><th>Stock</th><th>Quién lo cambió</th></tr></thead>
+                    <tbody>
+                      {histStock.map((h, i) => (
+                        <tr key={i}>
+                          <td>{new Date(h.at).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' })}</td>
+                          <td><b>{h.de} → {h.a}</b>{h.detalle ? <div className="adm-sku">{h.detalle}</div> : null}</td>
+                          <td>{h.origen}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </details>
             </section>
           </div>
 

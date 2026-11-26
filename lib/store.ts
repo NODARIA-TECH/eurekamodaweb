@@ -39,15 +39,57 @@ function locked<T>(fn: () => Promise<T>): Promise<T> {
 
 async function read(): Promise<DB> {
   await ensureFile();
-  await (migration ||= migrateCatalog().then(applyDataFixes).catch((e) => { console.error('[catálogo] No se pudo cargar el catálogo nuevo:', e); migration = null; }));
+  await (migration ||= conOrigenStock('carga de catálogo / arreglos de datos', () => migrateCatalog().then(applyDataFixes)).catch((e) => { console.error('[catálogo] No se pudo cargar el catálogo nuevo:', e); migration = null; }));
   const raw = await fs.readFile(FILE, 'utf8');
   return JSON.parse(raw) as DB;
 }
+// Registro de cambios de stock: cada vez que se guardan los datos se compara el stock de antes y el
+// de después, y se apunta en data/stock-log.jsonl quién lo cambió (panel, FacturaScripts, pedido…).
+// Sirve para averiguar por qué un stock «se resetea». El origen lo pone quien llama (conOrigenStock)
+// o, si no, la función del store que hace el cambio.
+const stockCtx = new AsyncLocalStorage<string>();
+export function conOrigenStock<T>(origen: string, fn: () => Promise<T>): Promise<T> { return stockCtx.run(origen, fn); }
+const orig = <T,>(o: string, fn: () => Promise<T>): Promise<T> => (stockCtx.getStore() ? fn() : stockCtx.run(o, fn));
+const STOCK_LOG = path.join(DATA_DIR, 'stock-log.jsonl');
+type StockLinea = { at: string; id: string; sku?: string; name: string; de: number; a: number; detalle?: string; origen: string };
+async function apuntarStock(antes: DB, despues: DB): Promise<void> {
+  const prev = new Map(antes.products.map((p) => [p.id, p]));
+  const lineas: StockLinea[] = [];
+  const at = new Date().toISOString();
+  const origen = stockCtx.getStore() || 'otro (sin identificar)';
+  for (const p of despues.products) {
+    const o = prev.get(p.id);
+    if (!o) { lineas.push({ at, id: p.id, sku: p.sku, name: p.name, de: 0, a: p.stock || 0, detalle: 'alta del producto', origen }); continue; }
+    const vk = (v: { size?: string; color?: string }) => [v.size, v.color].filter(Boolean).join(' · ') || 'única';
+    const ov = new Map((o.variants || []).map((v) => [vk(v), v.stock]));
+    const cambios = (p.variants || []).filter((v) => ov.get(vk(v)) !== v.stock).map((v) => `${vk(v)}: ${ov.get(vk(v)) ?? '—'}→${v.stock}`);
+    if ((o.stock || 0) !== (p.stock || 0) || cambios.length) lineas.push({ at, id: p.id, sku: p.sku, name: p.name, de: o.stock || 0, a: p.stock || 0, ...(cambios.length ? { detalle: cambios.slice(0, 12).join(', ') } : {}), origen });
+  }
+  if (!lineas.length) return;
+  await fs.appendFile(STOCK_LOG, lineas.map((l) => JSON.stringify(l)).join('\n') + '\n', 'utf8');
+  // Que no crezca sin límite: se queda con las últimas ~4000 líneas
+  try {
+    const st = await fs.stat(STOCK_LOG);
+    if (st.size > 1_500_000) { const all = (await fs.readFile(STOCK_LOG, 'utf8')).trim().split('\n'); await fs.writeFile(STOCK_LOG, all.slice(-4000).join('\n') + '\n', 'utf8'); }
+  } catch { /* nada */ }
+}
+export async function historialStock(id: string, max = 30): Promise<StockLinea[]> {
+  try {
+    const all = (await fs.readFile(STOCK_LOG, 'utf8')).trim().split('\n');
+    const out: StockLinea[] = [];
+    for (let i = all.length - 1; i >= 0 && out.length < max; i--) { try { const l = JSON.parse(all[i]); if (l.id === id) out.push(l); } catch { /* línea rota */ } }
+    return out;
+  } catch { return []; }
+}
+
 // Escritura atómica: se escribe un temporal y se renombra (un corte a mitad nunca deja live.json roto).
 async function write(db: DB): Promise<void> {
+  let antes: DB | null = null;
+  try { antes = JSON.parse(await fs.readFile(FILE, 'utf8')) as DB; } catch { /* primera vez */ }
   const tmp = `${FILE}.${process.pid}.${randomUUID().slice(0, 8)}.tmp`;
   await fs.writeFile(tmp, JSON.stringify(db, null, 2) + '\n', 'utf8');
   await fs.rename(tmp, FILE);
+  if (antes) await apuntarStock(antes, db).catch((e) => console.error('[stock] no se pudo apuntar el cambio:', e?.message));
 }
 
 /* ---------- Arreglos puntuales de datos (una sola vez cada uno, en orden) ----------
@@ -970,24 +1012,24 @@ export async function stats() {
 export function createCategory(...a: Parameters<typeof createCategory__>): ReturnType<typeof createCategory__> { return locked(() => createCategory__(...a)) as ReturnType<typeof createCategory__>; }
 export function deleteCategory(...a: Parameters<typeof deleteCategory__>): ReturnType<typeof deleteCategory__> { return locked(() => deleteCategory__(...a)) as ReturnType<typeof deleteCategory__>; }
 export function setProductHidden(...a: Parameters<typeof setProductHidden__>): ReturnType<typeof setProductHidden__> { return locked(() => setProductHidden__(...a)) as ReturnType<typeof setProductHidden__>; }
-export function createProduct(...a: Parameters<typeof createProduct__>): ReturnType<typeof createProduct__> { return locked(() => createProduct__(...a)) as ReturnType<typeof createProduct__>; }
-export function updateProduct(...a: Parameters<typeof updateProduct__>): ReturnType<typeof updateProduct__> { return locked(() => updateProduct__(...a)) as ReturnType<typeof updateProduct__>; }
+export function createProduct(...a: Parameters<typeof createProduct__>): ReturnType<typeof createProduct__> { return orig('alta de producto', () => locked(() => createProduct__(...a))) as ReturnType<typeof createProduct__>; }
+export function updateProduct(...a: Parameters<typeof updateProduct__>): ReturnType<typeof updateProduct__> { return orig('panel: ficha del producto', () => locked(() => updateProduct__(...a))) as ReturnType<typeof updateProduct__>; }
 export function addProductPhotos(...a: Parameters<typeof addProductPhotos__>): ReturnType<typeof addProductPhotos__> { return locked(() => addProductPhotos__(...a)) as ReturnType<typeof addProductPhotos__>; }
 export function deleteProduct(...a: Parameters<typeof deleteProduct__>): ReturnType<typeof deleteProduct__> { return locked(() => deleteProduct__(...a)) as ReturnType<typeof deleteProduct__>; }
-export function upsertProductBySku(...a: Parameters<typeof upsertProductBySku__>): ReturnType<typeof upsertProductBySku__> { return locked(() => upsertProductBySku__(...a)) as ReturnType<typeof upsertProductBySku__>; }
-export function upsertProductByName(...a: Parameters<typeof upsertProductByName__>): ReturnType<typeof upsertProductByName__> { return locked(() => upsertProductByName__(...a)) as ReturnType<typeof upsertProductByName__>; }
-export function setStockBySku(...a: Parameters<typeof setStockBySku__>): ReturnType<typeof setStockBySku__> { return locked(() => setStockBySku__(...a)) as ReturnType<typeof setStockBySku__>; }
+export function upsertProductBySku(...a: Parameters<typeof upsertProductBySku__>): ReturnType<typeof upsertProductBySku__> { return orig('catálogo por referencia (FacturaScripts o Excel)', () => locked(() => upsertProductBySku__(...a))) as ReturnType<typeof upsertProductBySku__>; }
+export function upsertProductByName(...a: Parameters<typeof upsertProductByName__>): ReturnType<typeof upsertProductByName__> { return orig('importación de Excel', () => locked(() => upsertProductByName__(...a))) as ReturnType<typeof upsertProductByName__>; }
+export function setStockBySku(...a: Parameters<typeof setStockBySku__>): ReturnType<typeof setStockBySku__> { return orig('FacturaScripts → web (n8n)', () => locked(() => setStockBySku__(...a))) as ReturnType<typeof setStockBySku__>; }
 export function markOrderSynced(...a: Parameters<typeof markOrderSynced__>): ReturnType<typeof markOrderSynced__> { return locked(() => markOrderSynced__(...a)) as ReturnType<typeof markOrderSynced__>; }
-export function createOrder(...a: Parameters<typeof createOrder__>): ReturnType<typeof createOrder__> { return locked(() => createOrder__(...a)) as ReturnType<typeof createOrder__>; }
-export function createPendingOrder(...a: Parameters<typeof createPendingOrder__>): ReturnType<typeof createPendingOrder__> { return locked(() => createPendingOrder__(...a)) as ReturnType<typeof createPendingOrder__>; }
+export function createOrder(...a: Parameters<typeof createOrder__>): ReturnType<typeof createOrder__> { return orig('pedido web', () => locked(() => createOrder__(...a))) as ReturnType<typeof createOrder__>; }
+export function createPendingOrder(...a: Parameters<typeof createPendingOrder__>): ReturnType<typeof createPendingOrder__> { return orig('pedido web (reserva al ir a pagar)', () => locked(() => createPendingOrder__(...a))) as ReturnType<typeof createPendingOrder__>; }
 export function setOrderStripeSession(...a: Parameters<typeof setOrderStripeSession__>): ReturnType<typeof setOrderStripeSession__> { return locked(() => setOrderStripeSession__(...a)) as ReturnType<typeof setOrderStripeSession__>; }
-export function markOrderPaid(...a: Parameters<typeof markOrderPaid__>): ReturnType<typeof markOrderPaid__> { return locked(() => markOrderPaid__(...a)) as ReturnType<typeof markOrderPaid__>; }
-export function updateOrderStatus(...a: Parameters<typeof updateOrderStatus__>): ReturnType<typeof updateOrderStatus__> { return locked(() => updateOrderStatus__(...a)) as ReturnType<typeof updateOrderStatus__>; }
+export function markOrderPaid(...a: Parameters<typeof markOrderPaid__>): ReturnType<typeof markOrderPaid__> { return orig('pedido web pagado', () => locked(() => markOrderPaid__(...a))) as ReturnType<typeof markOrderPaid__>; }
+export function updateOrderStatus(...a: Parameters<typeof updateOrderStatus__>): ReturnType<typeof updateOrderStatus__> { return orig('panel: estado del pedido', () => locked(() => updateOrderStatus__(...a))) as ReturnType<typeof updateOrderStatus__>; }
 export function adjustBalance(...a: Parameters<typeof adjustBalance__>): ReturnType<typeof adjustBalance__> { return locked(() => adjustBalance__(...a)) as ReturnType<typeof adjustBalance__>; }
 export function registerCustomer(...a: Parameters<typeof registerCustomer__>): ReturnType<typeof registerCustomer__> { return locked(() => registerCustomer__(...a)) as ReturnType<typeof registerCustomer__>; }
 export function noteOrderEmail(...a: Parameters<typeof noteOrderEmail__>): ReturnType<typeof noteOrderEmail__> { return locked(() => noteOrderEmail__(...a)) as ReturnType<typeof noteOrderEmail__>; }
 export function confirmClaim(...a: Parameters<typeof confirmClaim__>): ReturnType<typeof confirmClaim__> { return locked(() => confirmClaim__(...a)) as ReturnType<typeof confirmClaim__>; }
 export function updateOrderInfo(...a: Parameters<typeof updateOrderInfo__>): ReturnType<typeof updateOrderInfo__> { return locked(() => updateOrderInfo__(...a)) as ReturnType<typeof updateOrderInfo__>; }
-export function updateOrderItems(...a: Parameters<typeof updateOrderItems__>): ReturnType<typeof updateOrderItems__> { return locked(() => updateOrderItems__(...a)) as ReturnType<typeof updateOrderItems__>; }
-export function deleteOrder(...a: Parameters<typeof deleteOrder__>): ReturnType<typeof deleteOrder__> { return locked(() => deleteOrder__(...a)) as ReturnType<typeof deleteOrder__>; }
+export function updateOrderItems(...a: Parameters<typeof updateOrderItems__>): ReturnType<typeof updateOrderItems__> { return orig('panel: prendas del pedido', () => locked(() => updateOrderItems__(...a))) as ReturnType<typeof updateOrderItems__>; }
+export function deleteOrder(...a: Parameters<typeof deleteOrder__>): ReturnType<typeof deleteOrder__> { return orig('panel: pedido borrado', () => locked(() => deleteOrder__(...a))) as ReturnType<typeof deleteOrder__>; }
 export function deleteCustomer(...a: Parameters<typeof deleteCustomer__>): ReturnType<typeof deleteCustomer__> { return locked(() => deleteCustomer__(...a)) as ReturnType<typeof deleteCustomer__>; }
