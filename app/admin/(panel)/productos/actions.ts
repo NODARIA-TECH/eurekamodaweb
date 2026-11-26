@@ -8,6 +8,7 @@ import {
   setProductHidden,
 } from '@/lib/store';
 import { requireAdmin } from '@/lib/admin-auth';
+import { ponerStockFs } from '@/lib/facturascripts';
 import { saveUploadBuffer, saveUploadBufferOnce, sniffImage, saveUploadFile, uploadedExists } from '@/lib/uploads';
 import { readStaged, dropStaged } from '@/lib/chunked';
 import { unzipSync } from 'fflate';
@@ -149,7 +150,13 @@ export async function saveProduct(fd: FormData) {
   });
   refresh(id);
   await pingCatalogSync();
-  redirect(`/admin/productos/${id}?ok=1` + (fotoErr.length ? '&ferr=' + encodeURIComponent(fotoErr.slice(0, 4).join(' · ')) : ''));
+  // Stock cambiado a mano: se manda también a FacturaScripts; si no, n8n lo devolvería al de FacturaScripts
+  let fsq = '';
+  if (stock !== p!.stock && p!.sku) {
+    const r = await ponerStockFs(p!.sku, stock);
+    fsq = r.ok ? '&fs=ok' : `&fs=${r.motivo}` + (r.ok === false && r.detalle ? '&fsd=' + encodeURIComponent(r.detalle.slice(0, 120)) : '');
+  }
+  redirect(`/admin/productos/${id}?ok=1${fsq}` + (fotoErr.length ? '&ferr=' + encodeURIComponent(fotoErr.slice(0, 4).join(' · ')) : ''));
 }
 
 // Botón Ocultar / Mostrar en la tienda

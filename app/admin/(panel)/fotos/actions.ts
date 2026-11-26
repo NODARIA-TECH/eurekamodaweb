@@ -10,6 +10,13 @@ const pack = (p: { id: string; name: string; sku?: string; image: string; images
   id: p.id, name: p.name, sku: p.sku, image: p.image, images: p.images || [], colors: p.colors || [], colorImages: p.colorImages || {}, price: p.price, category: p.category, hidden: !!p.hidden,
 });
 
+// Avisa a n8n para que dé de alta la prenda nueva en FacturaScripts (con su stock inicial)
+async function avisarN8n() {
+  const url = process.env.N8N_CATALOG_WEBHOOK;
+  if (!url) return;
+  try { await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"source":"web-catalog"}', signal: AbortSignal.timeout(3000) }); } catch { /* no pasa nada */ }
+}
+
 function refrescar() { revalidatePath('/admin/productos'); revalidatePath('/tienda'); revalidatePath('/'); }
 
 // Guarda en el producto las fotos que ya se subieron (una a una, según terminan)
@@ -33,5 +40,6 @@ export async function crearPrenda(datos: { name: string; price: string; category
   const category = cats.some((c) => c.slug === datos.category) ? datos.category : (cats[0]?.slug || 'tops');
   const p = await createProduct({ name, category, price: toCents(String(datos.price || '0')), stock: Math.max(0, parseInt(String(datos.stock || '1'), 10) || 0), image: '26998033' });
   refrescar();
+  await avisarN8n();
   return { ok: true, producto: pack(p) };
 }
