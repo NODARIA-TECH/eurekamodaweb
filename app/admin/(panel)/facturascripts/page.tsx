@@ -1,5 +1,5 @@
 import { listProducts } from '@/lib/store';
-import { fsConfigurado, faltanEnFs, estadoVolcado } from '@/lib/facturascripts';
+import { fsConfigurado, faltanEnFs, estadoVolcado, pausaFs } from '@/lib/facturascripts';
 import { pasarAFs } from './actions';
 
 export const dynamic = 'force-dynamic';
@@ -23,6 +23,12 @@ export default async function FacturaScriptsPage({ searchParams }: { searchParam
       {!conf && (
         <div className="adm-tag warn" style={{ display: 'block', padding: '10px 14px', lineHeight: 1.5 }}>
           La web aún no está conectada con FacturaScripts. Falta poner <b>FS_API_TOKEN</b> (la clave de la API de FacturaScripts, la misma que usa n8n) en el archivo <code>.env</code> del servidor y reiniciar la web.
+        </div>
+      )}
+      {pausaFs() && (
+        <div className="adm-tag warn" style={{ display: 'block', padding: '10px 14px', lineHeight: 1.5, marginBottom: 14 }}>
+          <b>La web ha dejado de llamar a FacturaScripts un rato</b> para no provocar (o alargar) el bloqueo: {pausaFs()!.motivo}.
+          En el servidor, <code>node scripts/revisar-fs.mjs</code> dice la causa sin llamar a FacturaScripts.
         </div>
       )}
       {searchParams.err === 'ya-corriendo' && <div className="adm-ok">Ya se están pasando; espera a que termine.</div>}

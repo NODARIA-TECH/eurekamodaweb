@@ -11,7 +11,25 @@ export type FsResultado = { ok: true; antes: number | null } | { ok: false; moti
 const base = () => (process.env.FS_API_URL || 'http://127.0.0.1/api/3').replace(/\/+$/, '');
 export const fsConfigurado = () => !!process.env.FS_API_TOKEN;
 
+// Ojo: FacturaScripts BLOQUEA 10 minutos a quien le haga 5 llamadas fallidas (clave mal o sin permiso)
+// y, como la web y n8n llaman desde el mismo servidor, el bloqueo también para a n8n. Por eso, al primer
+// rechazo (401, 403 o 429) la web deja de llamar a FacturaScripts durante 10 minutos.
+export class FsError extends Error { constructor(public status: number, msg: string) { super(msg); } }
+const gp = globalThis as any;
+const PAUSA_MS = 10 * 60 * 1000;
+export const pausaFs = (): { hasta: number; motivo: string } | null => (gp.__eurekaFsPausa && gp.__eurekaFsPausa.hasta > Date.now() ? gp.__eurekaFsPausa : null);
+
+function explicar(status: number, method: string, ruta: string) {
+  const recurso = ruta.replace(/^\//, '').split(/[/?]/)[0];
+  if (status === 401) return 'FacturaScripts no acepta la clave: revisa FS_API_TOKEN en el .env (sin comillas ni espacios) y que la clave esté activada en FacturaScripts';
+  if (status === 403) return `la clave de FacturaScripts no tiene permiso para «${recurso}» (${method === 'GET' ? 'leer' : method === 'POST' ? 'crear' : 'modificar'}): dale acceso completo en FacturaScripts → Admin → API`;
+  if (status === 429) return 'FacturaScripts tiene bloqueado el acceso un rato (demasiadas llamadas fallidas o demasiado seguidas). Se desbloquea solo en 10 minutos; para ver la causa: node scripts/revisar-fs.mjs';
+  return `FacturaScripts respondió ${status}`;
+}
+
 async function fs(method: string, ruta: string, body?: Record<string, string | number>) {
+  const p = pausaFs();
+  if (p) throw new FsError(0, `${p.motivo} (la web vuelve a intentarlo a las ${new Date(p.hasta).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' })})`);
   const r = await fetch(base() + ruta, {
     method,
     headers: { 'X-Auth-Token': process.env.FS_API_TOKEN || '', ...(body ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}) },
@@ -19,7 +37,11 @@ async function fs(method: string, ruta: string, body?: Record<string, string | n
     signal: AbortSignal.timeout(8000),
     cache: 'no-store',
   });
-  if (!r.ok) throw new Error(`FacturaScripts respondió ${r.status}`);
+  if (!r.ok) {
+    const msg = explicar(r.status, method, ruta);
+    if ([401, 403, 429].includes(r.status)) gp.__eurekaFsPausa = { hasta: Date.now() + PAUSA_MS, motivo: msg };
+    throw new FsError(r.status, msg);
+  }
   const j = await r.json().catch(() => null);
   return Array.isArray(j) ? j : j?.data ?? j;
 }
@@ -139,6 +161,7 @@ export function lanzarVolcadoFs(productos: Product[]): { ok: boolean; motivo?: s
       const faltan = await faltanEnFs(productos);
       est.total = faltan.length;
       for (const p of faltan) {
+        if (pausaFs()) { est.error = pausaFs()!.motivo; break; }   // no insistir: provocaría el bloqueo
         const r = await asegurarProductoFs(p, { actualizar: false });
         est.pasos.push({ ref: p.sku!, name: p.name, ok: r.ok, texto: r.ok ? (r.accion === 'creado' ? 'creado' : 'ya estaba') + (('aviso' in r && r.aviso) ? ` (${r.aviso})` : '') : `${r.motivo}${r.detalle ? ': ' + r.detalle : ''}` });
         est.hechos++;
