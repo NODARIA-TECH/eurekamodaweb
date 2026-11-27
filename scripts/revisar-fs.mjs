@@ -44,8 +44,8 @@ try {
 console.log('\n3) La clave en FacturaScripts');
 const RECURSOS = { productos: 'GET POST PUT', variantes: 'GET PUT', stocks: 'GET POST PUT', almacenes: 'GET' };
 if (token && cfg.FS_DB_NAME && cfg.FS_API_KEY !== token && (cfg.FS_DB_TYPE || 'mysql').startsWith('mysql')) {
-  const sql = `SELECT CONCAT('K\t',id,'\t',enabled,'\t',fullaccess,'\t',IFNULL(description,'')) FROM api_keys WHERE apikey='${token.replace(/'/g, "''")}';
-SELECT CONCAT('A\t',a.resource,'\t',a.allowget,'\t',a.allowpost,'\t',a.allowput) FROM api_access a JOIN api_keys k ON k.id=a.idapikey WHERE k.apikey='${token.replace(/'/g, "''")}';`;
+  const sql = `SELECT CONCAT('K\t',id,'\t',IFNULL(enabled,0),'\t',IFNULL(fullaccess,0),'\t',IFNULL(description,'')) FROM api_keys WHERE apikey='${token.replace(/'/g, "''")}';
+SELECT CONCAT('A\t',a.resource,'\t',IFNULL(a.allowget,0),'\t',IFNULL(a.allowpost,0),'\t',IFNULL(a.allowput,0)) FROM api_access a JOIN api_keys k ON k.id=a.idapikey WHERE k.apikey='${token.replace(/'/g, "''")}';`;
   const args = ['-N', '-B', '-h', cfg.FS_DB_HOST || 'localhost', '-P', String(cfg.FS_DB_PORT || 3306), '-u', cfg.FS_DB_USER || 'root', cfg.FS_DB_NAME];
   const r = spawnSync('mysql', args, { input: sql, encoding: 'utf8', env: { ...process.env, MYSQL_PWD: cfg.FS_DB_PASS || '' } });
   const errSql = String(r.stderr || '').split('\n').find((l) => /^ERROR/.test(l));
