@@ -3,7 +3,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import JsBarcode from 'jsbarcode';
 import { jsPDF } from 'jspdf';
 
-type V = { size?: string; color?: string; stock: number };
+type V = { size?: string; color?: string; stock: number; sku?: string };
 type Item = { id: string; sku: string; name: string; price: number; category: string; variants?: V[]; sizes?: string[]; colors?: string[] };
 type Cat = { slug: string; name: string };
 
@@ -41,9 +41,9 @@ const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 type Label = { sku: string; text: string; price: number; vari?: string };
 
 // Tallas × colores de una prenda: de sus variantes (con su stock) o, si no tiene, de sus listas de tallas y colores.
-type Combo = { k: string; size?: string; color?: string; stock?: number };
+type Combo = { k: string; size?: string; color?: string; stock?: number; sku?: string };
 function combosDe(p: Item): Combo[] {
-  if (p.variants?.length) return p.variants.map((v) => ({ k: `${v.size || ''}|${v.color || ''}`, size: v.size, color: v.color, stock: v.stock }));
+  if (p.variants?.length) return p.variants.map((v) => ({ k: `${v.size || ''}|${v.color || ''}`, size: v.size, color: v.color, stock: v.stock, sku: v.sku }));
   const ss = p.sizes?.length ? p.sizes : [undefined], cs = p.colors?.length ? p.colors : [undefined];
   if (!p.sizes?.length && !p.colors?.length) return [];
   return ss.flatMap((size) => cs.map((color) => ({ k: `${size || ''}|${color || ''}`, size, color })));
@@ -240,7 +240,8 @@ export default function LabelMaker({ products, categories }: { products: Item[];
       if (cs.length) {
         for (const v of cs) {
           const n = copiasVar(p, v), vari = textoVariante(v);
-          for (let i = 0; i < n; i++) out.push({ sku: p.sku, text: base, price: p.price, vari });
+          // Cada talla/color lleva el código de SU variante (PEK-0970-01 → PEK097001): así el TPV sabe qué talla se vende
+          for (let i = 0; i < n; i++) out.push({ sku: v.sku || p.sku, text: base, price: p.price, vari });
         }
       } else for (let i = 0; i < c; i++) out.push({ sku: p.sku, text: base, price: p.price });
     }

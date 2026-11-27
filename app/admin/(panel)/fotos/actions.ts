@@ -1,5 +1,5 @@
 'use server';
-import { asegurarProductoFs } from '@/lib/facturascripts';
+import { asegurarProductoFs, asegurarVariantesFs } from '@/lib/facturascripts';
 import { revalidatePath } from 'next/cache';
 import { requireAdmin } from '@/lib/admin-auth';
 import { addProductPhotos, createProduct, listCategories } from '@/lib/store';
@@ -42,6 +42,6 @@ export async function crearPrenda(datos: { name: string; price: string; category
   const p = await createProduct({ name, category, price: toCents(String(datos.price || '0')), stock: Math.max(0, parseInt(String(datos.stock || '1'), 10) || 0), image: '26998033' });
   refrescar();
   await avisarN8n();
-  await asegurarProductoFs(p);   // que exista en FacturaScripts para venderla en el TPV
+  if ((await asegurarProductoFs(p)).ok) await asegurarVariantesFs(p);   // que exista en FacturaScripts (con sus tallas) para venderla en el TPV
   return { ok: true, producto: pack(p) };
 }

@@ -2,7 +2,8 @@
 // vuelve de Stripe) y el webhook (aunque cierre el navegador antes de volver). Es idempotente:
 // el stock se descuenta y los emails salen una sola vez.
 import type Stripe from 'stripe';
-import { getOrderByStripeSession, getOrder, markOrderPaid, updateOrderStatus } from './store';
+import { getOrderByStripeSession, getOrder, markOrderPaid, updateOrderStatus, getProduct, markOrderSynced } from './store';
+import { fsConfigurado, restarStockFs } from './facturascripts';
 import { sendOrderPaidEmails } from './order-emails';
 import type { Order, ShippingAddress } from './types';
 
@@ -29,6 +30,7 @@ export async function finalizeStripeSession(s: Stripe.Checkout.Session, base: st
     discount: s.total_details?.amount_discount || undefined,
   });
   if (r.ok && r.order) await sendOrderPaidEmails(base, r.order);   // no repite: mira o.emails
+  if (r.ok && r.order && !r.order.syncedAt && !r.alreadyPaid) await volcarAFs(r.order).catch(() => {});
   return { order: r.order || order, paid: !!r.ok };
 }
 
@@ -36,4 +38,19 @@ export async function finalizeStripeSession(s: Stripe.Checkout.Session, base: st
 export async function expireStripeSession(s: Stripe.Checkout.Session): Promise<void> {
   const order = (await getOrderByStripeSession(s.id)) || (s.metadata?.orderId ? await getOrder(s.metadata.orderId) : undefined);
   if (order && order.status === 'pendiente') await updateOrderStatus(order.id, 'cancelado');
+}
+
+// Lo vendido online se descuenta también en FacturaScripts (la talla/color exacta si la lleva), para que
+// la tienda física no venda lo que ya se ha vendido por la web. Si algo falla, el pedido queda pendiente
+// de volcar (como antes, para el flujo 4 de n8n).
+async function volcarAFs(o: Order) {
+  if (!fsConfigurado()) return;
+  const lineas: { ref: string; qty: number }[] = [];
+  for (const it of o.items) {
+    const ref = it.variantSku || (await getProduct(it.productId))?.sku;
+    if (ref && it.qty > 0) lineas.push({ ref, qty: it.qty });
+  }
+  if (!lineas.length) return;
+  const r = await restarStockFs(lineas);
+  if (r.ok) await markOrderSynced(o.id);
 }

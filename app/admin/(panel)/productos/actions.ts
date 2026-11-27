@@ -8,7 +8,7 @@ import {
   setProductHidden,
 } from '@/lib/store';
 import { requireAdmin } from '@/lib/admin-auth';
-import { ponerStockFs, asegurarProductoFs, lanzarVolcadoFs } from '@/lib/facturascripts';
+import { ponerStockFs, asegurarProductoFs, asegurarVariantesFs, lanzarVolcadoFs } from '@/lib/facturascripts';
 import { saveUploadBuffer, saveUploadBufferOnce, sniffImage, saveUploadFile, uploadedExists } from '@/lib/uploads';
 import { readStaged, dropStaged } from '@/lib/chunked';
 import { unzipSync } from 'fflate';
@@ -157,10 +157,21 @@ export async function saveProduct(fd: FormData) {
   const nuevo = await getProduct(id);
   const fsp = nuevo ? await asegurarProductoFs(nuevo) : null;
   if (fsp) fsq += fsp.ok ? (fsp.accion === 'creado' ? '&fsp=creado' : '') : fsp.motivo === 'error' ? '&fsp=error&fsd=' + encodeURIComponent((fsp.detalle || '').slice(0, 120)) : '';
-  if (stock !== p!.stock && p!.sku && !(fsp?.ok && fsp.accion === 'creado')) {
-    const r = await ponerStockFs(p!.sku, stock);
-    fsq += r.ok ? '&fs=ok' : `&fs=${r.motivo}` + (r.ok === false && r.detalle && !fsq.includes('fsd=') ? '&fsd=' + encodeURIComponent(r.detalle.slice(0, 120)) : '');
+  const recienCreado = !!(fsp?.ok && fsp.accion === 'creado');
+  // Tallas/colores: cada una es una variante en FacturaScripts con su stock (las nuevas se crean con el de la web)
+  const fsv = nuevo?.variants?.some((v) => v.sku) && fsp?.ok ? await asegurarVariantesFs(nuevo) : null;
+  if (fsv && !fsv.ok && !fsq.includes('fsd=')) fsq += '&fsp=error&fsd=' + encodeURIComponent(('Tallas: ' + (fsv.motivo === 'error' ? fsv.detalle || '' : fsv.motivo)).slice(0, 120));
+  const cambios: { ref: string; qty: number }[] = [];
+  if (nuevo?.variants?.some((v) => v.sku)) {
+    const antes = new Map((p!.variants || []).filter((v) => v.sku).map((v) => [v.sku!, v.stock]));
+    for (const v of nuevo.variants) if (v.sku && antes.has(v.sku) && antes.get(v.sku) !== v.stock) cambios.push({ ref: v.sku, qty: v.stock });
+  } else if (stock !== p!.stock && p!.sku && !recienCreado) cambios.push({ ref: p!.sku, qty: stock });
+  let fsMal: string | null = null;
+  for (const c of cambios) {
+    const r = await ponerStockFs(c.ref, c.qty);
+    if (!r.ok) { fsMal = `&fs=${r.motivo}` + (r.detalle && !fsq.includes('fsd=') ? '&fsd=' + encodeURIComponent(r.detalle.slice(0, 120)) : ''); break; }
   }
+  if (cambios.length) fsq += fsMal ?? '&fs=ok';
   redirect(`/admin/productos/${id}?ok=1${fsq}` + (fotoErr.length ? '&ferr=' + encodeURIComponent(fotoErr.slice(0, 4).join(' · ')) : ''));
 }
 

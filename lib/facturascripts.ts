@@ -75,9 +75,14 @@ export async function ponerStockFs(referencia: string, cantidad: number): Promis
       await fs('PUT', `/stocks/${fila.idstock}`, { cantidad: qty });
       return { ok: true, antes: Number(fila.cantidad) || 0 };
     }
-    // Sin fila de stock todavía: se crea en el primer almacén
-    const prods = await fs('GET', `/productos?filter[referencia]=${ref}&limit=1`);
-    const prod = Array.isArray(prods) ? prods[0] : null;
+    // Sin fila de stock todavía: se crea. La referencia puede ser de una talla/color (PEK-0970-01),
+    // que no es un producto sino una variante: el producto se saca de la variante.
+    const vari = sinPermiso('variantes') ? null : await fs('GET', `/variantes?filter[referencia]=${ref}&limit=1`).catch(() => null);
+    let prod = Array.isArray(vari) ? vari[0] : null;
+    if (!prod?.idproducto) {
+      const prods = await fs('GET', `/productos?filter[referencia]=${ref}&limit=1`);
+      prod = Array.isArray(prods) ? prods[0] : null;
+    }
     if (!prod?.idproducto) return { ok: false, motivo: 'sin-producto' };
     const codalmacen = await almacen();
     if (!codalmacen) return { ok: false, motivo: 'error', detalle: 'FacturaScripts no tiene almacén' };
@@ -164,9 +169,20 @@ export type EstadoVolcado = { corriendo: boolean; empezado?: string; terminado?:
 const g = globalThis as any;
 export const estadoVolcado = (): EstadoVolcado => g.__eurekaVolcadoFs || { corriendo: false, total: 0, hechos: 0, pasos: [] };
 
-export async function faltanEnFs(productos: Product[]) {
+// Lo que falta en FacturaScripts: prendas enteras, o tallas/colores de prendas que ya están.
+export type Pendiente = { p: Product; producto: boolean; tallas: number };
+export async function faltanEnFs(productos: Product[]): Promise<Pendiente[]> {
   const refs = await referenciasFs();
-  return productos.filter((p) => p.sku && !refs.has(p.sku.trim().toLowerCase()));
+  const conTallas = productos.some((p) => p.variants?.some((v) => v.sku));
+  const vrefs = conTallas && !sinPermiso('variantes') ? await referenciasVariantesFs() : new Set<string>();
+  const out: Pendiente[] = [];
+  for (const p of productos) {
+    if (!p.sku) continue;
+    const producto = !refs.has(p.sku.trim().toLowerCase());
+    const tallas = (p.variants || []).filter((v) => v.sku && !vrefs.has(v.sku.trim().toLowerCase())).length;
+    if (producto || tallas) out.push({ p, producto, tallas });
+  }
+  return out;
 }
 
 export function lanzarVolcadoFs(productos: Product[]): { ok: boolean; motivo?: string } {
@@ -178,12 +194,23 @@ export function lanzarVolcadoFs(productos: Product[]): { ok: boolean; motivo?: s
     try {
       const faltan = await faltanEnFs(productos);
       est.total = faltan.length;
-      for (const p of faltan) {
+      for (const { p, producto, tallas } of faltan) {
         if (pausaFs()) { est.error = pausaFs()!.motivo; break; }   // no insistir: provocaría el bloqueo
-        const r = await asegurarProductoFs(p, { actualizar: false });
-        est.pasos.push({ ref: p.sku!, name: p.name, ok: r.ok, texto: r.ok ? (r.accion === 'creado' ? 'creado' : 'ya estaba') + (('aviso' in r && r.aviso) ? ` (${r.aviso})` : '') : `${r.motivo}${r.detalle ? ': ' + r.detalle : ''}` });
+        const textos: string[] = [];
+        let ok = true;
+        if (producto) {
+          const r = await asegurarProductoFs(p, { actualizar: false });
+          ok = r.ok;
+          textos.push(r.ok ? (r.accion === 'creado' ? 'prenda creada' : 'ya estaba') + (('aviso' in r && r.aviso) ? ` (${r.aviso})` : '') : `${r.motivo}${r.detalle ? ': ' + r.detalle : ''}`);
+        }
+        if (ok && (tallas || producto) && p.variants?.some((v) => v.sku)) {
+          const r = await asegurarVariantesFs(p);
+          ok = r.ok;
+          textos.push(r.ok ? `${r.creadas} tallas/colores creados` : `tallas: ${r.motivo}${r.detalle ? ': ' + r.detalle : ''}`);
+        }
+        est.pasos.push({ ref: p.sku!, name: p.name, ok, texto: textos.join(' · ') });
         est.hechos++;
-        await sleep(1300); // FacturaScripts corta (429) si se le llama muy seguido
+        await sleep(300);
       }
     } catch (e: any) {
       est.error = e?.message || String(e);
@@ -193,4 +220,123 @@ export function lanzarVolcadoFs(productos: Product[]): { ok: boolean; motivo?: s
     }
   })();
   return { ok: true };
+}
+
+
+/* ---------------- Tallas y colores en FacturaScripts ----------------
+   Cada talla/color de la web (PEK-0970-01…) es una VARIANTE del producto en FacturaScripts, con sus
+   atributos Talla y Color, su código de barras (PEK097001, el de la etiqueta) y su propio stock.
+   Así, al pasar la etiqueta por la pistola del TPV, se vende y se descuenta esa talla y ese color. */
+
+async function todas(ruta: string): Promise<any[]> {
+  const out: any[] = [];
+  const sep = ruta.includes('?') ? '&' : '?';
+  for (let offset = 0; offset < 50000; offset += 500) {
+    const filas = await fs('GET', `${ruta}${sep}limit=500&offset=${offset}`);
+    const lista = Array.isArray(filas) ? filas : [];
+    out.push(...lista);
+    if (lista.length < 500) break;
+    await sleep(200);
+  }
+  return out;
+}
+
+const ATRIBUTOS = { TALLA: 'Talla', COLOR: 'Color' } as const;
+type CodAtributo = keyof typeof ATRIBUTOS;
+
+async function valoresAtributo(cod: CodAtributo): Promise<Map<string, number>> {
+  const cache = (gp.__eurekaFsAtrib ||= {}) as Record<string, Map<string, number>>;
+  if (cache[cod]) return cache[cod];
+  const a = await primeraFila(`/atributos?filter[codatributo]=${cod}&limit=1`);
+  if (!a?.codatributo) await fs('POST', '/atributos', { codatributo: cod, nombre: ATRIBUTOS[cod] });
+  const m = new Map<string, number>();
+  for (const v of await todas(`/atributovalores?filter[codatributo]=${cod}`)) if (v?.valor != null && v?.id) m.set(String(v.valor).trim().toLowerCase(), Number(v.id));
+  cache[cod] = m;
+  return m;
+}
+
+async function idValor(cod: CodAtributo, valor: string): Promise<number | undefined> {
+  const val = valor.trim();
+  if (!val) return undefined;
+  const m = await valoresAtributo(cod);
+  const k = val.toLowerCase();
+  if (m.has(k)) return m.get(k);
+  const r = await fs('POST', '/atributovalores', { codatributo: cod, valor: val.slice(0, 100), orden: m.size + 1 });
+  let id = Number(r?.id);
+  if (!id) id = Number((await primeraFila(`/atributovalores?filter[codatributo]=${cod}&filter[valor]=${encodeURIComponent(val)}&limit=1`))?.id);
+  if (id) m.set(k, id);
+  return id || undefined;
+}
+
+export type FsVariantesResultado = { ok: true; creadas: number; actualizadas: number } | { ok: false; motivo: 'sin-config' | 'sin-producto' | 'error'; detalle?: string };
+
+// Crea (o pone al día) en FacturaScripts las tallas/colores de una prenda. El stock solo se pone al CREAR
+// la variante (con el de la web); después cada lado mueve el suyo y se sincronizan.
+export async function asegurarVariantesFs(p: Product): Promise<FsVariantesResultado> {
+  if (!fsConfigurado()) return { ok: false, motivo: 'sin-config' };
+  const vs = (p.variants || []).filter((v) => v.sku);
+  if (!p.sku || !vs.length) return { ok: true, creadas: 0, actualizadas: 0 };
+  try {
+    const prod = await primeraFila(`/productos?filter[referencia]=${encodeURIComponent(p.sku.trim())}&limit=1`);
+    if (!prod?.idproducto) return { ok: false, motivo: 'sin-producto' };
+    const precio = precioSinIva(p.price);
+    let creadas = 0, actualizadas = 0;
+    for (const v of vs) {
+      const ref = v.sku!.trim();
+      const id1 = v.size ? await idValor('TALLA', v.size) : undefined;
+      const id2 = v.color ? await idValor('COLOR', v.color) : undefined;
+      const datos: Record<string, string | number> = { idproducto: prod.idproducto, referencia: ref, codbarras: codigoBarras(ref), precio };
+      if (id1) datos.idatributovalor1 = id1;
+      if (id2) datos.idatributovalor2 = id2;
+      const ya = await primeraFila(`/variantes?filter[referencia]=${encodeURIComponent(ref)}&limit=1`);
+      if (!ya?.idvariante) {
+        await fs('POST', '/variantes', datos);
+        creadas++;
+        await sleep(200);
+        await ponerStockFs(ref, Math.max(0, v.stock || 0));
+      } else {
+        const cambia = String(ya.codbarras || '') !== datos.codbarras || Math.abs(Number(ya.precio) - precio) > 0.004
+          || (id1 && Number(ya.idatributovalor1) !== id1) || (id2 && Number(ya.idatributovalor2) !== id2) || Number(ya.idproducto) !== Number(prod.idproducto);
+        if (cambia) { await fs('PUT', `/variantes/${ya.idvariante}`, datos); actualizadas++; }
+      }
+      await sleep(150);
+    }
+    // La primera vez, el stock que tuviera la prenda «sin talla» pasa a las tallas: la de sin talla queda a 0.
+    if (creadas) await ponerStockFs(p.sku.trim(), 0);
+    return { ok: true, creadas, actualizadas };
+  } catch (e: any) {
+    return { ok: false, motivo: 'error', detalle: e?.message || String(e) };
+  }
+}
+
+// Stock de cada referencia en FacturaScripts (sumando almacenes)
+export async function stockPorReferenciaFs(): Promise<Map<string, number>> {
+  const m = new Map<string, number>();
+  for (const f of await todas('/stocks')) {
+    if (!f?.referencia) continue;
+    const k = String(f.referencia).trim().toLowerCase();
+    m.set(k, (m.get(k) || 0) + (Number(f.cantidad) || 0));
+  }
+  return m;
+}
+
+export async function referenciasVariantesFs(): Promise<Set<string>> {
+  return new Set((await todas('/variantes')).filter((v) => v?.referencia).map((v) => String(v.referencia).trim().toLowerCase()));
+}
+
+// Venta online pagada: se descuenta en FacturaScripts lo vendido (la talla/color si la tiene).
+export async function restarStockFs(lineas: { ref: string; qty: number }[]): Promise<{ ok: boolean; fallos: string[] }> {
+  if (!fsConfigurado()) return { ok: false, fallos: ['sin-config'] };
+  const fallos: string[] = [];
+  for (const l of lineas) {
+    try {
+      const fila = await primeraFila(`/stocks?filter[referencia]=${encodeURIComponent(l.ref)}&limit=1`);
+      if (fila?.idstock) await fs('PUT', `/stocks/${fila.idstock}`, { cantidad: (Number(fila.cantidad) || 0) - l.qty });
+      else fallos.push(`${l.ref}: sin stock en FacturaScripts`);
+    } catch (e: any) {
+      fallos.push(`${l.ref}: ${e?.message || e}`);
+    }
+    await sleep(150);
+  }
+  return { ok: fallos.length === 0, fallos };
 }

@@ -8,7 +8,7 @@ export default async function EtiquetasAdmin() {
   const items = products
     .filter((p) => p.sku)
     .map((p) => ({ id: p.id, sku: p.sku as string, name: p.name, price: p.price, category: p.category,
-      variants: p.variants?.map((v) => ({ size: v.size, color: v.color, stock: v.stock })), sizes: p.sizes, colors: p.colors }));
+      variants: p.variants?.map((v) => ({ size: v.size, color: v.color, stock: v.stock, sku: v.sku })), sizes: p.sizes, colors: p.colors }));
   const cats = categories.map((c) => ({ slug: c.slug, name: c.name }));
 
   return (

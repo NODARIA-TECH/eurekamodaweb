@@ -1,5 +1,5 @@
 import { listProducts } from '@/lib/store';
-import { fsConfigurado, faltanEnFs, estadoVolcado, pausaFs } from '@/lib/facturascripts';
+import { fsConfigurado, faltanEnFs, estadoVolcado, pausaFs, type Pendiente } from '@/lib/facturascripts';
 import { pasarAFs } from './actions';
 
 export const dynamic = 'force-dynamic';
@@ -10,11 +10,13 @@ const hora = (iso?: string) => (iso ? new Date(iso).toLocaleString('es-ES', { da
 export default async function FacturaScriptsPage({ searchParams }: { searchParams: { lanzado?: string; err?: string } }) {
   const est = estadoVolcado();
   const conf = fsConfigurado();
-  let faltan: { id: string; sku?: string; name: string; hidden?: boolean }[] = [];
+  let faltan: Pendiente[] = [];
   let errLista = '';
-  if (conf && !est.corriendo) {
+  if (conf && !est.corriendo && !pausaFs()) {
     try { faltan = await faltanEnFs(await listProducts()); } catch (e: any) { errLista = e?.message || String(e); }
   }
+  const nProd = faltan.filter((x) => x.producto).length;
+  const nTallas = faltan.reduce((a, x) => a + x.tallas, 0);
   return (
     <>
       {est.corriendo && <meta httpEquiv="refresh" content="4" />}
@@ -50,17 +52,20 @@ export default async function FacturaScriptsPage({ searchParams }: { searchParam
           {errLista ? (
             <p className="adm-err">No se ha podido leer FacturaScripts: {errLista}</p>
           ) : faltan.length === 0 ? (
-            <p>✓ Todas las prendas de la web están en FacturaScripts.</p>
+            <p>✓ Todas las prendas de la web, con sus tallas y colores, están en FacturaScripts.</p>
           ) : (
             <>
-              <p><b>{faltan.length}</b> {faltan.length === 1 ? 'prenda de la web no está' : 'prendas de la web no están'} en FacturaScripts:</p>
+              <p>
+                {nProd > 0 && <><b>{nProd}</b> {nProd === 1 ? 'prenda no está' : 'prendas no están'} en FacturaScripts. </>}
+                {nTallas > 0 && <><b>{nTallas}</b> {nTallas === 1 ? 'talla/color no está creada' : 'tallas/colores no están creadas'} (sin ellas, la pistola no sabe qué talla se vende).</>}
+              </p>
               <ul style={{ columns: 2, fontSize: '.88rem', margin: '8px 0 14px' }}>
-                {faltan.map((p) => <li key={p.id}><a href={`/admin/productos/${p.id}`}>{p.name}</a> <span className="adm-sku">{p.sku}</span>{p.hidden ? ' (oculta)' : ''}</li>)}
+                {faltan.map(({ p, producto, tallas }) => <li key={p.id}><a href={`/admin/productos/${p.id}`}>{p.name}</a> <span className="adm-sku">{p.sku}</span>{producto ? '' : ` · faltan ${tallas} tallas/colores`}{p.hidden ? ' (oculta)' : ''}</li>)}
               </ul>
               <form action={pasarAFs}>
-                <button className="btn-sm gold" type="submit">Pasar {faltan.length === 1 ? 'esta prenda' : `estas ${faltan.length} prendas`} a FacturaScripts</button>
+                <button className="btn-sm gold" type="submit">Pasar todo esto a FacturaScripts</button>
               </form>
-              <p className="adm-help">Se crean con su nombre, precio, IVA 21 %, el stock que tienen en la web y el código de barras de la etiqueta. Tarda un par de segundos por prenda.</p>
+              <p className="adm-help">Se crean con su nombre, precio, IVA 21 %, el stock que tienen en la web y el código de barras de la etiqueta. Cada talla/color se crea como variante con su propio código y su stock (el de «sin talla» se queda a 0). Las etiquetas impresas antes de esto llevan el código de la prenda, sin talla: conviene reimprimirlas.</p>
             </>
           )}
         </section>
