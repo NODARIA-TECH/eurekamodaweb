@@ -1,0 +1,12 @@
+User-Agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/
+Disallow: /cesta
+Disallow: /cuenta
+Disallow: /seguimiento
+Disallow: /boletin/baja
+Disallow: /herramientas/
+
+Host: https://eurekamoda.com
+Sitemap: https://eurekamoda.com/sitemap.xml
