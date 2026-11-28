@@ -1098,3 +1098,28 @@ a.cg{display:block}
 .etq-vgrid small{color:var(--muted,#8a8278)}
 .etq-vgrid input{width:52px}
 .etq-vbtns{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+
+/* franja del Club EUREKA (arriba) y su ventana */
+.clubbar{background:var(--ink);color:#fff}
+.clubbar .wrap{display:flex;align-items:center;justify-content:center;gap:8px;position:relative}
+.clubbar-go{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:6px 12px;background:none;border:none;color:#fff;cursor:pointer;padding:9px 30px;font-family:"Jost",sans-serif;font-size:.8rem;letter-spacing:.04em;text-align:center}
+.clubbar-go svg{width:18px;height:18px;fill:none;stroke:#F3E6C4;stroke-width:1.6;flex:none}
+.clubbar-go .pct{color:#F3E6C4}
+.clubbar-btn{background:var(--gold);color:#fff;border-radius:999px;padding:4px 14px;font-weight:600;font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;transition:background .2s}
+.clubbar-go:hover .clubbar-btn{background:var(--gold-deep)}
+.clubbar-x{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:#fff;opacity:.7;font-size:1.2rem;line-height:1;cursor:pointer;padding:6px}
+.clubbar-x:hover{opacity:1}
+.club-modal{position:fixed;inset:0;z-index:90;background:rgba(42,32,24,.55);display:grid;place-items:center;padding:16px}
+.club-card{position:relative;width:min(520px,100%);max-height:calc(100vh - 32px);overflow:auto;border-radius:18px;box-shadow:0 24px 60px rgba(0,0,0,.25)}
+.club-card .news{margin:0;border-radius:18px}
+.club-card .news .wrap{padding:38px 24px 26px}
+.club-card .nlf{flex-wrap:wrap}
+.club-close{position:absolute;top:8px;right:12px;z-index:2;background:none;border:none;font-size:1.6rem;line-height:1;color:var(--ink);cursor:pointer;padding:4px 8px}
+@media (max-width:560px){.clubbar-go{font-size:.74rem;padding:8px 28px}}
+.clubbar .cb-corta{display:none}
+@media (max-width:560px){
+  .clubbar-go{flex-wrap:nowrap;gap:10px;padding:7px 34px 7px 12px;font-size:.78rem}
+  .clubbar-go svg{display:none}
+  .clubbar .cb-larga{display:none}.clubbar .cb-corta{display:inline;white-space:nowrap}
+  .clubbar-btn{padding:4px 12px;font-size:.68rem;white-space:nowrap}
+}

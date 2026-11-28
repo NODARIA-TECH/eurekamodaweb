@@ -8,4 +8,4 @@ export const TITULAR = {
   email: 'eurekamodaecija@gmail.com',
   web: 'https://eurekamoda.com',
 };
-export const DIAS_DEVOLUCION = 7;
+export const DIAS_DEVOLUCION = 14;

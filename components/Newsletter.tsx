@@ -7,7 +7,7 @@ const DEF: Texts = { script: 'únete al', title: 'Club EUREKA · 20 % de bienven
 type Note = { kind: 'info' | 'ok' | 'err'; msg: React.ReactNode };
 
 // Alta en el boletín: se guarda en el servidor y se envía por email el código de bienvenida.
-export default function Newsletter({ c = DEF }: { c?: Texts }) {
+export default function Newsletter({ c = DEF, modal = false, onDone }: { c?: Texts; modal?: boolean; onDone?: () => void }) {
   const [email, setEmail] = useState('');
   const [trap, setTrap] = useState('');
   const [busy, setBusy] = useState(false);
@@ -32,16 +32,18 @@ export default function Newsletter({ c = DEF }: { c?: Texts }) {
           : <>¡Bienvenida! Tu código: {code} · 20 % en tu primera compra. Aplícalo al pagar.</>,
       });
       setEmail('');
+      try { localStorage.setItem('eureka_club', '1'); } catch {}
+      onDone?.();
     } catch {
       setNote({ kind: 'err', msg: 'Sin conexión. Inténtalo de nuevo.' });
     } finally { setBusy(false); }
   }
 
   return (
-    <section className="news" id="nl">
+    <section className={'news' + (modal ? ' news-modal' : '')} id={modal ? undefined : 'nl'}>
       <div className="wrap">
         {c.script && <span className="script">{c.script}</span>}
-        <h2>{c.title}</h2>
+        {modal ? <h2 id="club-t">{c.title}</h2> : <h2>{c.title}</h2>}
         {c.text && <p>{c.text}</p>}
         <form onSubmit={submit} noValidate>
           <div className="nlf">
